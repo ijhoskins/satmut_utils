@@ -1,0 +1,23 @@
+name: satmut_utils
+channels:
+- conda-forge
+- bioconda
+- defaults
+dependencies:
+- python=3.6.6
+- fastqc
+- cutadapt
+- bowtie2
+- samtools
+- pysam
+- bedtools
+- pybedtools
+- bcftools
+- umi_tools
+- aenum
+- biopython
+- numpy
+- nose2
+- pip
+- pip:
+    - statistics
