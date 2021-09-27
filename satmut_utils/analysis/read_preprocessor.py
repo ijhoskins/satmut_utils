@@ -2,7 +2,6 @@
 """Objects for read pre-processing."""
 
 import collections
-import datetime
 import logging
 import numpy as np
 import os
@@ -15,6 +14,7 @@ import tempfile
 import analysis.seq_utils as su
 import core_utils.feature_file_utils as ffu
 import core_utils.file_utils as fu
+import core_utils.vcf_utils as vu
 from scripts.run_bowtie2_aligner import workflow as baw
 
 
@@ -26,7 +26,8 @@ __maintainer__ = "Ian Hoskins"
 __email__ = "ianjameshoskins@utexas.edu"
 __status__ = "Development"
 
-tempfile.tempdir = os.getenv("SCRATCH", "/tmp")
+DEFAULT_TEMPDIR = os.getenv("SCRATCH", "/tmp")
+tempfile.tempdir = DEFAULT_TEMPDIR
 _logger = logging.getLogger(__name__)
 
 MATE_STRAND_POS_TUPLE = collections.namedtuple("MATE_STRAND_POS_TUPLE", "mate, strand, pos, ref")
@@ -36,13 +37,11 @@ N_INDEX_TUPLE = collections.namedtuple("N_INDEX_TUPLE", "start, len")
 
 DEDUP_FLAG = False
 CDEDUP_FLAG = False
-
-# UMI_DELIM is used as the delimiter for the primer append; UMI_SEP is used by umitools to add the canonical UMI
 UMITOOLS_UG_TAG = "UG"  # unique group ID
+
+# UMI_DELIM is used as the delimiter for primer appending; UMI_SEP is used by umitools to add the canonical UMI
 UMI_SEP = "_"
 UMI_DELIM = "."
-
-DEFAULT_TEMPDIR = os.getenv("/tmp")
 
 
 class FastqPreprocessor(object):
@@ -424,10 +423,11 @@ class ReadDeduplicator(object):
 class ConsensusDeduplicatorPreprocessor(object):
     """Class for preprocessing reads prior to the ConsensusDeduplicator."""
 
+    DEFAULT_OUTDIR = "."
     DEFAULT_NTHREADS = 0
     PREPROC_BAM_SUFFIX = "preprocess.bam"
 
-    def __init__(self, group_bam, group_tag=UMITOOLS_UG_TAG, outdir=".", nthreads=DEFAULT_NTHREADS):
+    def __init__(self, group_bam, group_tag=UMITOOLS_UG_TAG, outdir=DEFAULT_OUTDIR, nthreads=DEFAULT_NTHREADS):
         """Constructor for ConsensusDeduplicatorPreprocessor.
 
         :param str group_bam: grouped input BAM
@@ -528,14 +528,15 @@ class ConsensusDeduplicatorPreprocessor(object):
 class ConsensusDeduplicator(object):
 
     DEFAULT_NTHREADS = 0
+    DEFAULT_OUTDIR = "."
     UMI_NM_ALLOW = 1
     DEDUP_BAM_SUFFIX = ReadDeduplicator.DEDUP_BAM_SUFFIX
     DEFAULT_MAPQ = 40
     N_DUPLICATES_TAG = "ND"
     CONTIG_DEL_THRESH = 10  # candidate dels must be less than or equal to this value
 
-    def __init__(self, in_bam, ref, group_tag=UMITOOLS_UG_TAG, outdir=".", out_bam=None, nthreads=DEFAULT_NTHREADS,
-                 contig_del_thresh=CONTIG_DEL_THRESH):
+    def __init__(self, in_bam, ref, group_tag=UMITOOLS_UG_TAG, outdir=DEFAULT_OUTDIR, out_bam=None,
+                 nthreads=DEFAULT_NTHREADS, contig_del_thresh=CONTIG_DEL_THRESH):
         """Constructor for ConsensusDeduplicator.
 
         :param str in_bam: input alignments with UMI network/group ID in alignment tag
@@ -629,8 +630,6 @@ class ConsensusDeduplicator(object):
         :param str alt_base: alternate base, usually in lowercase
         :param int bq: base quality
         :return if no base matches the reference
-
-        Note: in the future use the reference base and the substitution type (e.g. A:G) to help inform the error
         """
 
         array_idx = self._index_from_base(alt_base)
@@ -643,7 +642,7 @@ class ConsensusDeduplicator(object):
 
         :param pysam.AlignedSegment align_seg: read object
         :param collections.namedtuple mate_strand: mate and strand of the read
-        :param collections.OrderedDict consensus_dict
+        :param collections.OrderedDict: consensus_dict
         """
 
         # 0-based positions
@@ -722,20 +721,20 @@ class ConsensusDeduplicator(object):
 
         return consensus_seq_update, consensus_quals_update
 
-    def _update_consensus_dict(self, align_seg, consensus_dict, pos_dict):
+    def _update_consensus_dict(self, align_seg, consensus_dict, pos_set):
         """Updates the consensus and position dictionaries.
 
         :param pysam.AlignedSegment align_seg: read object
         :param collections.OrderedDict consensus_dict: ordered dict keeping aligned bases for each read-strand-position
-        :param collections.defaultdict pos_dict: dict keeping read start positions
+        :param set pos_set: read start positions for duplicates
         """
 
         mate_strand = MATE_STRAND_POS_TUPLE(
             mate=su.ReadMate(align_seg.is_read1), strand=su.Strand(align_seg.is_reverse),
             pos=None, ref=align_seg.reference_name)
 
-        # Keep track of the min aligned position of the duplicates
-        pos_dict[mate_strand].append(align_seg.reference_start)
+        # Keep track of the aligned start positions of the duplicates
+        pos_set.add(align_seg.reference_start)
 
         # This is needed to deal with deletions in the first duplicate read,
         # whereas other duplicates may be full length. We need continuity in the dict keys.
@@ -747,7 +746,7 @@ class ConsensusDeduplicator(object):
         for query_pos, ref_pos, ref_base in read_ap[align_seg.query_alignment_start:align_seg.query_alignment_end]:
 
             # If we do not have an InDel to the reference, update the aligned base at each column
-            # Deal with deletions later; this enables consensus generation for deletions
+            # Consensus generation of deletions is handled after all duplicates aligned positions are queried
             if ref_pos is not None and query_pos is not None:
 
                 mate_strand_pos = MATE_STRAND_POS_TUPLE(
@@ -812,7 +811,7 @@ class ConsensusDeduplicator(object):
         :return tuple: (new qname, SAM flag)
         """
 
-        sam_flag = su.SAM_FLAG_PROPER_PAIR
+        sam_flag = su.SAM_FLAG_PAIRED + su.SAM_FLAG_PROPER_PAIR
 
         if curr_mate_strand.mate == su.ReadMate.R1:
             sam_flag += su.SAM_FLAG_R1
@@ -899,6 +898,7 @@ class ConsensusDeduplicator(object):
         new_align_seg = pysam.AlignedSegment()
         new_align_seg.query_name = qname
         new_align_seg.flag = sam_flag
+        new_align_seg.cigartuples = cigartuples
 
         # Convert missing bases in contig to N
         consensus_seq_update, consensus_quals_update = self._set_missing_bases(consensus_seq, consensus_quals)
@@ -913,8 +913,6 @@ class ConsensusDeduplicator(object):
         # new_align_seg.reference_name = curr_mate_strand.ref
         new_align_seg.reference_start = start_pos
         new_align_seg.mapping_quality = self.DEFAULT_MAPQ
-        new_align_seg.cigartuples = cigartuples
-
         new_align_seg.set_tag(self.N_DUPLICATES_TAG, n_duplicates)
 
         return new_align_seg
@@ -935,12 +933,12 @@ class ConsensusDeduplicator(object):
         # Use the qualities to inform the deletion positions for CIGAR string re-generation
         consensus_quals.append(cbq)
 
-    def _write_consensus(self, out_af, consensus_dict, pos_dict, read_umi_network):
+    def _write_consensus(self, out_af, consensus_dict, pos_set, read_umi_network):
         """Generates a consensus for each [mate x strand x UMI x position] combo.
 
         :param pysam.AlignmentFile out_af: output file to write consensus reads on the fly
         :param collections.OrderedDict consensus_dict: ordered dict keeping aligned bases for each read-strand-position
-        :param collections.defaultdict pos_dict: dict keeping read start positions
+        :param set pos_set: read start positions
         :param str read_umi_network: UMI network ID
         """
 
@@ -968,9 +966,8 @@ class ConsensusDeduplicator(object):
                 # If we have started on a new mate/strand, write the results of the last mate-strand
                 # and reset the consensus seq; this is needed for R2s following R1s with shared network/group ID
                 # Our aligned start position of the consensus is the min start of all duplicates
-                mate_strand_pos_list = pos_dict[last_mate_strand]  # the aligned start positions of all duplicates
-                mate_strand_pos = min(mate_strand_pos_list)
-                n_duplicates = len(mate_strand_pos_list)
+                mate_strand_pos = min(pos_set)
+                n_duplicates = len(pos_set)
 
                 # Generate a new read object and write it
                 new_align_seg = self._construct_align_seg(
@@ -986,9 +983,8 @@ class ConsensusDeduplicator(object):
             last_mate_strand = curr_mate_strand
 
         # Write the second mate/strand in the dict once we've completed the loop
-        mate_strand_pos_list = pos_dict[last_mate_strand]
-        mate_strand_pos = min(mate_strand_pos_list)
-        n_duplicates = len(mate_strand_pos_list)
+        mate_strand_pos = min(pos_set)
+        n_duplicates = len(pos_set)
 
         new_align_seg = self._construct_align_seg(
             read_umi_network, last_mate_strand, mate_strand_pos, consensus_seq, consensus_quals, n_duplicates)
@@ -1001,78 +997,43 @@ class ConsensusDeduplicator(object):
         :return str: name of the consensus BAM
         """
 
-        # TODO: add ND tag header line
         with tempfile.NamedTemporaryFile("wb", suffix=".cdedup.bam", delete=False) as dedup_bam, \
-                pysam.AlignmentFile(self.in_bam, "rb") as in_af, \
-                pysam.AlignmentFile(dedup_bam, "wb", template=in_af) as out_af:
+                pysam.AlignmentFile(self.in_bam, "rb") as in_af:
 
-            last_umi_network = "BS_UMI"
+            # We are adding a tag so update the header
+            in_af.header.add_line(vu.VCF_INFO_HEADER_FORMAT.format(*(vu.VCF_ND_ID, 1, "Integer", "Number duplicates.")))
 
-            # TODO: convert this to an array to save on memory
-            # Implement heuristic to avoid updating for non-duplicated UMIs
-            consensus_dict = collections.OrderedDict()
-            pos_dict = collections.defaultdict(list)
+            with pysam.AlignmentFile(dedup_bam, "wb", template=in_af) as out_af:
 
-            for i, align_seg in enumerate(in_af.fetch(until_eof=True)):
+                last_umi_network = "No_UMI"
 
-                read_umi_network = self._extract_umi_network(align_seg)
+                # TODO: convert this to an array
+                # TODO: implement heuristic to avoid updating for non-duplicated UMIs
+                consensus_dict = collections.OrderedDict()
+                pos_set = set()
 
-                if i == 0 or read_umi_network == last_umi_network:
-                    # Store the per-base information for each read in a dict
-                    self._update_consensus_dict(align_seg, consensus_dict, pos_dict)
-                else:
-                    # Generate the consensus for the last UMI network and write, then re-init dicts
-                    self._write_consensus(out_af, consensus_dict, pos_dict, last_umi_network)
+                for i, align_seg in enumerate(in_af.fetch(until_eof=True)):
 
-                    # Regenerate the consensus dict and update with the current read
-                    consensus_dict = collections.OrderedDict()
-                    pos_dict = collections.defaultdict(list)
-                    self._update_consensus_dict(align_seg, consensus_dict, pos_dict)
+                    read_umi_network = self._extract_umi_network(align_seg)
 
-                last_umi_network = read_umi_network
+                    if i == 0 or read_umi_network == last_umi_network:
+                        # Store the per-base information for each read in a dict
+                        self._update_consensus_dict(align_seg, consensus_dict, pos_set)
+                    else:
+                        # Generate the consensus for the last UMI network and write, then re-init dicts
+                        self._write_consensus(out_af, consensus_dict, pos_set, last_umi_network)
 
-            # Write the last consensus read
-            self._write_consensus(out_af, consensus_dict, pos_dict, read_umi_network)
+                        # Regenerate the consensus dict and update with the current read
+                        consensus_dict = collections.OrderedDict()
+                        pos_set = set()
+                        self._update_consensus_dict(align_seg, consensus_dict, pos_set)
 
-            return dedup_bam.name
+                    last_umi_network = read_umi_network
 
-    def _postprocess_consensus_reads(self, in_bam):
-        """Fixes mate information and MD and NM tags.
+                # Write the last consensus read
+                self._write_consensus(out_af, consensus_dict, pos_set, read_umi_network)
 
-        :param str in_bam: input BAM of deduplicated consensus reads
-        :param str out_bam: output BAM ready for calling
-        :return tuple: process return data
-
-        Note: this method has not been fully tested as a substitute for realignment of consensus contigs
-        """
-
-        with open(self.out_bam, "wb") as out_bam, \
-                open(self.consensus_stderr, "a") as stderr:
-
-            # Unfortunately, by virtue of the consensus read generation algorithm, input qname-sort cannot
-            # be enforced upstream (for stranded libraries); thus we have to sort the BAM twice to prepare it for
-            # further processing. Just run a subprocess so we can pipe commands
-            sort_call = ("samtools", "sort", "-n", "--threads", str(self.nthreads), in_bam)
-            fixmate_call = ("samtools", "fixmate", "-c", "-m", "--threads", str(self.nthreads), "-", "-")
-            calmd_call = ("samtools", "calmd", "-u", "--threads", str(self.nthreads), "-", self.ref)
-            sort_coord_call = ("samtools", "sort", "--threads", str(self.nthreads), "-")
-
-            # Record a time stamp for each new call
-            stderr.write(
-                " ".join(["{}.{}".format(__name__, self.__class__.__name__),
-                          datetime.datetime.now().strftime("%d%b%Y %I%M%p")]) + fu.FILE_NEWLINE)
-
-            sort_p = subprocess.Popen(sort_call, stdout=subprocess.PIPE, stderr=stderr)
-            fixmate_p = subprocess.Popen(fixmate_call, stdin=sort_p.stdout, stdout=subprocess.PIPE, stderr=stderr)
-            calmd_p = subprocess.Popen(calmd_call, stdin=fixmate_p.stdout, stdout=subprocess.PIPE, stderr=stderr)
-            sort_coord_p = subprocess.Popen(sort_coord_call, stdin=calmd_p.stdout, stdout=out_bam, stderr=stderr)
-
-            sort_coord_p.wait()
-            sort_p.stdout.close()
-            fixmate_p.stdout.close()
-            calmd_p.stdout.close()
-
-            return sort_p.poll(), fixmate_p.poll(), calmd_p.poll(), sort_coord_p.poll()
+                return dedup_bam.name
 
     def _realign_consensus_reads(self, in_bam):
         """Realigns the consensus reads to re-generate CIGAR, MD tags, mate information.
@@ -1095,11 +1056,6 @@ class ConsensusDeduplicator(object):
         _logger.info("Started consensus read generation workflow for %s" % self.in_bam)
         consensus_bam = self._generate_consensus_reads()
 
-        # This was intended to avoid realignment and save time
-        # However it is not trivial to generate consensus read objects from scratch
-        # TODO: determine why assigment of cigartuples results in match only
-        # _, _, _, _ = self._postprocess_consensus_reads(consensus_bam)
-
         _logger.info("Completed consensus read generation workflow.")
         _ = self._realign_consensus_reads(consensus_bam)
 
@@ -1115,15 +1071,16 @@ class ReadMasker(object):
     GROUPBY_PRIMER_CONTIG_FIELD = 1
     GROUPBY_PRIMER_START_FIELD = 2
     GROUPBY_PRIMER_STOP_FIELD = 3
+    DEFAULT_OUTDIR = "."
     DEFAULT_NTHREADS = 0
 
-    def __init__(self, in_bam, feature_file, dedup=DEDUP_FLAG, consensus_dedup=CDEDUP_FLAG, outdir=".",
-                 nthreads=DEFAULT_NTHREADS):
+    def __init__(self, in_bam, feature_file, is_race_like=False, consensus_dedup=CDEDUP_FLAG,
+                 outdir=DEFAULT_OUTDIR, nthreads=DEFAULT_NTHREADS):
         """Constructor for ReadMasker.
 
         :param str in_bam: BAM file to mask
         :param str feature_file: BED or GTF/GFF file of primer locations
-        :param bool dedup: should the reads be deduplicated based on ArcherDX AMP library UMIs? Default False.
+        :param bool is_race_like: is the data produced by RACE-like (e.g. AMP) data? Default False.
         :param bool consensus_dedup: were the reads consensus-deduplicated? Default False.
         :param str outdir: optional output dir for the results
         :param int nthreads: number threads to use for SAM/BAM file manipulations. Default 0 (autodetect).
@@ -1131,7 +1088,7 @@ class ReadMasker(object):
 
         self.in_bam = in_bam
         self.feature_file = feature_file
-        self.dedup = dedup
+        self.is_race_like = is_race_like
         self.consensus_dedup = consensus_dedup
         self.nthreads = nthreads
         self.out_bam = os.path.join(outdir, fu.replace_extension(os.path.basename(in_bam), self.MASKED_SUFFIX))
@@ -1145,7 +1102,7 @@ class ReadMasker(object):
         self.primer_stop_offset = ffu.BED_INTERSECT_WB_B_BED_STOP_OFFSET if self.feature_file_type == ffu.BED_FILETYPE \
             else ffu.BED_INTERSECT_WB_B_GFF_STOP_OFFSET
 
-        # Storing primer coordinates
+        # Store primer coordinates
         self.primer_info = ffu.store_coords(
             feature_file=feature_file, feature_slop=0, primer_allowable=True, use_name=False)
 
@@ -1178,9 +1135,6 @@ class ReadMasker(object):
         # this sort is not working properly.
         sort_cmd = ["sort", "-t:", "-k1,1", "-k2,2", "-k3,3", "-k4,4n", "-k5,5n", "-k6,6n", "-k7,7n"]
 
-        if self.dedup:
-            sort_cmd.append("-k8,8")
-
         if self.consensus_dedup:
             sort_cmd = ["sort", "-k1,1n"]
 
@@ -1193,14 +1147,14 @@ class ReadMasker(object):
             groupby_p = subprocess.Popen(groupby_cmd, stdin=intersect_p.stdout, stdout=subprocess.PIPE, stderr=masker_stderr)
             sort_p = subprocess.Popen(sort_cmd, stdin=groupby_p.stdout, stdout=out_file, stderr=masker_stderr)
 
-            sort_returncode = sort_p.wait()
+            _ = sort_p.wait()
             intersect_p.stdout.close()
             groupby_p.stdout.close()
 
             return out_file.name
 
     def _get_read_primer_associations(self, align_seg, groupby_res):
-        """Determines associated primer(s) for each read- both the originating ones and others which are read-through.
+        """Determines originating primer(s) for each read, excluding primers where the alignment reads-through the primer.
 
         :param pysam.AlignedSegment: read object
         :param str groupby_res: bedtools groupby result line
@@ -1228,11 +1182,10 @@ class ReadMasker(object):
             # synthetic sequences underlying each amplicon.
             # AlignedSegment.reference_start is 0-based, whereas allowable_coords is a set of 1-based positions
 
-            # Make sure we compare the right read coordinate for intersection with the primer coordinates
+            # Make sure we compare the right read coordinate with the primer coordinates
+            read_comp_coord = align_seg.reference_end
             if primer_tuple.strand == su.Strand.PLUS:
                 read_comp_coord = align_seg.reference_start + 1
-            else:
-                read_comp_coord = align_seg.reference_end
 
             if read_comp_coord in primer_tuple.allowable_coords:
                 primer_assocs.add(primer_coord_str)
@@ -1249,17 +1202,20 @@ class ReadMasker(object):
 
         base_indices_to_mask = []
 
+        read_mate = su.ReadMate(align_seg.is_read1)
         read_strand = su.Strand(align_seg.is_reverse)
+
         # Convert BAM reference coordinates to 1-based for matching to all other 1-based coordinates
+        # Need to keep the None values from any softclips for proper indexing into the read
         reference_positions = [p + 1 if isinstance(p, int) else p for p in align_seg.get_reference_positions(full_length=True)]
-        reference_positions_set = set(reference_positions)
+        reference_positions_noclips = [p for p in align_seg.get_reference_positions(full_length=True) if p is not None]
+        reference_positions_set = set(reference_positions_noclips)
+        ref_pos_start = reference_positions_noclips[0]
+        ref_pos_end = reference_positions_noclips[len(reference_positions_noclips) - 1]
 
         for ap in associated_primers:
 
             primer_tuple = self.primer_info[ap]
-            if primer_tuple.strand not in {su.Strand.PLUS, su.Strand.MINUS}:
-                raise NotImplementedError("Strand required for primer %s" % su.COORD_FORMAT.format(
-                    primer_tuple.contig, primer_tuple.start, primer_tuple.stop))
 
             # 5' and 3' coordinates should be 1-based
             primer_fiveprime_coord = primer_tuple.start + 1
@@ -1267,24 +1223,57 @@ class ReadMasker(object):
             if primer_tuple.strand == su.Strand.MINUS:
                 primer_fiveprime_coord, primer_threeprime_coord = primer_threeprime_coord, primer_fiveprime_coord
 
-            # If the read does not overlap the 3' end of the primer in question, there is no need to mask qualities
-            if not primer_threeprime_coord in reference_positions_set:
+            # One might think if read does not overlap the 3' end of the primer in question, there is no need to mask
+            # However consider a short read with 3' BQ trimming that starts at a primer:
+            # ---->  forward read
+            # ------> forward primer
+            # Handle this edge case first
+            if primer_threeprime_coord not in reference_positions_set and \
+                    ((primer_tuple.strand == su.Strand.PLUS and primer_fiveprime_coord == ref_pos_start)
+                     or (primer_tuple.strand == su.Strand.MINUS and primer_fiveprime_coord == ref_pos_end)):
+
+                # In this case the whole read should be masked only if it is Tile-seq or if it is a RACE-like R2
+                if not self.is_race_like or (self.is_race_like and read_strand == su.ReadMate.R2):
+                    base_indices_to_mask = set(range(0, align_seg.query_length + 1))
+                    return base_indices_to_mask
+
+            # For any other primers whose 3' ends are not in the reference, there is no need to check
+            if primer_threeprime_coord not in reference_positions_set:
                 continue
 
+            # index() will throw a ValueError if the index is not found, which is why we have the line above
             threeprime_read_index = reference_positions.index(primer_threeprime_coord)
 
-            # This logic really only makes sense if you draw it out
-            if (read_strand == primer_tuple.strand and read_strand == su.Strand.PLUS) or \
-                    (read_strand != primer_tuple.strand and read_strand == su.Strand.MINUS):
+            # For Tile-seq libraries, both ends of R1 and R2 should be masked
+            if not self.is_race_like and ((read_strand == primer_tuple.strand and read_strand == su.Strand.PLUS) or
+                                          (read_strand != primer_tuple.strand and read_strand == su.Strand.MINUS)):
 
                 # Mask from start of read (0 index) to index of 3' end of primer (include stop in range)
                 base_indices_to_mask += list(range(0, threeprime_read_index + 1))
 
-            if (read_strand == primer_tuple.strand and read_strand == su.Strand.MINUS) or \
-                    (read_strand != primer_tuple.strand and read_strand == su.Strand.PLUS):
+            if not self.is_race_like and ((read_strand == primer_tuple.strand and read_strand == su.Strand.MINUS) or
+                                          (read_strand != primer_tuple.strand and read_strand == su.Strand.PLUS)):
 
                 # Mask from index of 3' end of primer to end of read (read length)
                 base_indices_to_mask += list(range(threeprime_read_index, align_seg.query_length + 1))
+
+            # For RACE-like (e.g. AMP) chemistry make sure the 5' end of a R1 is never masked
+            if self.is_race_like and read_mate == su.ReadMate.R1 and read_strand != primer_tuple.strand:
+
+                if read_strand == su.Strand.PLUS and primer_fiveprime_coord == ref_pos_end:
+                    base_indices_to_mask += list(range(threeprime_read_index, align_seg.query_length + 1))
+
+                if read_strand == su.Strand.MINUS and primer_fiveprime_coord == ref_pos_start:
+                    base_indices_to_mask += list(range(0, threeprime_read_index + 1))
+
+            # For RACE-like (e.g. AMP) chemistry make sure the 3' end of a R2 is never masked
+            if self.is_race_like and read_mate == su.ReadMate.R2 and read_strand == primer_tuple.strand:
+
+                if read_strand == su.Strand.PLUS and primer_fiveprime_coord == ref_pos_start:
+                    base_indices_to_mask += list(range(0, threeprime_read_index + 1))
+
+                if read_strand == su.Strand.MINUS and primer_fiveprime_coord == ref_pos_end:
+                    base_indices_to_mask += list(range(threeprime_read_index, align_seg.query_length + 1))
 
         return set(base_indices_to_mask)
 
@@ -1307,7 +1296,6 @@ class ReadMasker(object):
 
             for align_seg, intersected_groupby_res in read_gen_iter:
 
-                # I don't think we need this given we intersect the alignments with the targets prior; but to be safe
                 if align_seg.is_unmapped:
                     out_af.write(align_seg)
                     continue
@@ -1357,7 +1345,7 @@ class ReadMasker(object):
             self._mask_reads(qname_sorted_bam, intersected_bed, masked_bam)
             fu.flush_files((masked_bam,))
 
-            # We need to add back in the alignments that did not intersect the primers and were not masked;
+            # We need to add back in the alignments that did not intersect any primers and were not masked;
             # this is especially needed for the reads at the end of a cloned CDS, where an amplifying primer may
             # sit in the vector, and thus reads emanating from it may not have intersected CDS-specific primers.
             ffu.intersect_features(ff1=self.in_bam, ff2=self.feature_file, outfile=primer_nonintersected.name, v=True)
@@ -1377,13 +1365,11 @@ class VariantCallerPreprocessor(object):
     """Class for preprocessing alignments prior to variant calling."""
 
     DEFAULT_NTHREADS = 0
-    DEFAULT_SLOP = 500
     QNAME_SUFFIX = "qname.sort.bam"
-    R1_SUFFIX = "R1.calling.bam"
-    R2_SUFFIX = "R2.calling.bam"
+    R1_SUFFIX = "R1.call.bam"
+    R2_SUFFIX = "R2.call.bam"
 
-    def __init__(self, am, ref, targets, output_dir=None, nthreads=DEFAULT_NTHREADS,
-                 intersect=False):
+    def __init__(self, am, ref, output_dir=None, nthreads=DEFAULT_NTHREADS):
         r"""Constructor for VariantCallerPreprocessor.
 
         :param str am: SAM/BAM file to enumerate variants in
@@ -1391,18 +1377,12 @@ class VariantCallerPreprocessor(object):
         :param str targets: BED, GFF, or GTF file containing targeted regions to enumerate variants for
         :param str | None output_dir: output dir to use for output files; if None, will create a tempdir
         :param int nthreads: number threads to use for SAM/BAM file manipulations. Default 0 (autodetect).
-        :param bool intersect: should the alignments be intersected with the target file? This option is generally not \
-        safe for use as if a paired read does not intersect, the mates may get out of pairing and this is a problem \
-        for the variant caller. If the target is well-contained within the span of the coverage in a region and fragment \
-        lengths are reasonable, this option becomes safer.
         """
 
         self.am = am
         self.ref = ref
-        self.targets = targets
         self.output_dir = output_dir
         self.nthreads = nthreads
-        self.intersect = intersect
 
         if output_dir is None:
             self.output_dir = tempfile.mkdtemp(suffix=__class__.__name__)
@@ -1410,69 +1390,38 @@ class VariantCallerPreprocessor(object):
         if not os.path.exists(self.output_dir):
             os.mkdir(self.output_dir)
 
-        # Each calling BAM will be defined by the alignment file and the intersected targets
-        target_file_bn = fu.remove_extension(os.path.basename(self.targets))
-
         self.in_bam = self.am
         if self.am.endswith(su.SAM_SUFFIX):
 
             self.in_bam = os.path.join(self.output_dir, fu.replace_extension(
-                os.path.basename(self.am), fu.add_extension(target_file_bn, "in.bam")))
+                os.path.basename(self.am), "in.bam"))
 
             _logger.info("Converting SAM to BAM.")
             su.sort_and_index(am=self.am, output_am=self.in_bam, nthreads=self.nthreads)
 
-        self.masked_bam = os.path.join(self.output_dir, fu.replace_extension(
-            os.path.basename(self.am), fu.add_extension(target_file_bn, self.MASKED_SUFFIX)))
-
         self.qname_sorted = os.path.join(self.output_dir, fu.replace_extension(
-            os.path.basename(self.am), fu.add_extension(target_file_bn, self.QNAME_SUFFIX)))
+            os.path.basename(self.am), self.QNAME_SUFFIX))
 
         self.r1_calling_bam = os.path.join(self.output_dir, fu.replace_extension(
-            os.path.basename(self.am), fu.add_extension(target_file_bn, self.R1_SUFFIX)))
+            os.path.basename(self.am), self.R1_SUFFIX))
 
         self.r2_calling_bam = os.path.join(self.output_dir, fu.replace_extension(
-            os.path.basename(self.am), fu.add_extension(target_file_bn, self.R2_SUFFIX)))
+            os.path.basename(self.am), self.R2_SUFFIX))
 
-        self.preprocess_alignments()
+        self.workflow()
 
-    def preprocess_alignments(self):
-        r"""Preprocesses the alignments- masks primer regions if a primer feature file was provided, qname-sorts, \
-        then splits into R1 and R2 BAMs ready for the variant caller."""
+    def workflow(self):
+        """Preprocesses the alignments qname-sorting and splitting into R1 and R2 BAMs."""
 
         _logger.info("Started variant call preprocessing workflow.")
 
-        # The calling BAMs are input into the VariantCaller
-        in_bam = self.in_bam
-        if self.intersect:
-            genome_file = ffu.get_genome_file(self.ref)
+        _logger.info("Sorting and splitting input BAM into R1 and R2.")
+        su.sort_bam(bam=self.in_bam, output_am=self.qname_sorted, by_qname=True, nthreads=self.nthreads)
 
-            # We must slop the target so we capture pairs where one mate may intersect the target but other does not
-            # This is not a foolproof approach depending on the fragment length
-            # TODO: ensure this does not cause problems if we end up with a negative coordinate from the left slop
-            slopped_target_bed = ffu.slop_features(
-                feature_file=self.targets, genome_file=genome_file,
-                bp_left=self.DEFAULT_SLOP, bp_right=self.DEFAULT_SLOP)
-
-            _logger.info("Intersecting alignments with targets.")
-            intersect_cmd = ["bedtools", "intersect", "-abam", self.in_bam, "-b", slopped_target_bed]
-            with tempfile.NamedTemporaryFile(suffix=".target.intersect.bam", delete=False) as intersect_bam:
-                subprocess.call(intersect_cmd, stdout=intersect_bam)
-                intersect_bam_fn = intersect_bam.name
-                in_bam = intersect_bam_fn
-
-        _logger.info("Sorting BAM by qname to facilitate simultaneous read pair iteration.")
-        su.sort_bam(bam=in_bam, output_am=self.qname_sorted, by_qname=True, nthreads=self.nthreads)
-
-        _logger.info("Splitting input BAM into R1s and R2s.")
         su.sam_view(am=self.qname_sorted, output_am=self.r1_calling_bam, nthreads=self.nthreads,
                     f=su.SAM_FLAG_R1, F=su.SAM_FLAG_UNMAP + su.SAM_FLAG_MUNMAP)
 
         su.sam_view(am=self.qname_sorted, output_am=self.r2_calling_bam, nthreads=self.nthreads,
                     f=su.SAM_FLAG_R2, F=su.SAM_FLAG_UNMAP + su.SAM_FLAG_MUNMAP)
-
-        pybedtools.cleanup()
-        if self.intersect:
-            fu.safe_remove((intersect_bam_fn,))
 
         _logger.info("Completed variant call preprocessing workflow.")

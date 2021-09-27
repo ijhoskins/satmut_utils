@@ -1,7 +1,8 @@
 #!/usr/bin/env/python
 """Tests for analysis.read_preprocessor"""
 
-import os
+import collections
+import numpy as np
 import pysam
 import re
 import tempfile
@@ -14,12 +15,8 @@ from definitions import *
 
 tempfile.tempdir = "/tmp"
 
-TEST_DATA_DIR = "/Users/ianhoskins/bioinfo/tests/test_data"
-
 # First pair contains no adapter readthrough and is first pair in CBS1_65
-
 # Second pair contains typical adapter readthrough and was selected from CBS1_63 by grep first instance of adapter match
-
 # Third pair contains an unexpected presence of the 5' adapter in R1, which appears to be caused by PCR1 target primer
 # carry-through into PCR2 and mispriming off the adapter; was selected from CBS1_63 by match first instance of
 # 5' adapter in R1; the R2 for this contains two instances of the RC of this 5' P7 adapter
@@ -61,7 +58,6 @@ GCTCGGCGTGCTGGAATTGATTAATACAAGTTTGTACAAAAAAGTTGGCATGCCTTCTGAGACCCCCCAGGCAGAAGTGG
 FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
 """
 
-
 TEST_R2_UMI_TILESEQ_FASTQ = """@A00738:253:HF5HHDSX2:2:1101:13964:1063 2:N:0:TAATGCGC+AGGCTATA
 CACAGGGGCTCCTTGGCTTCCTTATCCTCTGGGGACCCCTTCTCCAGGCTCCCCTTCGCCGAGTGTGGCCCTGAGCGGTGGGGGCAGCCTGTGGGCCCCACTTCTGCCTGGGGGGTCTCAGAAGGCATGCCAACTTTTTTGTACAAACTT
 +
@@ -86,7 +82,6 @@ TILESEQ_CBS_1R_FASTA = """>CBS_pEZY3:1083-1101(-)
 CACAGGGGCTCCTTGGCT
 """
 
-
 # First pair in CBS1_35 was selected, which has a very short insert; in R1 common region observed in addition to GSP2 RC
 # in R2, RC of common region observed
 TEST_R1_UMI_AMP_FASTQ = """@MG01HS02:1483:HG7MTBCX3:1:1107:1230:2106 1:N:0:TAAGGCGA+NAGGCTTA
@@ -101,32 +96,56 @@ NNNNNGTGAGCTCTTGGCCAAGTGACTCCTGGCGGTTCGCCCATAAGATCGGAAGAGCGTCGTGTAGGGAAAGAGTGTTA
 #####<<<C@?C@FG1<CGEHIIIIIIIHHIIHH?EE1FHHHHHHE@GHCHEEED?@HHHID/DDF?HIGHHIIHEC<F@F<FF1<C11111111111<1<</<111<1/<<D0<1<1CGHII//<</<CG0000=/<<<DDH/F/=//=/
 """
 
-# Contains duplicate reads with no error, mismatches, and deletions
-DUP_TEST_BAM = """@HD	VN:1.0	SO:coordinate
+GROUP_TEST_BAM = """@HD	VN:1.0	SO:queryname
 @SQ	SN:CBS_pEZY3	LN:7108
 @RG	ID:CBS1_35_comb_R
-@PG	ID:bowtie2	PN:bowtie2	VN:2.4.2	CL:"/home/ihoskins/miniconda3/envs/CBS_variants/bin/bowtie2-align-s --wrapper basic-0 -p 5 --maxins 1000 --no-discordant --fr --rf --mp 4 --rdg 6,4 --rfg 6,4 --local --rg-id CBS1_35_comb_R -x /home/ihoskins/reference_files/CBS_pEZY3.fa -1 /scratch/users/ihoskins/CBS_02APR2020/pEZY3_default_dedup/CBS1_35_comb_R1.umi.trimmed.fq -2 /scratch/users/ihoskins/CBS_02APR2020/pEZY3_default_dedup/CBS1_35_comb_R2.umi.trimmed.fq"
-@PG	ID:samtools	PN:samtools	PP:bowtie2	VN:1.10 (pysam)	CL:samtools sort -o /scratch/users/ihoskins/tmpq77y8hyj.bam -O BAM -@ 5 -n /scratch/users/ihoskins/CBS_02APR2020/pEZY3_default_dedup/CBS1_35_comb_R.group.bam
-@PG	ID:samtools.1	PN:samtools	PP:samtools	VN:1.10 (pysam)	CL:samtools view -b -f 66 -o /scratch/users/ihoskins/tmp23xggiwu.bam -O BAM -@ 5 /scratch/users/ihoskins/tmpq77y8hyj.bam
-@PG	ID:samtools.2	PN:samtools	PP:samtools.1	VN:1.10 (pysam)	CL:samtools sort -o /scratch/users/ihoskins/CBS_02APR2020/pEZY3_default_dedup/CBS1_35_comb_R.preprocess.bam -O BAM -@ 5 -t UG /scratch/users/ihoskins/tmpbwcoeu1f.tag.bam
-MG01HS02:1483:HG7MTBCX3:1:2108:10337:91772_GCATATCG	83	CBS_pEZY3	1062	44	6M1D63M	=	1062	-70	AGGGGTCCCAGAGGATAAGGAAGCCAAGGAGCCCCTGTGGATCCGGCCCGATGCTCCGAGCAGGTGCAC	EHGC<<EHFD1GEEHHIHH@EIIHEHHHHE?E=IHHHEG<0/HDHHHHHIHHIIHHHIIIHIHFHIHHI	AS:i:128	XN:i:0	XM:i:0	XO:i:1	XG:i:1	NM:i:1	MD:Z:6^C63	YS:i:128	YT:Z:CP	RG:Z:CBS1_35_comb_R	BX:Z:GCATATCG	UG:Z:1000009_R1
-MG01HS02:1483:HG7MTBCX3:1:2108:10337:91772_GCATATCG	163	CBS_pEZY3	1062	44	6M1D63M	=	1062	70	AGGGGTCCCAGAGGATAAGGAAGCCAAGGAGCCCCTGTGGATCCGGCCCGATGCTCCGAGCAGGTGCAC	ABAADEGHHHHI?C1FHIE@FHIIIIEH<GEHIIIC<FHHEHIIIIIIHIIHIIHHEEHCCHIIECGHI	AS:i:128	XN:i:0	XM:i:0	XO:i:1	XG:i:1	NM:i:1	MD:Z:6^C63	YS:i:128	YT:Z:CP	RG:Z:CBS1_35_comb_R	UG:Z:1000009_R2
-MG01HS02:1483:HG7MTBCX3:1:2108:10337:91772_GCATATCG	83	CBS_pEZY3	1062	44	6M1D63M	=	1062	-70	AGGGGTCCCAGAGGATAAGGAAGCCAAGGAGCCCCTGTGGATCCGGCCCGATGCTCCGAGCAGGTGCAC   EHGC<<EHFD1GEEHHIHH@EIIHEHHHHE?E=IHHHEG<0/HDHHHHHIHHIIHHHIIIHIHFHIHHI	AS:i:128	XN:i:0	XM:i:0	XO:i:1	XG:i:1	NM:i:1	MD:Z:6^C63	YS:i:128	YT:Z:CP	RG:Z:CBS1_35_comb_R	BX:Z:GCATATCG	UG:Z:1000009_R1
-MG01HS02:1483:HG7MTBCX3:1:2213:19735:62464_GCGTATCG	83	CBS_pEZY3	1062	44	69M	=	1062	-70	AGGGGTCCCCAGAGGATAAGGAAGCCAAGGAGCCCCTGTGGATCCGGCCCGATGCTCCGAGCAGGTGCA   HE=DHDCFC<C11D<1ECHHC<<1CG@FEC/C/<1HEHHFDE<HHHHGHGHEHHCCDDIHGCCGGCGFCE	AS:i:140	XN:i:0	XM:i:0	XO:i:0	XG:i:0	NM:i:0	MD:Z:70	YS:i:140	YT:Z:CP	RG:Z:CBS1_35_comb_R	BX:Z:GCATATCG   UG:Z:1000009_R1
-MG01HS02:1483:HG7MTBCX3:2:2210:18370:5712_GCGTATCG	83	CBS_pEZY3	1062	44	69M	=	1062	-70	AGGGGTCCCCAGAGGATAAGGAAGCCAAGGAGCCCCTGTGGATCCGGCCCGATGCTCCGAGCAGGTGCA   HIIIIIIHHHEHHIHIIHHIIHHHIHG@IHGHHDHF?GEEDHCCCC</GHHCEHHIIHDCIIHHHHIHGI	AS:i:140	XN:i:0	XM:i:0	XO:i:0	XG:i:0	NM:i:0	MD:Z:70	YS:i:140	YT:Z:CP	RG:Z:CBS1_35_comb_R	BX:Z:GCATATCG   UG:Z:1000009_R1
-MG01HS02:1506:HGKGCBCX3:2:1102:18758:39821_GCATATCG	83	CBS_pEZY3	1062	44	69M	=	1062	-70	AGGGGTCCCCAGAGGATAAGGAAGCCAAGGAGCCCCTGTGGATCCGGCCCGATGCTCCGAGCAGGTGCA   IIIIIIIHEIHIIIIIIHIIIIIIIIHGIHIIIGIIIIIIIIIIDIIHIIIIIIIIIIIIIIIIIIIIII	AS:i:140	XN:i:0	XM:i:0	XO:i:0	XG:i:0	NM:i:0	MD:Z:70	YS:i:140	YT:Z:CP	RG:Z:CBS1_35_comb_R	BX:Z:GCATATCG   UG:Z:1000009_R1
-MG01HS02:1506:HGKGCBCX3:2:1105:17502:94042_GCATATCG	83	CBS_pEZY3	1062	44	69M	=	1062	-70	AGGGGTCCCCAGAGGATAAGGAAGCCAAGGAGCCCCTGTGGATCCGGCCCGATGCTCCGAGCAGGTGCA   GCIIIIIIHHFHIHGIIIIIIIHHHCH?IHIIHHEIIIIIIIHIIHHIHIIHHIHHIHIHIIIIIHIHIH	AS:i:140	XN:i:0	XM:i:0	XO:i:0	XG:i:0	NM:i:0	MD:Z:70	YS:i:140	YT:Z:CP	RG:Z:CBS1_35_comb_R	BX:Z:GCATATCG   UG:Z:1000009_R1
-MG01HS02:1483:HG7MTBCX3:1:2108:10337:91772_GCATATCG	163	CBS_pEZY3	1062	44	6M1D63M	=	1062	70	AGGGGTCCCAGAGGATAAGGAAGCCAAGGAGCCCCTGTGGATCCGGCCCGATGCTCCGAGCAGGTGCA    CABAADEGHHHHI?C1FHIE@FHIIIIEH<GEHIIIC<FHHEHIIIIIIHIIHIIHHEEHCCHIIECGHI	AS:i:128	XN:i:0	XM:i:0	XO:i:1	XG:i:1	NM:i:1	MD:Z:6^C63	YS:i:128	YT:Z:CP	RG:Z:CBS1_35_comb_R	UG:Z:1000009_R2
-MG01HS02:1483:HG7MTBCX3:1:2213:19735:62464_GCGTATCG	163	CBS_pEZY3	1062	44	69M	=	1062	70	AGGGGTCCCCAGAGGATAAGGAAGCCAAGGAGCCCCTGTGGATCCGGCCCGATGCTCCGAGCAGGTGCA   D@@00<0FGEE@F1<D@H1FHHE?1DGCC@1F1CGHHGHEHHH?1FHH?EHCHHHCEHHHDHHICD1F?G	AS:i:140	XN:i:0	XM:i:0	XO:i:0	XG:i:0	NM:i:0	MD:Z:70	YS:i:140	YT:Z:CP	RG:Z:CBS1_35_comb_R	UG:Z:1000009_R2
-MG01HS02:1483:HG7MTBCX3:2:2210:18370:5712_GCGTATCG	163	CBS_pEZY3	1062	44	69M	=	1062	70	AGGGGTCCCCAGAGGATAAGGAAGCCAAGGAGCCCCTGTGGATCCGGCCCGATGCTCCGAGCAGGTGCA   D<D@DEHEHHHGHHIIHHIIIIHFHHHICHEHHIHHEHHHHFFEHFHIIIEHHIIIIIHIHIHIHIHEHH	AS:i:140	XN:i:0	XM:i:0	XO:i:0	XG:i:0	NM:i:0	MD:Z:70	YS:i:140	YT:Z:CP	RG:Z:CBS1_35_comb_R	UG:Z:1000009_R2
-MG01HS02:1506:HGKGCBCX3:2:1102:18758:39821_GCATATCG	163	CBS_pEZY3	1062	44	69M	=	1062	70	AGGGGTCCCCAGAGGATAAGGAAGCCAAGGAGCCCCTGTGGATCCGGCCCGATGCTCCGAGCAGGTGCA   DDDDDIIIIIHHIIIIHIIIIIICHIIIIIIIIIIIIIIIIIHIIIGIIIIIIIIIIIIIIIIIHCHHHI	AS:i:140	XN:i:0	XM:i:0	XO:i:0	XG:i:0	NM:i:0	MD:Z:70	YS:i:140	YT:Z:CP	RG:Z:CBS1_35_comb_R	UG:Z:1000009_R2
-MG01HS02:1506:HGKGCBCX3:2:1105:17502:94042_GCATATCG	163	CBS_pEZY3	1062	44	69M	=	1062	70	AGGGGTCCCCAGAGGATAAGGAAGCCAAGGAGCCCCTGTGGATCCGGCCCGATGCTCCGAGCAGGTGCA   DDDDDHGHIHIIHHGHIIGIIIIHHHIHIHHHIIIIIIIIHIGHHHIIHIIIIIIFHIIIIHGHHHIIII	AS:i:140	XN:i:0	XM:i:0	XO:i:0	XG:i:0	NM:i:0	MD:Z:70	YS:i:140	YT:Z:CP	RG:Z:CBS1_35_comb_R	UG:Z:1000009_R2
-MG01HS02:1483:HG7MTBCX3:1:2108:6635:96297_AAATGGGG	83	CBS_pEZY3	1062	44	69M	=	1062	-70	AGAGGTCCCCAGAGGATAAGGAAGCCAAGGAGCCCCTGTGGATCCGGCCCGATGCTCCGAGCAGGTGCA   <C@EF</@ECF<@C<<<<FD1F@HEHHHHHHCGIEHHF1F?EDE?EC/HCHHHHDEHHCEH@E@HEHEHH	AS:i:135	XN:i:0	XM:i:1	XO:i:0	XG:i:0	NM:i:1	MD:Z:2G67	YS:i:135	YT:Z:CP	RG:Z:CBS1_35_comb_R	BX:Z:AAATGGGG	UG:Z:1000004_R1
-MG01HS02:1483:HG7MTBCX3:1:2108:12739:36922_AAATGGGG	83	CBS_pEZY3	1062	44	69M	=	1062	-70	AGGGGTCCCCAGAGGATAAGGAAGCCAAGGAGCCCCTGTGGATCCGGCCCGATGCTCCGAGCAGGTGCA   IIIGIIHHIIIIIIIIHHIHIIIIIIIIIHIIIIIIIIIIIIIIIIIIIIIIIIHHHIIHIIIGIIIIII	AS:i:140	XN:i:0	XM:i:0	XO:i:0	XG:i:0	NM:i:0	MD:Z:70	YS:i:140	YT:Z:CP	RG:Z:CBS1_35_comb_R	BX:Z:AAATGGGG   UG:Z:1000004_R1
-MG01HS02:1506:HGKGCBCX3:1:2106:15083:48801_AAATGGGG	83	CBS_pEZY3	1062	44	69M	=	1062	-70	AGGGGTCCCCAGAGGATAAGGAAGCCAAGGAGCCCCTGTGGATCCGGCCCGATGCTCCGAGCAGGTGCA   IIIHHEHIGIHGHIIIIIIIIIIIIHIIIIIIIFIHIIIIIIHIIHHHEIIIIIIIIIIIIIIHIHIHHH	AS:i:140	XN:i:0	XM:i:0	XO:i:0	XG:i:0	NM:i:0	MD:Z:70	YS:i:140	YT:Z:CP	RG:Z:CBS1_35_comb_R	BX:Z:AAATGGGG   UG:Z:1000004_R1
-MG01HS02:1483:HG7MTBCX3:1:2108:6635:96297_AAATGGGG	163	CBS_pEZY3	1062	44	69M	=	1062	70	AGAGGTCCCCAGAGGATAAGGAAGCCAAGGAGCCCCTGTGGATCCGGCCCGATGCTCCGAGCAGGTGCA   BDD@@FE1D@HC1C<DF?GF?HGEHHCEF@@<EHE@CEH?GC1F@GHHIIGHDEGEH?HD</CHE<@CCH	AS:i:135	XN:i:0	XM:i:1	XO:i:0	XG:i:0	NM:i:1	MD:Z:2G67	YS:i:135	YT:Z:CP	RG:Z:CBS1_35_comb_R	UG:Z:1000004_R2
-MG01HS02:1483:HG7MTBCX3:1:2108:12739:36922_AAATGGGG	163	CBS_pEZY3	1062	44	69M	=	1062	70	AGGGGTCCCCAGAGGATAAGGAAGCCAAGGAGCCCCTGTGGATCCGGCCCGATGCTCCGAGCAGGTGCA   DADDDIIIIIIIIIGHIHHIHHIGGIIIIHIGIIIIIIHHHHIHIIDCHIIHHIIIIIIHIGIHF?FEHI	AS:i:140	XN:i:0	XM:i:0	XO:i:0	XG:i:0	NM:i:0	MD:Z:70	YS:i:140	YT:Z:CP	RG:Z:CBS1_35_comb_R	UG:Z:1000004_R2
-MG01HS02:1506:HGKGCBCX3:1:2106:15083:48801_AAATGGGG	163	CBS_pEZY3	1062	44	69M	=	1062	70	AGGGGTCCCCAGAGGATAAGGAAGCCAAGGAGCCCCTGTGGATCCGGCCCGATGCTCCGAGCAGGTGCA   DDADCHIIIIIHHHHHIIIHFHHHGHIGHGIIIIIIIFHHHEHHFEHIIHHHIHHIIIIIIHHIHCGHII	AS:i:140	XN:i:0	XM:i:0	XO:i:0	XG:i:0	NM:i:0	MD:Z:70	YS:i:140	YT:Z:CP	RG:Z:CBS1_35_comb_R	UG:Z:1000004_R2
+@PG	ID:bowtie2	PN:bowtie2	VN:2.4.2	CL:"/home/ihoskins/miniconda3/envs/CBS_variants/bin/bowtie2-align-s --wrapper basic-0 -p 5 --maxins 1000 --no-discordant --fr --mp 4 --rdg 6,4 --rfg 6,4 --local --rg-id CBS1_35_comb_R -x /home/ihoskins/reference_files/CBS_pEZY3.fa -1 /scratch/users/ihoskins/CBS_02APR2020/pEZY3_default_dedup/CBS1_35_comb_R1.umi.trimmed.fq -2 /scratch/users/ihoskins/CBS_02APR2020/pEZY3_default_dedup/CBS1_35_comb_R2.umi.trimmed.fq"
+MG01HS02:1483:HG7MTBCX3:1:1101:1237:33394_TTACCTGA	99	CBS_pEZY3	1971	44	131M	=	2074	254	CCTTTGCCCGCATGCTGATCGCGCAAGAGGGGCTGCTGTGCGGTGGCAGTGCTGGCAGCACGGTGGCGGTGGCCGTGAAGGCTGCGCAGGAGCTGCANGAGGGCCAGCGCTGCGTGGTCATTCTGCCCGAC	IHIIIHIIIIIIIIIIIIIIIIIIIIIIIHIIHIIHIIIHIIIIIIHHHHIIIHIIIHIIICHHHHIIIIIIIIIHIIIIIDGHIIIIIHIIIIIII#<DGHIIIHIIIIIIIIIIIIIIGIIIIIIIIHH	AS:i:259	XN:i:0	XM:i:1	XO:i:0	XG:i:0	NM:i:1	MD:Z:97G33	YS:i:277	YT:Z:CP	RG:Z:CBS1_35_comb_R	UG:i:6956334	BX:Z:TTACCTGA
+MG01HS02:1483:HG7MTBCX3:1:1101:1237:33394_TTACCTGA	147	CBS_pEZY3	2074	44	146M5S	=	1971	-254	CCAGCGCTGCGTGGTCATTCTGCCCGACTCAGTGCGGAACTACATGACCAAGTTCCTGAGCGACAGGTGGATGCTGCAGAAGGGCTTTCTGAAGGAGGAGGACCTCACGGAGAAGNAGCCCNGGTGNTGGCACCTCCGTGTNCANGNNNNN	HHIHDH?HCCFGHHHIIIHHHHIHIIIHHGGIIHHIIIIHIIGIIIIIHGIIHHCHIHHHHIIHIHIIIIIHHHHHHHIIIIIIHIIIIIIIIIIIIIIIIHHGHHEHIIIHE<<#IHG<<#FGD<#IHIHHECDIHHG<<#<<#<#####	AS:i:277	XN:i:0	XM:i:5	XO:i:0	XG:i:0	NM:i:5	MD:Z:115A5T4G14T2G1	YS:i:259	YT:Z:CP	RG:Z:CBS1_35_comb_R
+MG01HS02:1483:HG7MTBCX3:1:1101:1225:82159_TTTTTCTA	83	CBS_pEZY3	1302	44	130M	=	1286	-156	AGTTCTTCAACGCGGGCGGGAGCGTGAAGGACCNCANCAGCCTGCGGATGATTGAGGATGCTGAGCGCGACGGGACGCTGAAGCCCGGGGACACGATTATCGAGCCGACATCCGGGAACACCGGGATCGG	@HHHGIHHHIIIIIIIIIIHIIIIHIIIHHD<<#<<#EIIIHHHHGIIHHHG@HIIIIIHIIIIIIIIIIHIHHIHIHIIIIIIGHIHIIIHHHHEHIHHIDIIIIIHDIIGIIIIIHIIIIIIHIHIHEAS:i:254	XN:i:0	XM:i:2	XO:i:0	XG:i:0	NM:i:2	MD:Z:33G2T93	YS:i:270	YT:Z:CP	RG:Z:CBS1_35_comb_R	UG:i:3275192	BX:Z:TTTTTCTA
+MG01HS02:1483:HG7MTBCX3:1:1101:1225:82159_TTTTTCTA	163	CBS_pEZY3	1286	44	10S141M	=	1302	156	NNNNNNNGNNCNCTTGGCCAAGTGNGAGTNCTTCANCGCGGGCGGGAGCGTGAAGGACCGCATCAGCCTGCGGATGATTGAGGATGCTGAGCGCGACGGGACGCTGAAGCCCGGGGACACGATTATCGAGCCGACATCCGGGAACACCGGG	#######<##<#<<CEHIIIIIHG#<<EH#<<GHI#<<DHHIIIIHHHIICHIIIHIIHHHHHHIIIIHIIIIHHH1DHHHIHCH?HHEHHHICHHHHHIICHHHHHIIHIIIIIDEHHIIIIIIIFHHIIHHHIIGHIIIGHHHHH/DEH	AS:i:270	XN:i:0	XM:i:4	XO:i:0	XG:i:0	NM:i:4	MD:Z:1T12T4T5A115	YS:i:254	YT:Z:CP	RG:Z:CBS1_35_comb_R
+"""
+
+PREPROC_TEST_BAM = """@HD	VN:1.0	SO:unknown
+@SQ	SN:CBS_pEZY3	LN:7108
+@RG	ID:CBS1_35_comb_R
+@PG	ID:bowtie2	PN:bowtie2	VN:2.4.2	CL:"/home/ihoskins/miniconda3/envs/CBS_variants/bin/bowtie2-align-s --wrapper basic-0 -p 5 --maxins 1000 --no-discordant --fr --mp 4 --rdg 6,4 --rfg 6,4 --local --rg-id CBS1_35_comb_R -x /home/ihoskins/reference_files/CBS_pEZY3.fa -1 /scratch/users/ihoskins/CBS_02APR2020/pEZY3_default_dedup/CBS1_35_comb_R1.umi.trimmed.fq -2 /scratch/users/ihoskins/CBS_02APR2020/pEZY3_default_dedup/CBS1_35_comb_R2.umi.trimmed.fq"
+@PG	ID:samtools	PN:samtools	PP:bowtie2	VN:1.10 (pysam)	CL:samtools sort -o /scratch/users/ihoskins/tmp8hwoa_cn.bam -O BAM -@ 5 -n /scratch/users/ihoskins/CBS_02APR2020/pEZY3_default_dedup/CBS1_35_comb_R.group.bam
+@PG	ID:samtools.1	PN:samtools	PP:samtools	VN:1.10 (pysam)	CL:samtools view -b -f 64 -F 12 -o /scratch/users/ihoskins/tmpn7t_7zvn.bam -O BAM -@ 5 /scratch/users/ihoskins/tmp8hwoa_cn.bam
+@PG	ID:samtools.2	PN:samtools	PP:samtools.1	VN:1.10 (pysam)	CL:samtools sort -o /scratch/users/ihoskins/CBS_02APR2020/pEZY3_default_dedup/CBS1_35_comb_R.preprocess.bam -O BAM -@ 5 -t UG /scratch/users/ihoskins/tmps48n3gfx.tag.bam
+MG01HS02:1483:HG7MTBCX3:2:1213:4430:45262_ACTTTTGA	83	CBS_pEZY3	2290	44	105M	=	2290	-105	GGTGAAGGGCTTCGACCAGGCGCCCGTGGTGGATGAGGCGGGGGTAAGCCTGGGAATGGTGACGCTTGGGATCATGCTCTCGTCCCTGCTTGCCGGGAAGGTGCA	111<1<11CCGCC<<@1CC</C</0CCG<F<1C<<C/C<<H@G<C<<111<1<1CEC<000<<1HHF<CG<1D1<</0/<<<1/11FFD<</D@D1HFHF?GHIG	AS:i:198	XN:i:0	XM:i:3	XO:i:0	XG:i:0	NM:i:3	MD:Z:2A44T23A33	YS:i:167	YT:Z:CP	RG:Z:CBS1_35_comb_R	BX:Z:ACTTTTGA	UG:Z:10000001_R1
+MG01HS02:1506:HGKGCBCX3:2:2205:7402:22634_ACTTTTGA	83	CBS_pEZY3	2290	44	105M	=	2290	-105	GGAGAAGGGCTTCGACCAGGCGCCCGTGGTGGATGAGGCGGGGGTAATCCTGGGAATGGTGACGCTTGGGAACATGCTCTCGTCCCTGCTTGCCGGGAAGGTGCA	IHIIIIHHIHIIIIIIIIIIIIHHHIGIIIHHIIHGIHHIIIHGEHDGHIIIIIIIIIIIIIHHIIHIIIIHIIIHHIHHIIIIHIIIHIIIIIIIIIIIIIIIH	AS:i:210	XN:i:0	XM:i:0	XO:i:0	XG:i:0	NM:i:0	MD:Z:105	YS:i:210	YT:Z:CP	RG:Z:CBS1_35_comb_R	BX:Z:ACTTTTGA	UG:Z:10000001_R1
+MG01HS02:1483:HG7MTBCX3:2:1213:4430:45262_ACTTTTGA	163	CBS_pEZY3	2290	44	105M	=	2290	105	GGAGAAGGGCTTACAAGAGGCGCCCGAGGAGGATGCGGCGGGGGTAATCCTGGGAATGGTGAAGCTTGGGAACATGCTATCGTCCCTGCTTGCCGGGAAAGTGCA	0<00011<0111<1111<1D0/<C/<////0<0<<1/</<FEHH/0<CH11<1DH11DC111<DF1<1D?1D<11<1<<11<<10011111<1</C/C?11=1DD	AS:i:167	XN:i:0	XM:i:10	XO:i:0	XG:i:0	NM:i:10	MD:Z:12C0G1C0C9T2T5A26C15C20G5	YS:i:198	YT:Z:CP	RG:Z:CBS1_35_comb_R	UG:Z:10000001_R2
+MG01HS02:1506:HGKGCBCX3:2:2205:7402:22634_ACTTTTGA	163	CBS_pEZY3	2290	44	105M	=	2290	105	GGAGAAGGGCTTCGACCAGGCGCCCGTGGTGGATGAGGCGGGGGTAATCCTGGGAATGGTGACGCTTGGGAACATGCTCTCGTCCCTGCTTGCCGGGAAGGTGCA	DDDCDIGIGHIIIIIIIIIIIIIIIIIGIIIIIHEHICHHHIHGHHI@GEHHII1D@HHIIIHHHIIIHHHHHHEGHEHHHII=HGIHHHICEGHIHEDEEGGHH	AS:i:210	XN:i:0	XM:i:0	XO:i:0	XG:i:0	NM:i:0	MD:Z:105	YS:i:210	YT:Z:CP	RG:Z:CBS1_35_comb_R	UG:Z:10000001_R2
+MG01HS02:1483:HG7MTBCX3:1:1116:9256:33330_ACTTTGGT	83	CBS_pEZY3	2290	44	105M	=	2290	-105	GGAGAAGGGCTTCGACCAGGCGCCCGTTGTGGATGAGGCGGGGGTAATCCTGGGAATGGTGACGCTTGGGAACATGCTCTCGTCCCTGCTTGCCGGGAAGGTGCA	GCC0FC0G?EC</E<?E</HCDE<<CD1HHGIIHE0C/<IIHIHECD<EEEHG<@@GD0=GEHG@GF1<1<1HHHC<0DHHHEE?C1?EHC?DHD1G1H@@FC1G	AS:i:206	XN:i:0	XM:i:1	XO:i:0	XG:i:0	NM:i:1	MD:Z:27G77	YS:i:206	YT:Z:CP	RG:Z:CBS1_35_comb_R	BX:Z:ATTTTGCT	UG:Z:10000004_R1
+MG01HS02:1483:HG7MTBCX3:2:1214:5820:81145_ATTTTGCT	83	CBS_pEZY3	2290	42	105M	=	2290	-105	GGAGAAGGGCTTCGACCAGGCGCCCGTGGTGGATGAGGCGGGGGTAATCCTGGGAATGGTGACGCTTGGGATCATGCTCTCCTCCCTGCTTGCCGGGAAGGTGCA	HCIIHEIHCEHCDG<<1<</C/CC<1F<FD11?@CD</C/C<1GF1<<@C<<11CD110ED<<1?F<C@<11FF@1G<00<01/C<111C</C0C1D1HFFCC1F	AS:i:202	XN:i:0	XM:i:2	XO:i:0	XG:i:0	NM:i:2	MD:Z:71A9G23	YS:i:150	YT:Z:CP	RG:Z:CBS1_35_comb_R	BX:Z:ATTTTGCT	UG:Z:10000004_R1
+MG01HS02:1483:HG7MTBCX3:2:2211:4802:70306_ATTTTGCT	83	CBS_pEZY3	2290	44	105M	=	2290	-105	GGAGAAGGGCTTCGACCAGGCGCCCGTGGTGGATGAGGCGGGGGTAATCCTGGGAATGGTGACGCTTGGGAACATGCTCTCGTCCCTGCTTGCCGGGAAGGTGCA	HIIIIIIIHIIIIIIHGIHHIIHECIIIIHHIIIIIIIIIIIHHIIIIIHHIIIIHHHHIHHHIHHHEIIHFIIHFHHHIHHFHHIIHHHHHH=F@IIIIHIIFG	AS:i:210	XN:i:0	XM:i:0	XO:i:0	XG:i:0	NM:i:0	MD:Z:105	YS:i:210	YT:Z:CP	RG:Z:CBS1_35_comb_R	BX:Z:ATTTTGCT	UG:Z:10000004_R1
+MG01HS02:1506:HGKGCBCX3:2:1207:8268:71580_ACTTTGCT	83	CBS_pEZY3	2290	44	105M	=	2290	-105	GGAGAAGGGCTTCGACCAGGCGCCCGTGGTGGATGAGGCGGGGGTAATCCTGGGAATGGTGACGCTTGGGAACATGCTCTCGTCCCTGCTTGCCGGGAAGGTGCA	IIIIIIIIIIIIIIIIIIIIIIIHHIIFIIIIIIIIIIIIIIHIIIIIIHHECHHGIHGIIHHEGIHHHIGIIIHH<IHHHIHIHCIIIIIIIIIIIIIIIIIIH	AS:i:210	XN:i:0	XM:i:0	XO:i:0	XG:i:0	NM:i:0	MD:Z:105	YS:i:210	YT:Z:CP	RG:Z:CBS1_35_comb_R	BX:Z:ATTTTGCT	UG:Z:10000004_R1
+MG01HS02:1483:HG7MTBCX3:1:1116:9256:33330_ACTTTGGT	163	CBS_pEZY3	2290	44	105M	=	2290	105	GGAGAAGGGCTTCGACCAGGCGCCCGTGATGGATGAGGCGGGGGTAATCCTGGGAATGGTGACGCTTGGGAACATGCTCTCGTCCCTGCTTGCCGGGAAGGTGCA	0<<0<DFC0111<CG<C/1C1<C/<?D=111<11<1<D<</EDE/<GC1D1<F?C1<CE@F?CCE<EH=11<<FH??<1D1<CEHHHCC<C1DHD<ECC00/<<C	AS:i:206	XN:i:0	XM:i:1	XO:i:0	XG:i:0	NM:i:1	MD:Z:28G76	YS:i:206	YT:Z:CP	RG:Z:CBS1_35_comb_R	UG:Z:10000004_R2
+MG01HS02:1483:HG7MTBCX3:2:1214:5820:81145_ATTTTGCT	163	CBS_pEZY3	2290	42	105M	=	2290	105	GGAGACCGGGTTCGACCAGGCCCCCGTGGTGGGTGAGCGGGGGGCAATCCGGGGGATGGAAACGCTTGGAAAAATGCTCTCGTCCCTGCTTGCCGGGGAGGTGCA	<<0<011/</0<</10/<E1D0<<</CEE11<//<<11///<///<<1110</D//=0<11<1<<00<01111111111<1<10<01<11111<DE//<//.1<D	AS:i:150	XN:i:0	XM:i:15	XO:i:0	XG:i:0	NM:i:15	MD:Z:5A0G2C11G10A4G0C5T5T3A4T0G8G2C24A7	YS:i:202	YT:Z:CP	RG:Z:CBS1_35_comb_R	UG:Z:10000004_R2
+MG01HS02:1483:HG7MTBCX3:2:2211:4802:70306_ATTTTGCT	163	CBS_pEZY3	2290	44	105M	=	2290	105	GGAGAAGGGCTTCGACCAGGCGCCCGTGGTGGATGAGGCGGGGGTAATCCTGGGAATGGTGACGCTTGGGAACATGCTCTCGTCCCTGCTTGCCGGGAAGGTGCA	@D?B@CGI=ECCEHHIIIIFHIIGDHDHCGHHE<DCGHEHHHCDCGH?@H?D@H1<G1<1<CC@GGEHEGHGHFHEHHIIGDHIIIICHHIIHHHDGHHIIHIIF	AS:i:210	XN:i:0	XM:i:0	XO:i:0	XG:i:0	NM:i:0	MD:Z:105	YS:i:210	YT:Z:CP	RG:Z:CBS1_35_comb_R	UG:Z:10000004_R2
+MG01HS02:1506:HGKGCBCX3:2:1207:8268:71580_ACTTTGCT	163	CBS_pEZY3	2290	44	105M	=	2290	105	GGAGAAGGGCTTCGACCAGGCGCCCGTGGTGGATGAGGCGGGGGTAATCCTGGGAATGGTGACGCTTGGGAACATGCTCTCGTCCCTGCTTGCCGGGAAGGTGCA	DDDDCG??=HHIIHIIIIIIICCHDHF=DHHI1CDGHIGHIIIIHHHFHIGIGFHHFHI1FHC0EEGHCIHIGGIHI?FGCCGEGHE1GHHCHHHHIDHDFFHHE	AS:i:210	XN:i:0	XM:i:0	XO:i:0	XG:i:0	NM:i:0	MD:Z:105	YS:i:210	YT:Z:CP	RG:Z:CBS1_35_comb_R	UG:Z:10000004_R2
+MG01HS02:1483:HG7MTBCX3:1:1215:11984:60374_CGTTGATC	99	CBS_pEZY3	2397	44	64M1D66M	=	2408	163	CGTCAGACCAAGTTGGCAAAGTCATCTACAAGCAGTTCAAACAGATCCGCCTCACGGACGCGCTGGCAGGCTCTCGCACATCCTGGAGATGGACCACTTCGCCCTGGTGGTGCACGAGCAGATCCAGTAC	HHHIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIHIIIHHHIIIIIIIHHIIIIHIIIGIHIIIIIIIIHHIIIIIIIIIIIIIIIIIIHIIIIIIIHIIHIHIIIEHHHIEHIIHIIC	AS:i:245	XN:i:0	XM:i:1	XO:i:1	XG:i:1	NM:i:2	MD:Z:59A4^G66	YS:i:286	YT:Z:CP	RG:Z:CBS1_35_comb_R	BX:Z:CGTTGATC	UG:Z:10015877_R1
+MG01HS02:1483:HG7MTBCX3:1:2103:16630:87701_CGTTGATC	99	CBS_pEZY3	2397	44	64M1D66M	=	2408	163	CGTCAGACCAAGTTGGCAAAGTCATCTACAAGCAGTTCAAACAGATCCGCCTCACGGACACGCTGGCAGGCTCTCGCACATCCTGGAGATGGACCACTTCGCCCTGGTGGTGCACGAGCAGATCCAGTAC	HIHHHIIIIGIHHIIHIIIIHHIIIIIIIIIIIHIHGIIIIIIIIHIIIIIIIIIIIHIIIIIIHHHIIIIIHIIIIIIICHHGHGHIIIIGHIIIIIIIIIHGHHIIIGIIIIHHIIIIIHIHHHHIHD	AS:i:250	XN:i:0	XM:i:0	XO:i:1	XG:i:1	NM:i:1	MD:Z:64^G66	YS:i:292	YT:Z:CP	RG:Z:CBS1_35_comb_R	BX:Z:CGTTGATC	UG:Z:10015877_R1
+MG01HS02:1483:HG7MTBCX3:2:1208:5073:30436_CGTTGATC	99	CBS_pEZY3	2397	44	64M1D66M	=	2409	163	CGTCAGACCAAGTTGGCAAAGTCATCTACAAGCAGTTCAAACAGATCCGCCTCACGGACACGCTGGCAGGCTCTCGCACATCCTGGAGATGTACCACTTCGCCCTGGTGGTGCACGAGCAGATCCAGTAC	HIIIIIIIIIIIIIIIIIIIIIIHHIIHIHIHHIIIIIIIIIIIIIIIIIHHIIIIIIIIIIIIIIIIHIIIIIIIIIIIGCGIHIIIGHIIIIIIIIIIIIIIIIIIIIIIHIIGHHIIHHHHHIHCH@	AS:i:244	XN:i:0	XM:i:1	XO:i:1	XG:i:1	NM:i:2	MD:Z:64^G27G38	YS:i:285	YT:Z:CP	RG:Z:CBS1_35_comb_R	BX:Z:CGTTGATC	UG:Z:10015877_R1
+MG01HS02:1506:HGKGCBCX3:2:2205:19957:35646_CGTTGATC	99	CBS_pEZY3	2397	44	64M1D66M	=	2409	163	CGTCAGACCAAGTTGGCAAAGTCATCTACAAGCAGTTCAAACAGATCCGCCTCACGGACACGCTGGCAGGCTCTCGCACATCCTGGAGATGGACCACTTCGCCCTGGTGGTGCACGAGCAGATCCAGTAC	GHHIIHHIIIIIIIIIIIGIIHHIIIIIIIIIIIIHHIHIIIIHIIIIIIHIIIIIIIHHIIGDHHHIIIIIIIIIIIIIIIIGHIIEHIIIIIHHIIIIIIIIIIHIIIIIGIIHIIIIIIHIIIIIIC	AS:i:250	XN:i:0	XM:i:0	XO:i:1	XG:i:1	NM:i:1	MD:Z:64^G66	YS:i:290	YT:Z:CP	RG:Z:CBS1_35_comb_R	BX:Z:CGTTGATC	UG:Z:10015877_R1
+MG01HS02:1483:HG7MTBCX3:1:1215:11984:60374_CGTTGATC	147	CBS_pEZY3	2408	44	53M1D98M	=	2397	-163	GTTGGCAAAGTCATCTACAAGCAGTTCAAACAGATCCGCCTCACGGACGCGCTGGCAGGCTCTCGCACATCCTGGAGATGGACCACTTCGCCCTGGTGGTGCACGAGCAGATCCAGTACCACAGCACCGGGAAGTCCAGTCAGCGGCAGAT	CIHHHEHGIIIHHFFHIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIHIHIIHIIIIIIIIIIHIIIHIIIIIIHCIIIIIIIIHIIIIHIIIIIIIHHHIHIGIIIIGIIIIIIIIIIIHHDHGGIIIIIIGGIHIIHIIIIIDCDDD	AS:i:286	XN:i:0	XM:i:1	XO:i:1	XG:i:1	NM:i:2	MD:Z:48A4^G98	YS:i:245	YT:Z:CP	RG:Z:CBS1_35_comb_R	UG:Z:10015877_R2
+MG01HS02:1483:HG7MTBCX3:1:2103:16630:87701_CGTTGATC	147	CBS_pEZY3	2408	44	53M1D98M	=	2397	-163	GTTGGCAAAGTCATCTACAAGCAGTTCAAACAGATCCGCCTCACGGACACGCTGGCAGGCTCTCGCACATCCTGGAGATGGACCACTTCGCCCTGGTGGTGCACGAGCAGATCCAGTACCACAGCACCGGGAAGTCCAGTCAGCGGCAGAT	CHHHHHIHHHIHIHCHHIIIIIIIIIIIIIIIIIIIIIHIIIHHGIIHHEIIIIIIIIIIIIIIHIIIIIIIHHIIIIIIIIIHIHIGIIIIIIIIIIHIIIIIIHHHIHEGHGIIHHHIIIIIIHEHIIIIIHIHIGIIIIHIIIADBDD	AS:i:292	XN:i:0	XM:i:0	XO:i:1	XG:i:1	NM:i:1	MD:Z:53^G98	YS:i:250	YT:Z:CP	RG:Z:CBS1_35_comb_R	UG:Z:10015877_R2
+MG01HS02:1483:HG7MTBCX3:2:1208:5073:30436_CGTTGATC	147	CBS_pEZY3	2409	44	52M1D98M	=	2397	-163	TTGGCAAAGTCATCTACAAGCAGTTCAAACAGATCCGCCTCACGGACACGCTGGCAGGCTCTCGCACATCCTGGAGATGTACCACTTCGCCCTGGTGGTGCACGAGCAGATCCAGTACCACAGCACCGGGAAGTCCAGTCAGCGGCAGAT	HFCHHIHHIIHIHHIHHGIIIIIIIIIIIIHGIIGIHHHIHEHHFHHHHHIIHIIIIIIIIIIIIIIIHHEGIIHIIHIHIIIIIIIIIIHIIIIIIIHDFIIIIIIIHFHHEHIIIHHHHHIIIIIIIHIIIHHIIIIIGIIIIDDCDD	AS:i:285	XN:i:0	XM:i:1	XO:i:1	XG:i:1	NM:i:2	MD:Z:52^G27G70	YS:i:244	YT:Z:CP	RG:Z:CBS1_35_comb_R	UG:Z:10015877_R2
+MG01HS02:1506:HGKGCBCX3:2:2205:19957:35646_CGTTGATC	147	CBS_pEZY3	2409	44	52M1D98M	=	2397	-163	TTGGCAAAGTCATCTACAAGCAGTTCAAACAGATCCGCCTCACGGACACGCTGGCAGGCTCTCGCACATCCTGGAGATGGACCACTTCGCCCTGGTGGTGCACGAGCAGATCCAGTACCACAGCACCGGGAAGTCCAGTCAGCGGCAGAT	IHHIGIIHIIIIIHHHHHGIIHIIIIIHIIIGIHHIIIIFIIIIHHHGCIIIIIHIIIH?DHHIHHHCIIGIIIIIIIIIHIIIIIIIHEGIIIIIIIHHIIIIIIIIIIIHIIIIHHHEHGIIIIHIHEIIHGHIHIIHIIIIIDDDDD	AS:i:290	XN:i:0	XM:i:0	XO:i:1	XG:i:1	NM:i:1	MD:Z:52^G98	YS:i:250	YT:Z:CP	RG:Z:CBS1_35_comb_R	UG:Z:10015877_R2
+"""
+
+TEST_PRIMERS = """CBS_pEZY3	2289	2309	CBSpEZY3_13F_GSP2	0	+
+CBS_pEZY3	2318	2338	CBSpEZY3_12R_GSP2	0	-
+CBS_pEZY3	2401	2428	CBSpEZY3_14F_GSP2	0	+
+CBS_pEZY3	2430	2452	CBSpEZY3_13R_GSP2	0	-
+CBS_pEZY3	2514	2536	CBSpEZY3_15F_GSP2	0	+
+CBS_pEZY3	2538	2559	CBSpEZY3_14R_GSP2	0	-
+"""
+
+MASKING_TEST_PRIMERS = TEST_PRIMERS + """CBS_pEZY3	2380	2394	CBSpEZY3_mockR_GSP2	0	-
+CBS_pEZY3	2289	2395	CBSpEZY3_containF_GSP2	0	+
+CBS_pEZY3	2288	2394	CBSpEZY3_containR_GSP2	0	-
 """
 
 
@@ -163,7 +182,8 @@ class TestFastqPreprocessor(unittest.TestCase):
     def tearDownClass(cls):
         """Tear down for TestFastqPreprocessor."""
 
-        fu.safe_remove((cls.tileseq_r1_fastq, cls.tileseq_r2_fastq, cls.tileseq_r1_umi_fastq, cls.tileseq_r2_umi_fastq,
+        fu.safe_remove((cls.tempdir, cls.tileseq_r1_fastq, cls.tileseq_r2_fastq,
+                        cls.tileseq_r1_umi_fastq, cls.tileseq_r2_umi_fastq,
                         cls.amp_r1_fastq, cls.amp_r2_fastq))
 
     def test_run_cutadapt_tileseq_r1_no_adapter(self):
@@ -362,7 +382,7 @@ class TestUmiExtractor(unittest.TestCase):
     def tearDownClass(cls):
         """Tear down for TestUmiExtractor."""
 
-        fu.safe_remove((cls.tileseq_r1_fastq, cls.tileseq_r2_fastq, cls.amp_r1_fastq, cls.amp_r2_fastq))
+        fu.safe_remove((cls.tempdir, cls.tileseq_r1_fastq, cls.tileseq_r2_fastq, cls.amp_r1_fastq, cls.amp_r2_fastq))
 
     def test_umitools_extract_tileseq(self):
         """Tests proper extraction of UMIs from Tile-seq data."""
@@ -480,66 +500,145 @@ class TestUmiExtractor(unittest.TestCase):
 
         self.assertTrue(all((test_1, test_2, test_3, test_4)))
 
-# Skip testing ReadGrouper and ReadDeduplicator as these simply call umi_tools
+# Skip testing ReadGrouper and ReadDeduplicator as these are wrappers of umi_tools
 
 
-class TestDeduplicators(unittest.TestCase):
-    """Tests for read deduplicators."""
+class TestConsensusDeduplicatorPreprocessor(unittest.TestCase):
+    """Tests for ConsensusDeduplicatorPreprocessor."""
 
     @classmethod
     def setUpClass(cls):
-        """Set up for TestDeduplicators."""
+        """Set up for TestConsensusDeduplicatorPreprocessor."""
 
-        cls.test_dir = os.path.dirname(__file__)
-        cls.test_data_dir = os.path.join(cls.test_dir, "test_data")
-        cls.group_bam = os.path.join(TEST_DATA_DIR, "CBS1_32_R.group.bam")
-        cls.preprocess_bam = os.path.join(TEST_DATA_DIR, "CBS1_32_R.preprocess.bam")
-        cls.dedup_bam = os.path.join(TEST_DATA_DIR, "CBS1_32_R.dedup.bam")
+        cls.tempdir = tempfile.mkdtemp()
 
-        # Write the test BAM which contains duplicated reads
-        cls.ref = os.path.join(TEST_DATA_DIR, "CBS_pEZY3.fa")
-        if not os.path.exists(cls.ref + ".fai"):
-            pysam.faidx(cls.ref)
-
-        with tempfile.NamedTemporaryFile(suffix=".test.sam", mode="w", delete=False) as test_sam:
-            test_sam.write(DUP_TEST_BAM)
-            cls.test_sam = test_sam.name
-
-        cls.test_bam = su.sam_view(am=cls.test_sam)
-
-        # Select a test read with a mismatch
-        with pysam.AlignmentFile(cls.test_bam, "rb", check_sq=False) as test_af:
-            for i, read in enumerate(test_af.fetch(until_eof=True)):
-                if i == 0:
-                    cls.test_align_seg_del = read
-                if i == 13:
-                    cls.test_align_seg_mismtach = read
-            test_af.reset()
+        with tempfile.NamedTemporaryFile(mode="wb", suffix=".group.sam") as group_sam:
+            group_sam.write(GROUP_TEST_BAM)
+            fu.flush_files((group_sam,))
+            cls.grouped_bam = su.sam_view(group_sam.name, "b")
 
     @classmethod
     def tearDownClass(cls):
-        """Tear down for TestDeduplicators."""
+        """Tear down for TestConsensusDeduplicator."""
 
-        fu.safe_remove((cls.test_sam, cls.test_bam))
+        fu.safe_remove((cls.tempdir,))
+
+    def test_update_tags(self):
+        """Tests that we properly update the tags in a grouped BAM with only R1 marked with group tag."""
+
+        expected = ["6956334_R1", "6956334_R2", "3275192_R1", "3275192_R2"]
+
+        updated_bam = rp.ConsensusDeduplicatorPreprocessor.update_tags(qname_sorted=self.grouped_bam)
+
+        with pysam.AlignmentFile(updated_bam, "rb") as updated_af:
+            observed = [align_seg.get_tag(rp.UMITOOLS_UG_TAG) for align_seg in updated_af.fetch(until_eof=True)]
+
+        self.assertEqual(expected, observed)
+
+    def test_update_tags_from_grouped_bam(self):
+        """Tests that we properly qname-sorted the BAM and update tags."""
+
+        expected = ["3275192_R1", "3275192_R2", "6956334_R1", "6956334_R2"]
+
+        sorted_updated_bam = rp.ConsensusDeduplicatorPreprocessor.update_tags_from_grouped_bam(in_bam=self.grouped_bam)
+
+        with pysam.AlignmentFile(sorted_updated_bam, "rb") as updated_af:
+            observed = [align_seg.get_tag(rp.UMITOOLS_UG_TAG) for align_seg in updated_af.fetch(until_eof=True)]
+
+        self.assertEqual(expected, observed)
+
+    def test_workflow(self):
+        """Tests that we output a BAM with final sorting on group tag."""
+
+        expected = ["3275192_R1", "3275192_R2", "6956334_R1", "6956334_R2"]
+
+        cdp = rp.ConsensusDeduplicatorPreprocessor(group_bam=self.grouped_bam, outdir=self.tempdir)
+
+        with pysam.AlignmentFile(cdp.preprocess_bam, "rb") as preprocess_af:
+            observed = [align_seg.get_tag(rp.UMITOOLS_UG_TAG) for align_seg in preprocess_af.fetch(until_eof=True)]
+
+        self.assertEqual(expected, observed)
 
 
-class TestConsensusDeduplicator(TestDeduplicators):
+class TestConsensusDeduplicator(unittest.TestCase):
     """Tests for ConsensusDeduplicator."""
 
     @classmethod
     def setUpClass(cls):
         """Constructor for TestConsensusDeduplicator."""
 
-        super(TestConsensusDeduplicator, cls).setUpClass()
-        cls.cd = rp.ConsensusDeduplicator(in_bam=cls.test_bam, ref=cls.ref, contig_del_thresh=3)
+        cls.tempdir = tempfile.mkdtemp()
+        cls.test_dir = os.path.dirname(__file__)
+        cls.test_data_dir = os.path.join(cls.test_dir, "test_data")
+
+        cls.ref = os.path.join(cls.tempdir, "CBS_pEZY3.fa")
+        if not os.path.exists(fu.add_extension(cls.ref, su.FASTA_INDEX_SUFFIX)):
+            pysam.faidx(cls.ref)
+
+        with tempfile.NamedTemporaryFile(mode="wb", suffix=".preprocess.sam") as preproc_sam:
+            preproc_sam.write(PREPROC_TEST_BAM)
+            fu.flush_files((preproc_sam,))
+            cls.prepoc_bam = su.sam_view(preproc_sam.name, "b")
+
+        cls.cd = rp.ConsensusDeduplicator(in_bam=cls.prepoc_bam, ref=cls.ref, outdir=cls.tempdir, contig_del_thresh=3)
+
+        # Create simpler mock data for certain methods
+        # Select reads for various method testing
+        with pysam.AlignmentFile(cls.prepoc_bam, "rb", check_sq=False) as test_af:
+            for i, read in enumerate(test_af.fetch(until_eof=True)):
+                if i == 0:
+                    cls.test_align_seg_mismatches = read
+                if i == 1:
+                    cls.test_align_seg_clean = read
+                if i == 12:
+                    cls.test_align_seg_del = read
+                if i == 13:
+                    cls.test_align_seg_del_dup = read
+                if i == 14:
+                    cls.test_align_seg_del_dup_minority_call = read
+                if i == 17:
+                    cls.test_align_seg_del_r2_a = read
+
+            test_af.reset()
+
+        # For testing R2 merging into contigs and del_threshold
         cls.consensus_quals = [0, 0, 0, 40, 40, None, 40, 40, 40, None, None, None, None, 40, 0, 0]
         cls.consensus_seq = ["A", "A", "A", "T", "T", "", "G", "G", "G", "", "", "", "", "T", "A", "A"]
+
+    @classmethod
+    def tearDownClass(cls):
+        """Tear down for TestConsensusDeduplicator."""
+
+        fu.safe_remove((cls.tempdir,))
 
     def test_extract_umi_network(self):
         """Tests the ability to extract the UMI group from BAM tag."""
 
-        res = self.cd._extract_umi_network(align_seg=self.test_align_seg_mismtach)
-        self.assertEqual(res, "1000004")
+        res = self.cd._extract_umi_network(align_seg=self.test_align_seg_mismatches)
+        self.assertEqual(res, "10000001")
+
+    def test_init_positions(self):
+        """Tests that we properly initialize positions for a dedup contig."""
+
+        # 0-based start compared to SAM 1-based start
+        expected_keys = [rp.MATE_STRAND_POS_TUPLE(
+            mate=su.ReadMate("R1"), strand=su.Strand("-"), pos=i, ref="CBS_pEZY3") for i in range(2289, 2289+105)]
+
+        expected_values = [np.zeros(shape=10, dtype=np.int32)] * len(expected_keys)
+
+        expected = collections.OrderedDict(zip(expected_keys, expected_values))
+
+        observed = collections.OrderedDict()
+
+        test_mate_strand = rp.MATE_STRAND_POS_TUPLE(
+            mate=su.ReadMate(self.test_align_seg_mismatches.is_read1),
+            strand=su.Strand(self.test_align_seg_mismatches.is_reverse),
+            pos=None, ref=self.test_align_seg_mismatches.reference_name)
+
+        self.cd._init_positions(align_seg=self.test_align_seg_mismatches,
+                                mate_strand=test_mate_strand, consensus_dict=observed)
+
+        self.assertEqual(expected, observed)
 
     def test_construct_cigar(self):
         """Tests construction of the CIGAR string with matches and a deletion."""
@@ -559,18 +658,6 @@ class TestConsensusDeduplicator(TestDeduplicators):
 
         self.assertEquals(type(res), pysam.AlignedSegment)
 
-    def test_get_consensus_read_attrs(self):
-        """Tests for generation of a proper SAM flag."""
-
-        res = self.cd._get_consensus_read_attrs(
-            self.test_align_seg_del,
-            rp.MATE_STRAND_POS_TUPLE(mate=su.ReadMate.R1, strand=su.Strand.MINUS, pos=None, ref=self.ref))
-
-        # PAIRED,PROPER_PAIR,REVERSE,READ1
-        expect = ("1000009", su.SAM_FLAG_PAIRED + su.SAM_FLAG_PROPER_PAIR + su.SAM_FLAG_REVERSE + su.SAM_FLAG_R1)
-
-        self.assertEqual(res, expect)
-
     def test_get_missing_base_indices(self):
         """Tests that the proper indices are returned for missing bases."""
 
@@ -585,3 +672,319 @@ class TestConsensusDeduplicator(TestDeduplicators):
         expect = (["A", "A", "A", "T", "T", "", "G", "G", "G", "N", "N", "N", "N", "T", "A", "A"],
                   [0,0,0,40,40,None,40,40,40,su.DEFAULT_MAX_BQ,su.DEFAULT_MAX_BQ,su.DEFAULT_MAX_BQ,su.DEFAULT_MAX_BQ,40,0,0])
         self.assertEqual(res, expect)
+
+    def test_update_consensus_dict(self):
+        """Tests that we add read information to the consensus dictionary."""
+
+        # Test that we add bases to the consensus dict and the pos dict contains the start position
+        # 64 match, 1 del, 66 match; sum is 131 ref positions
+        expected_1 = collections.OrderedDict(zip(list(range(2407,2407+131)),
+                                                 list(self.test_align_seg_del.query_sequence)))
+        expected_2 = {2407}
+
+        consensus_dict = collections.OrderedDict()
+        pos_set = set()
+
+        # Updates the dict and set by side effect
+        self.cd._update_consensus_dict(self.test_align_seg_del, consensus_dict, pos_set)
+
+        self.assertTrue(all((expected_1 == consensus_dict, expected_2 == pos_set)))
+
+    def test_get_consensus_del(self):
+        """Tests that a consensus base at a position is properly generated."""
+
+        expected = ("", None)
+
+        consensus_dict = collections.OrderedDict()
+        pos_set = set()
+        self.cd._update_consensus_dict(self.test_align_seg_del, consensus_dict, pos_set)
+        self.cd._update_consensus_dict(self.test_align_seg_del_dup, consensus_dict, pos_set)
+
+        # We have a deletion in both reads at this index
+        consensus_key, consensus_array = list(consensus_dict.items())[65]
+        observed = self.cd._get_consensus(consensus_key, consensus_array)
+
+        self.assertEqual(expected, observed)
+
+    def test_get_consensus_one_match_ref(self):
+        r"""Tests that a consensus base at a position is called as the reference base with two supporting bases and \
+         only one matching the reference base."""
+
+        # The two BQs are 39 and 40, with int() taking the floor of the mean
+        expected = ("A", 39)
+
+        consensus_dict = collections.OrderedDict()
+        pos_set = set()
+        self.cd._update_consensus_dict(self.test_align_seg_del, consensus_dict, pos_set)
+        self.cd._update_consensus_dict(self.test_align_seg_del_dup, consensus_dict, pos_set)
+
+        # Here we have a mismatch
+        consensus_key, consensus_array = list(consensus_dict.items())[60]
+        observed = self.cd._get_consensus(consensus_key, consensus_array)
+
+        self.assertEqual(expected, observed)
+
+    def test_get_consensus_majority(self):
+        r"""Tests that a consensus base at a position is called as the reference base with two supporting bases and \
+         only one matching the reference base."""
+
+        # The two BQs are 39 and 40, with int() taking the floor of the mean
+        expected = ("G", 40)
+
+        consensus_dict = collections.OrderedDict()
+        pos_set = set()
+        self.cd._update_consensus_dict(self.test_align_seg_del, consensus_dict, pos_set)
+        self.cd._update_consensus_dict(self.test_align_seg_del_dup, consensus_dict, pos_set)
+        self.cd._update_consensus_dict(self.test_align_seg_del_dup_minority_call, consensus_dict, pos_set)
+
+        # Here we have a mismatch
+        consensus_key, consensus_array = list(consensus_dict.items())[91]
+        observed = self.cd._get_consensus(consensus_key, consensus_array)
+
+        self.assertEqual(expected, observed)
+
+    def test_get_consensus_read_attrs(self):
+        """Tests that we get the consensus read SAM flags and new qname."""
+
+        expected = ("10000001", 83)
+
+        mate_strand = rp.MATE_STRAND_POS_TUPLE(mate=su.ReadMate("R1"), strand=su.Strand("-"), pos=None, ref="CBS_pEZY3")
+        observed = self.cd._get_consensus_read_attrs("10000001_R1", mate_strand)
+
+        self.assertEqual(expected, observed)
+
+    def test_write_consensus_one_match_ref(self):
+        """Tests that a consensus read is generated where one duplicate has mismatches and the other matches the ref."""
+
+        # Test that the consensus read has no mismatches, that it starts at the expected coordinate, and that
+        # the number duplicates (ND) tag is 2
+        expected_1 = self.test_align_seg_clean.query_alignment_sequence
+        expected_2 = self.test_align_seg_clean.query_alignment_start
+        expected_3 = 2
+
+        consensus_dict = collections.OrderedDict()
+        pos_set = set()
+        self.cd._update_consensus_dict(self.test_align_seg_mismatches, consensus_dict, pos_set)
+        self.cd._update_consensus_dict(self.test_align_seg_clean, consensus_dict, pos_set)
+
+        # Write the consensus read
+        with tempfile.NamedTemporaryFile(suffix=".consensus.bam") as consensus_bam, \
+                pysam.AlignmentFile("wb", consensus_bam) as consensus_af:
+
+            self.cd._write_consensus(consensus_af, consensus_dict, pos_set, "10000001_R1")
+            fu.flush_files((consensus_bam,))
+
+            with pysam.AlignmentFile("rb", consensus_bam) as res_af:
+                for align_seg in res_af.fetch():
+                    observed_1 = align_seg.query_alignment_sequence
+                    observed_2 = align_seg.query_alignment_start
+                    observed_3 = align_seg.get_tag(self.cd.N_DUPLICATES_TAG)
+
+        self.assertTrue(all((expected_1 == observed_1, expected_2 == observed_2, expected_3 == observed_3)))
+
+    def test_write_consensus_majority_with_del(self):
+        """Tests that a consensus read is generated by majority vote while retaining a deletion."""
+
+        # Test that the consensus read has no mismatches but retains the del, that it starts at the expected coordinate,
+        # and that the number duplicates (ND) tag is 3
+        expected_1 = self.test_align_seg_del_dup.query_alignment_sequence
+        expected_2 = self.test_align_seg_del_dup.query_alignment_start
+        expected_3 = 3
+
+        consensus_dict = collections.OrderedDict()
+        pos_set = set()
+        self.cd._update_consensus_dict(self.test_align_seg_del, consensus_dict, pos_set)
+        self.cd._update_consensus_dict(self.test_align_seg_del_dup, consensus_dict, pos_set)
+        self.cd._update_consensus_dict(self.test_align_seg_del_dup_minority_call, consensus_dict, pos_set)
+
+        # Write the consensus read
+        with tempfile.NamedTemporaryFile(suffix=".consensus.bam") as consensus_bam, \
+                pysam.AlignmentFile("wb", consensus_bam) as consensus_af:
+
+            self.cd._write_consensus(consensus_af, consensus_dict, pos_set, "10015877_R1")
+            fu.flush_files((consensus_bam,))
+
+            with pysam.AlignmentFile("rb", consensus_bam) as res_af:
+                for align_seg in res_af.fetch():
+                    observed_1 = align_seg.query_alignment_sequence
+                    observed_2 = align_seg.query_alignment_start
+                    observed_3 = align_seg.get_tag(self.cd.N_DUPLICATES_TAG)
+
+        self.assertTrue(all((expected_1 == observed_1, expected_2 == observed_2, expected_3 == observed_3)))
+
+    def test_generate_consensus_reads(self):
+        """Tests that three fragments are properly deduplicated in succession."""
+
+        # All reads starting at 2290 should match the reference after deduplication
+        expected_1 = [self.test_align_seg_clean.query_alignment_sequence] * 4
+
+        # All reads starting at 2397 should match the reference with the exception of the del after dedup
+        expected_1.append(self.test_align_seg_del_dup.query_alignment_sequence)
+
+        # R2 duplicates start at 2408 and 2409; we expect the start for the consensus read to be 2408
+        expected_1.append(self.test_align_seg_del_r2_a.query_alignment_sequence)
+
+        expected_2 = ["10000001_R1", "10000001_R2", "10000004_R1", "10000004_R2", "10015877_R1", "10015877_R2"]
+
+        consensus_bam = self.cd._generate_consensus_reads()
+
+        observed_1 = []
+        observed_2 = []
+        with pysam.AlignmentFile("rb", consensus_bam) as consensus_af:
+            for align_seg in consensus_af.fetch():
+                observed_1.append(align_seg.query_alignment_sequence)
+                observed_2.append(align_seg.query_name)
+
+        fu.safe_remove((consensus_bam,))
+
+        self.assertTrue(all((expected_1 == observed_1, expected_2 == observed_2)))
+
+
+class TestReadMasker(unittest.TestCase):
+    """Tests for ReadMasker."""
+
+    @classmethod
+    def setUpClass(cls):
+        """Constructor for TestReadMasker."""
+
+        cls.tempdir = tempfile.mkdtemp()
+        cls.test_dir = os.path.dirname(__file__)
+        cls.test_data_dir = os.path.join(cls.test_dir, "test_data")
+
+        with tempfile.NamedTemporaryFile(mode="wb", suffix=".preprocess.sam") as preproc_sam:
+            preproc_sam.write(PREPROC_TEST_BAM)
+            fu.flush_files((preproc_sam,))
+            cls.prepoc_bam = su.sam_view(preproc_sam.name, "b")
+
+        with tempfile.NamedTemporaryFile(suffix=".primers.bed", delete=False) as primer_bed:
+            primer_bed.write(MASKING_TEST_PRIMERS)
+            cls.primer_bed = primer_bed.name
+
+        # Select reads for various method testing
+        with pysam.AlignmentFile(cls.prepoc_bam, "rb") as test_af:
+            for i, read in enumerate(test_af.fetch()):
+                if i == 0:
+                    cls.test_align_seg_r1_reverse = read
+                if i == 2:
+                    cls.test_align_seg_r2_positive = read
+                if i > 2:
+                    break
+
+            test_af.reset()
+
+        cls.rm_tileseq = rp.ReadMasker(in_bam=cls.prepoc_bam, feature_file=cls.primer_bed, outdir=cls.tempdir)
+
+        cls.rm_race = rp.ReadMasker(
+            in_bam=cls.prepoc_bam, feature_file=cls.primer_bed, is_race_like=True, outdir=cls.tempdir)
+
+    @classmethod
+    def tearDownClass(cls):
+        """Tear down for TestReadMasker."""
+
+        fu.safe_remove((cls.tempdir, cls.prepoc_bam, cls.primer_bed))
+
+    def test_get_mask_base_indices_tileseq_r1(self):
+        """Test that we return the read indices to mask for a Tile-seq R1 starting and ending at a primer start."""
+
+        expected = {list(range(0, 20)) + list(range(91, 105))}
+
+        associated_primers = {"CBS_pEZY3:2289-2309", "CBS_pEZY3:2380-2394"}
+        observed = self.rm_race._get_mask_base_indices(
+            align_seg=self.test_align_seg_r1_reverse, associated_primers=associated_primers)
+
+        self.assertEqual(0, len(expected - observed))
+
+    def test_get_mask_base_indices_tileseq_r2(self):
+        """Test that we return the read indices to mask for a Tile-seq R2 starting and ending at a primer start."""
+
+        expected = {list(range(0, 20)) + list(range(91, 105))}
+
+        associated_primers = {"CBS_pEZY3:2289-2309", "CBS_pEZY3:2380-2394"}
+        observed = self.rm_race._get_mask_base_indices(
+            align_seg=self.test_align_seg_r2_positive, associated_primers=associated_primers)
+
+        self.assertEqual(0, len(expected - observed))
+
+    def test_get_mask_base_indices_race_r1_end(self):
+        """Test that we return the read indices to mask for a RACE-like R1 ending at a primer."""
+
+        expected = {range(0, 20)}
+
+        associated_primers = {"CBS_pEZY3:2289-2309", "CBS_pEZY3:2380-2394"}
+        observed = self.rm_race._get_mask_base_indices(
+            align_seg=self.test_align_seg_r1_reverse, associated_primers=associated_primers)
+
+        self.assertEqual(0, len(expected - observed))
+
+    def test_get_mask_base_indices_race_r2_start(self):
+        """Test that we return the read indices to mask for a RACE-like R2 starting at a primer."""
+
+        expected = {range(0, 20)}
+
+        associated_primers = {"CBS_pEZY3:2289-2309", "CBS_pEZY3:2380-2394"}
+        observed = self.rm_race._get_mask_base_indices(
+            align_seg=self.test_align_seg_r2_positive, associated_primers=associated_primers)
+
+        self.assertEqual(0, len(expected - observed))
+
+    def test_get_mask_base_indices_race_r1_start(self):
+        """Test that we return no indices for a RACE-like R1 starting at a primer start."""
+
+        associated_primers = {"CBS_pEZY3:2289-2309", "CBS_pEZY3:2380-2394"}
+        observed = self.rm_race._get_mask_base_indices(
+            align_seg=self.test_align_seg_r1_reverse, associated_primers=associated_primers)
+
+        self.assertEqual(0, len(observed))
+
+    def test_get_mask_base_indices_race_r2_end(self):
+        """Test that we return no indices for a RACE-like R2 ending at a primer start."""
+
+        associated_primers = {"CBS_pEZY3:2289-2309", "CBS_pEZY3:2380-2394"}
+        observed = self.rm_race._get_mask_base_indices(
+            align_seg=self.test_align_seg_r2_positive, associated_primers=associated_primers)
+
+        self.assertEqual(0, len(observed))
+
+    def test_get_mask_base_indices_r1_contained(self):
+        """Tests that a R1 completely contained in a primer is fully masked."""
+
+        associated_primers = {"CBS_pEZY3:2288-2394"}
+
+        observed = self.rm_tileseq._get_mask_base_indices(
+            align_seg=self.test_align_seg_r1_reverse, associated_primers=associated_primers)
+
+        self.assertEqual(len(observed), self.test_align_seg_r1_reverse.query_length)
+
+    def test_get_mask_base_indices_r2_contained(self):
+        """Tests that a R2 completely contained in a primer is fully masked."""
+
+        associated_primers = {"CBS_pEZY3:2289-2395"}
+
+        observed = self.rm_tileseq._get_mask_base_indices(
+            align_seg=self.test_align_seg_r2_positive, associated_primers=associated_primers)
+
+        self.assertEqual(len(observed), self.test_align_seg_r2_positive.query_length)
+
+    def test_workflow(self):
+        """Tests that the appropriate reads are masked."""
+
+        # 10000001_R1 and 10015877_R1 duplicates should not have been masked with the true set of primers
+        expected = {"10000004_R1", "10000004_R2", "10015877_R2"}
+
+        with tempfile.NamedTemporaryFile(suffix=".primers2.bed", delete=False) as primer_bed2:
+            primer_bed2.write(TEST_PRIMERS)
+            primer_bed2_fn = primer_bed2.name
+
+        rm = rp.ReadMasker(in_bam=self.prepoc_bam, feature_file=primer_bed2_fn, is_race_like=True, outdir=self.tempdir)
+
+        observed = set()
+        with pysam.AlignmentFile(rm.out_bam, "rb") as test_af:
+            for align_seg in test_af.fetch(until_eof=True):
+                if 0 in set(align_seg.query_qualities):
+                    observed.add(align_seg.get_tag(rp.UMITOOLS_UG_TAG))
+
+        fu.safe_remove((primer_bed2_fn,))
+
+        self.assertEqual(0, len(expected - observed))
+
+# Skip testing VariantCallerPreprocessor as we simply make samtools calls which are tested in test_seq_utils

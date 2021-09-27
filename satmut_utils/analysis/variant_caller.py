@@ -1,10 +1,11 @@
 #!/usr/bin/env/python
-"""Variant caller for SNPs, MNPs, and read-length haplotypes."""
+"""Variant caller for SNPs and MNPs."""
 
 import collections
 import copy
 import itertools
 import logging
+import numpy as np
 import os
 import pybedtools
 import pysam
@@ -15,6 +16,7 @@ import analysis.coordinate_mapper as cm
 import analysis.read_preprocessor as rp
 import analysis.seq_utils as su
 
+from core_utils.feature_file_utils import intersect_features
 import core_utils.file_utils as fu
 import core_utils.vcf_utils as vu
 
@@ -30,11 +32,10 @@ __status__ = "Development"
 
 COORDINATE_KEY = collections.namedtuple("COORDINATE_KEY", "contig, pos")
 MM_TUPLE = collections.namedtuple("MM_TUPLE", "contig, pos, ref, alt, bq, read_pos")
-CALL_TUPLE = collections.namedtuple("CALL_TUPLE", "contig, pos, ref, alt")
-PER_BP_STATS = collections.namedtuple(
-    "PER_BP_STATS", "refs, alts, pos, r1_bqs, r2_bqs, r1_read_pos, r2_read_pos")
-
+CALL_TUPLE = collections.namedtuple("CALL_TUPLE", "contig, pos, ref, alt, refs, alts, positions")
+PER_BP_STATS = collections.namedtuple("PER_BP_STATS", "r1_bqs, r2_bqs, r1_read_pos, r2_read_pos")
 VARIANT_CALL_KEY_TUPLE = collections.namedtuple("VARIANT_CALL_KEY_TUPLE", "contig, pos, ref, alt, index")
+
 VARIANT_CALL_SUMMARY_TUPLE = collections.namedtuple(
     "VARIANT_CALL_SUMMARY_TUPLE",
     (vu.VCF_POS_NT_ID, vu.VCF_REF_NT_ID, vu.VCF_ALT_NT_ID, vu.VCF_UP_REF_NT_ID, vu.VCF_DOWN_REF_NT_ID,
@@ -50,10 +51,10 @@ tempfile.tempdir = os.getenv("SCRATCH", "/tmp")
 _logger = logging.getLogger(__name__)
 
 
-# TODO: implement confined calling to targets by intersecting with targets
 class VariantCaller(object):
     """Class for calling variants across target regions."""
 
+    VARIANT_CALL_REFERENCE_DIR = "./references"
     VARIANT_CALL_ENSEMBL_ID = None
     VARIANT_CALL_REF = None
     VARIANT_CALL_GFF = None
@@ -62,7 +63,6 @@ class VariantCaller(object):
     VARIANT_CALL_PRIMERS = None
     VARIANT_CALL_DEDUP = rp.DEDUP_FLAG
     VARIANT_CALL_CDEDUP = rp.CDEDUP_FLAG
-    VARIANT_CALL_STRANDS = False
     VARIANT_CALL_OUTDIR = "."
     VARIANT_CALL_STATS = False
 
@@ -86,82 +86,77 @@ class VariantCaller(object):
     R2_PLUS_INDEX = 2
     R2_MINUS_INDEX = 3
     R_COUNTS_INDEX = 0
-    R_REF_INDEX = 1
-    R_ALT_INDEX = 2
-    R_POS_INDEX = 3
-    R_BQ_INDEX = 4
-    R_RP_INDEX = 5
-    R_NM_INDEX = 6
+    R_BQ_INDEX = 1
+    R_RP_INDEX = 2
+    R_NM_INDEX = 3
 
-    def __init__(self, am, targets, ref, transcript_gff, gff_reference, output_dir=VARIANT_CALL_OUTDIR,
-                 primers=VARIANT_CALL_PRIMERS, nthreads=DEFAULT_NTHREADS, exclude_n=VARIANT_CALL_EXCLUDE_N,
+    def __init__(self, am, ref, trx_gff, gff_ref, targets=VARIANT_CALL_TARGET, primers=VARIANT_CALL_PRIMERS,
+                 output_dir=VARIANT_CALL_OUTDIR, nthreads=DEFAULT_NTHREADS, exclude_n=VARIANT_CALL_EXCLUDE_N,
                  mut_sig=VARIANT_CALL_MUT_SIG):
         r"""Constructor for VariantCaller.
 
         :param str am: SAM/BAM file to enumerate variants in
-        :param str targets: BED or GFF containing target regions to call variants in
         :param str ref: path to reference FASTA used in alignment. Must be samtools faidx indexed.
-        :param str transcript_gff: GFF/GTF file containing transcript metafeatures and exon features, in 5' to 3' order, \
+        :param str trx_gff: GFF file containing transcript metafeatures and exon features, in 5' to 3' order, \
         regardless of strand. Ordering is essential.
-        :param str gff_reference: reference FASTA corresponding to the GFF features
-        :param str | None output_dir: output dir to use for output files; if None, will create a tempdir.
+        :param str gff_ref: reference FASTA corresponding to the GFF features
+        :param str targets: BED or GFF containing target regions to call variants in
         :param str | None primers: BED or GFF file containing primers. For masking synthetic sequences for \
         accurate AF of variants overlapping primer regions. This feature file must contain the strand of the primer. \
         Set to None for no masking.
+        :param str | None output_dir: output dir to use for output files; if None, will create a tempdir.
         :param int nthreads: number threads to use for SAM/BAM file manipulations. Default 0 (autodetect).
-        :param bool exclude_n: exclude variant calls to an "N". Setting to False may be useful for training error models.
+        :param bool exclude_n: exclude variant calls to an "N". Default True. Setting to False may be useful for \
+        training error models.
         :param str mut_sig: mutagenesis signature- one of {NNN, NNK, NNS}. Default NNK.
-        :raises RuntimeError: if not alignments are found in the BAM or after intersection with the targets
+        :raises RuntimeError: if no alignments are found in the input BAM
         """
 
         _logger.info("Initializing %s" % self.__class__.__name__)
 
         self.am = am
-        self.targets = targets
         self.ref = ref
-        self.transcript_gff = transcript_gff
-        self.gff_reference = gff_reference
-        self.output_dir = output_dir
+        self.transcript_gff = trx_gff
+        self.gff_reference = gff_ref
+        self.targets = targets
         self.primers = primers
+        self.output_dir = output_dir
         self.nthreads = nthreads
         self.exclude_n = exclude_n
         self.mut_sig = mut_sig
 
         # Preprocess the alignments and setup the output directory
-        self.vc_preprocessor = rp.VariantCallerPreprocessor(
-            am=am, ref=ref, targets=targets, output_dir=output_dir, nthreads=nthreads)
+        self.vc_preprocessor = rp.VariantCallerPreprocessor(am=am, ref=ref, output_dir=output_dir, nthreads=nthreads)
 
         # This assumes the BAM is coordinate sorted and indexed
         with pysam.AlignmentFile(self.vc_preprocessor.in_bam, "rb") as rs_af:
             self.total_mapped = rs_af.mapped
+            self.contigs = rs_af.references
 
         if int(self.total_mapped) == 0:
             raise RuntimeError("No alignments to process.")
 
-        self.prefix = os.path.join(self.vc_preprocessor.output_dir, fu.remove_extension(os.path.basename(self.am)))
+        # Divide the mapped reads by 2 to approximate pairs
+        self.norm_factor = self.VARIANT_CALL_NORM_DP / (self.total_mapped / 2)
 
-        _logger.info("Loading transcript exon annotations for conversion to genomic coordinates.")
-        self.coordinate_mapper = cm.CoordinateMapper(gff=self.transcript_gff)
+        self.prefix = os.path.join(self.vc_preprocessor.output_dir, fu.remove_extension(os.path.basename(self.am)))
 
         _logger.info("Loading transcript CDS annotations for AA change determination.")
         self.amino_acid_mapper = cm.AminoAcidMapper(gff=self.transcript_gff, ref=self.gff_reference, mut_sig=mut_sig)
 
-        # Divide the mapped reads by 2 to approximate pairs; this is how Roth lab normalizes
-        # This might be more accurate if reads unexpected from the chemistry are removed for Tileseq
-        self.norm_factor = self.VARIANT_CALL_NORM_DP / (self.total_mapped / 2)
-
         # Get the list of unique contigs for constructing VCF headers
-        self.target_contigs = {str(f.chrom) for f in pybedtools.BedTool(self.targets)}
-        if len(self.target_contigs) != 1:
-            raise RuntimeError("Currently only one target contig/transcript is supported.")
+
+        if self.targets is not None:
+            self.target_contigs = {str(f.chrom) for f in pybedtools.BedTool(self.targets)}
+            if len(self.target_contigs) != 1:
+                raise RuntimeError("Currently only one target contig/transcript is supported.")
 
         # Keep total R1 + R2 counts at each position for frequency calculations
         self.coordinate_counts = collections.defaultdict(int)
 
         # TODO: store multiple np arrays for supporting read data- one for each stat to be summarized
         # This would be p arrays of length m x n, where p is number of stats to be summarized (e.g. BQ), m is the
-        # variant call key (contig:pos:ref:alt), and n is either 2 or 4 for SE and PE data, respectively
-        # e.g. R1,+ ; R1,- ; R2,+ ; R2,-
+        # variant call key (contig:pos:ref:alt), and n is 4 for PE data (R1,+ ; R1,- ; R2,+ ; R2,-)
 
         # Keeps counts and stats for non-reference base supporting reads
         self.variant_counts = collections.OrderedDict()
@@ -182,31 +177,35 @@ class VariantCaller(object):
         return False
 
     def _get_haplotype_ref(self, contig, first_pos, last_pos, mm_pos_set):
-        r"""Determines the variant REF given a contig, coordinate positions of the terminal mismatches, and \
-        a list of MM_TUPLEs included in the call.
+        r"""Determines the variant REF and local mismatch positions given the first and last MM_TUPLE positions.
 
-        :param str contig: contig/reference name
+        :param str contig: contig name
         :param int first_pos: 1-based position of the first mismatch
         :param int last_pos: 1-based position of the last mismatch
-        :param set mm_pos_set: set of all mismatch coordinate positions for the haplotype
-        :return tuple: (str, list) of REF field, REF field mismatch positions
+        :param set mm_pos_set: set of all 1-based mismatch coordinate positions for the haplotype
+        :return tuple: (str, set) REF field and 0-based positions of mismatches in the REF field
         """
 
         ref_nts = su.extract_seq(contig, first_pos, last_pos, self.ref)
         ref_pos = list(range(first_pos, last_pos + 1))
-        ref_mm_pos = [j for j, e in enumerate(ref_pos) if e in mm_pos_set]
+        ref_mm_pos = [i for i, e in enumerate(ref_pos) if e in mm_pos_set]
         return ref_nts, ref_mm_pos
 
     def _get_haplotype_dict(self, filt_r_mms, max_mnp_window=VARIANT_CALL_MAX_MNP_WINDOW):
-        """Finds haplotypes within a MNP window size.
+        r"""Finds MNPs/haplotypes within a MNP window size.
 
-        :param list filt_r_mms: list of R1 or R2 MM_TUPLEs
-        :param int max_mnp_window: max number of consecutive nucleotides to search for haplotypes
-        :return tuple: (collections.defaultdict, set) of ({collections.namedtuple: frozenset} dict keyed by \
-        CALL_TUPLE with values the set of coordinate positions included in the haplotype, and the \
-        position_blacklist for mismatches involved in haplotypes
+        :param list filt_r_mms: list of concordant R1 or R2 MM_TUPLEs
+        :param int max_mnp_window: max number of consecutive nucleotides to search for haplotypes. Default 3.
+        :return tuple: (collections.defaultdict, set) of ({collections.namedtuple: set} dict keyed by \
+        CALL_TUPLE and values the set of coordinate positions included in the haplotype, and the \
+        position_blacklist for mismatches involved in haplotypes)
         """
 
+        # TODO: this logic could be faulty in certain cases, e.g. where an error is merged with a true MNP that spans
+        #  max_mnp_window distance away from the first error
+        # window distance  |----------|
+        # Read: -----------A---------TGG--->
+        # This would result in an MNP comprised of A and TG, to the exclusion of a TGG MNP call
         haplotype_groups = [[]]
         for i, mm_tuple in enumerate(filt_r_mms):
 
@@ -214,7 +213,7 @@ class VariantCaller(object):
                 haplotype_groups[0].append(mm_tuple)
                 continue
 
-            # Try to find a place for the mismatch
+            # Try to find a group for the mismatch
             for j, haplo_group in enumerate(haplotype_groups):
 
                 hg_min_pos = min([mt.pos for mt in haplo_group])
@@ -223,8 +222,7 @@ class VariantCaller(object):
                     haplotype_groups[j].append(mm_tuple)
                     break
             else:
-                # If the mismatch could not be merged with an existing group
-                # create a new one
+                # If the mismatch could not be merged with an existing group create a new one
                 haplotype_groups.append([mm_tuple])
 
         # Now to find our haplotypes we identify the groups with two or more mismatches
@@ -248,16 +246,90 @@ class VariantCaller(object):
                 for mt, mm_pos in zip(final_group, ref_mm_pos):
                     alt_nts[mm_pos] = mt.alt
 
-                haplotypes[CALL_TUPLE(first_mt.contig, first_mt.pos, ref_nts, "".join(alt_nts))] |= mm_pos_set
+                haplotypes[CALL_TUPLE(
+                    first_mt.contig, first_mt.pos, ref_nts, "".join(alt_nts), None, None, None)] |= mm_pos_set
+
                 position_blacklist |= mm_pos_set
 
         return haplotypes, position_blacklist
 
-    def _call_haplotypes(self, filt_r_mms, max_mnp_window):
+    def _generate_call_tuple(self, *mmts):
+        """Generates a CALL_TUPLE from MM_TUPLEs.
+
+        :param iter mmts: MM_TUPLEs
+        :return tuple: (collections.namedtuple, set) analysis.variant_caller.CALL_TUPLE and 1-based reference positions
+        """
+
+        first_mmt = mmts[0]
+        last_mmt = mmts[-1]
+        mm_pos_set = {mmt.pos for mmt in mmts}
+
+        # Generate the REF field based on the span of the haplotype
+        ref_nts, ref_mm_pos = self._get_haplotype_ref(first_mmt.contig, first_mmt.pos, last_mmt.pos, mm_pos_set)
+
+        # Generate the ALT field based on the 0-based mismatch positions in REF
+        alt_nts = list(copy.copy(ref_nts))
+        for mmt, mm_pos in zip(mmts, ref_mm_pos):
+            alt_nts[mm_pos] = mmt.alt
+
+        call_tuple = CALL_TUPLE(first_mmt.contig, first_mmt.pos, ref_nts, "".join(alt_nts), None, None, None)
+
+        return call_tuple, mm_pos_set
+
+    def _get_haplotype_dict_improved(self, filt_r_mms, max_mnp_window=VARIANT_CALL_MAX_MNP_WINDOW):
+        r"""Finds MNPs/haplotypes within a MNP window size.
+
+        :param list filt_r_mms: list of concordant R1 or R2 MM_TUPLEs
+        :param int max_mnp_window: max number of consecutive nucleotides to search for haplotypes. Default 3.
+        :return tuple: (collections.defaultdict, set) of ({collections.namedtuple: set} dict keyed by \
+        CALL_TUPLE and values the set of coordinate positions included in the haplotype, and the \
+        position_blacklist for mismatches involved in haplotypes)
+        """
+
+        haplotypes = collections.defaultdict(set)
+        position_blacklist = set()
+
+        # For the second to last mismatch, add a buffer MM_TUPLE with pos > the window so that i + 2 is valid
+        filt_r_mms_ext = filt_r_mms + [
+            MM_TUPLE(contig=None, pos=filt_r_mms[-2].pos + max_mnp_window + 1,
+                     ref=None, alt=None, bq=None, read_pos=None)]
+
+        break_index = len(filt_r_mms) - 1
+
+        for i, mm_tuple in enumerate(filt_r_mms_ext):
+
+            # If we are at the last mismatch, break to avoid IndexErrors
+            if i == break_index:
+                break
+
+            if mm_tuple.pos in position_blacklist:
+                continue
+
+            if filt_r_mms[i + 1].pos - filt_r_mms[i].pos >= max_mnp_window:
+                continue
+
+            # Here we know that the next mismatch is within the window, but we don't know if its position is +1 or +2
+            if filt_r_mms[i + 2].pos - filt_r_mms[i].pos < max_mnp_window:
+                # Here we have a tri-nt MNP that spans 3 consecutive nts
+                mmts = [filt_r_mms[i], filt_r_mms[i + 1], filt_r_mms[i + 2]]
+                call_tuple, mm_pos_set = self._generate_call_tuple(mmts)
+                haplotypes[call_tuple] |= mm_pos_set
+                position_blacklist |= mm_pos_set
+                continue
+
+            # if i + 1 and i + 2 are consecutive continue as i + 1 could initiate a tri-nt MNP
+            # if they are not consecutive call a di-nt MNP
+            if (filt_r_mms[i + 2].pos - filt_r_mms[i + 1].pos) != 1:
+                mmts = [filt_r_mms[i], filt_r_mms[i + 1]]
+                call_tuple, mm_pos_set = self._generate_call_tuple(mmts)
+                haplotypes[call_tuple] |= mm_pos_set
+                position_blacklist |= mm_pos_set
+
+    def _call_haplotypes(self, filt_r_mms, max_mnp_window=VARIANT_CALL_MAX_MNP_WINDOW):
         """Calls haplotypes.
 
         :param list filt_r_mms: list of filtered MM_TUPLEs for either R1 or R2
-        :param int max_mnp_window: max number of consecutive nucleotides to search for haplotypes
+        :param int max_mnp_window: max number of consecutive nucleotides to search for haplotypes. Default 3.
         :return tuple: (haplotype dict, position_blacklist), or if no haplotypes were called, None.
         """
 
@@ -274,12 +346,12 @@ class VariantCaller(object):
             if max_pos - min_pos >= max_mnp_window:
                 return None
 
-        haplotypes, position_blacklist = self._get_haplotype_dict(filt_r_mms, max_mnp_window)
+        haplotypes, position_blacklist = self._get_haplotype_dict_improved(filt_r_mms, max_mnp_window)
         return haplotypes, position_blacklist
 
     @staticmethod
     def _call_snps(filt_r_mms, position_blacklist, haplotypes=None):
-        r"""Calls SNPs.
+        r"""Calls SNPs if the mismatches are not included in existing MNPs/haplotypes.
 
         :param list filt_r_mms: list of filtered R1 or R2 MM_TUPLEs
         :param set position_blacklist: set of mismatches involved in haplotypes, for which we don't want to \
@@ -294,12 +366,12 @@ class VariantCaller(object):
 
         for mmt in filt_r_mms:
             if haplotypes is None or mmt.pos not in position_blacklist:
-                snp_dict[CALL_TUPLE(mmt.contig, mmt.pos, mmt.ref, mmt.alt)] |= {mmt.pos}
+                snp_dict[CALL_TUPLE(mmt.contig, mmt.pos, mmt.ref, mmt.alt, None, None, None)] |= {mmt.pos}
 
         return snp_dict
 
     def _enumerate_mismatches(self, align_seg, min_bq=VARIANT_CALL_MIN_BQ):
-        """Enumerates the SNPs and MNPs in a read.
+        """Enumerates the mismatches in a read and excludes detection of InDels.
 
         :param pysam.AlignedSegment align_seg: read object
         :param int min_bq: min base quality for a variant to be considered as supporting a variant call
@@ -309,7 +381,7 @@ class VariantCaller(object):
         The output of get_aligned_pairs is a 3-tuple for each base.
 
         if query_pos is None, we are in a del operation
-        if reference_pos is None, we are in a ins operation
+        if reference_pos is None, we are in an ins operation
         if reference_base is lowercase that indicates a mismatch to the reference
         """
 
@@ -379,63 +451,63 @@ class VariantCaller(object):
 
         return filtered_r1_mms, filtered_r2_mms
 
-    @staticmethod
-    def _unpack_stats(supporting_positions, filt_r1_mms, filt_r2_mms):
-        """Unpacks data for each position supporting the call.
+    def _unpack_stats(self, supporting_positions, filt_r1_mms, filt_r2_mms):
+        r"""Unpacks data for each position supporting the call.
 
         :param set supporting_positions: coordinate positions supporting the call
         :param list filt_r1_mms: list of filtered MM_TUPLEs for R1
         :param list filt_r2_mms: list of filtered MM_TUPLEs for R2
-        :return tuple: (r1_bqs, r2_bqs, r1_positions, r2_positions)
+        :return tuple: (refs, alts, positions, analysis.variant_caller.PER_BP_STATS) of types \
+        (str, str, str, collections.namedtuple)
         """
         
         # Extract the per-bp stats for the supporting positions
-        r1_refs = []
-        r1_alts = []
-        positions = []
-
-        r1_read_positions = []
-        r2_read_positions = []
-        r1_bqs = []
-        r2_bqs = []
+        mms_len = len(supporting_positions)
+        refs = np.array(shape=mms_len, dtype=np.str)
+        alts = np.array(shape=mms_len, dtype=np.str)
+        positions = np.zeros(shape=mms_len, dtype=np.int32)
+        r1_read_positions = np.zeros(shape=mms_len, dtype=np.int32)
+        r2_read_positions = np.zeros(shape=mms_len, dtype=np.int32)
+        r1_bqs = np.zeros(shape=mms_len, dtype=np.int32)
+        r2_bqs = np.zeros(shape=mms_len, dtype=np.int32)
 
         # Collects stats from the lists of MM_TUPLEs for those that support the variant in question
+        # (many variants could be called from the same pair)
+        pos_counter = 0
         for r1_mm, r2_mm in zip(filt_r1_mms, filt_r2_mms):
             
-            # We don't need to check r2 because we have already intersected; we also only need to collect the
+            # We don't need to check R2 because we have already intersected; we also only need to collect the
             # REF and ALT for R1, as they are the same for R2.
             if r1_mm.pos in supporting_positions:
 
-                r1_refs.append(r1_mm.ref)
-                r1_alts.append(r1_mm.alt)
-                positions.append(r1_mm.pos)
+                refs[pos_counter] = r1_mm.ref
+                alts[pos_counter] = r1_mm.alt
+                positions[pos_counter] = r1_mm.pos
+                r1_read_positions[pos_counter] = r1_mm.read_pos
+                r1_bqs[pos_counter] = r1_mm.bq
+                r2_read_positions[pos_counter] = r2_mm.read_pos
+                r2_bqs[pos_counter] = r2_mm.bq
+                pos_counter += 1
 
-                r1_read_positions.append(r1_mm.read_pos)
-                r1_bqs.append(r1_mm.bq)
+        # These are now static and associated with each variant call primary POS, REF, and ALT
+        refs = self._STATS_DELIM.join(refs)
+        alts = self._STATS_DELIM.join(alts)
+        positions = self._STATS_DELIM.join(map(str, positions))
 
-                r2_read_positions.append(r2_mm.read_pos)
-                r2_bqs.append(r2_mm.bq)
+        per_bp_stats = PER_BP_STATS(r1_bqs=r1_bqs, r2_bqs=r2_bqs,
+                                    r1_read_pos=r1_read_positions, r2_read_pos=r2_read_positions)
 
-        per_bp_stats = PER_BP_STATS(
-            refs=r1_refs, alts=r1_alts, pos=positions, r1_bqs=r1_bqs, r2_bqs=r2_bqs,
-            r1_read_pos=r1_read_positions, r2_read_pos=r2_read_positions)
-
-        return per_bp_stats
+        return refs, alts, positions, per_bp_stats
 
     def _assign_stats(self, r_index, call_tuple, per_bp_stats):
-        """Adds the coordinates and BQ and read positions stats to the variant counts dict.
+        """Adds the BQ and read position stats to the variant counts dict.
 
         :param int r_index: variant counts dict read index
         :param collections.namedtuple call_tuple: CALL_TUPLE specifying the variant
         :param collections.namedtuple per_bp_stats: PER_BP_STATS of quality data for bases participating in the call
         """
 
-        # All per-bp stats are stored as lists; see _unpack_stats()
-        self.variant_counts[call_tuple][r_index][self.R_REF_INDEX] = per_bp_stats.refs
-        self.variant_counts[call_tuple][r_index][self.R_ALT_INDEX] = per_bp_stats.alts
-        self.variant_counts[call_tuple][r_index][self.R_POS_INDEX] = per_bp_stats.pos
-
-        # Join the stats elements together to save memory (strings are cheaper than more lists)
+        # Join the stats elements together for all positions in a call
         if r_index in {self.R1_PLUS_INDEX, self.R1_MINUS_INDEX}:
             self.variant_counts[call_tuple][r_index][self.R_BQ_INDEX].append(
                 self._STATS_DELIM.join(list(map(str, per_bp_stats.r1_bqs))))
@@ -457,21 +529,24 @@ class VariantCaller(object):
         :param collections.namedtuple per_bp_stats: PER_BP_STATS of quality data for bases participating in the call
         :param int r1_nm: R1 edit distance
         :param int r2_nm: R2 edit distance
-        :param bioinfo.analysis.sequence_utils.Strand r1_strand: R1 strand
-        :param bioinfo.analysis.sequence_utils.Strand r2_strand: R2 strand
+        :param analysis.seq_utils.Strand r1_strand: R1 strand
+        :param analysis.seq_utils.Strand r2_strand: R2 strand
         """
 
         # Enumerate the supporting counts and stats
         # We will use a nested list for collection. The first list has 4 elements which correspond to each read and
-        # strand pair. The inner dictionaries will hold counts and individual base stats (e.g. BQ, NM)
-        # This solution is ugly, and needs refactoring in the future. To save on memory use numpy N-dimensional arrays
+        # strand pair. The inner lists will hold counts and individual base stats (e.g. BQ, NM)
+        # This solution is ugly, and needs refactoring in the future. To save on memory use numpy N-dimensional arrays?
         if call_tuple not in self.variant_counts:
 
+            # 1st position holds counts
+            # Positions 2-4 contain BQ, NM, and read position data; set as lists because the number of supporting pairs
+            # is unknown for each variant call candidate
             self.variant_counts[call_tuple] = [
-                [0, [], [], [], [], [], []],  # R1, +
-                [0, [], [], [], [], [], []],  # R1, -
-                [0, [], [], [], [], [], []],  # R2, +
-                [0, [], [], [], [], [], []]   # R2, -
+                [0, [], [], []],  # R1, +
+                [0, [], [], []],  # R1, -
+                [0, [], [], []],  # R2, +
+                [0, [], [], []]   # R2, -
             ]
 
         r1_strand_index = self.R1_MINUS_INDEX
@@ -491,29 +566,34 @@ class VariantCaller(object):
         self.variant_counts[call_tuple][r2_strand_index][self.R_NM_INDEX].append(r2_nm)
 
     def _update_counts(self, collective_variants, filt_r1_mms, filt_r2_mms, r1_nm, r2_nm, r1_strand, r2_strand):
-        """Updates the global matrix of variant call counts and unpacks supporting read statistics.
+        """Updates the global dict with variant call counts and supporting read statistics.
 
-        :param dict collective_variants: dictionary keyed by CALL_TUPLE and valued by set of mismatch coordinate positions
+        :param dict collective_variants: dict keyed by CALL_TUPLE and valued by set of mismatch coordinate positions
         :param list filt_r1_mms: list of filtered MM_TUPLEs for R1
         :param list filt_r2_mms: list of filtered MM_TUPLEs for R2
         :param int r1_nm: R1 edit distance
         :param int r2_nm: R2 edit distance
-        :param bioinfo.analysis.sequence_utils.Strand r1_strand: R1 strand
-        :param bioinfo.analysis.sequence_utils.Strand r2_strand: R2 strand
+        :param analysis.seq_utils.Strand r1_strand: R1 strand
+        :param analysis.seq_utils.Strand r2_strand: R2 strand
         """
 
         # Here k is a CALL_TUPLE and v is a set of coordinate positions supporting the call
         for call_tuple, supporting_positions in collective_variants.items():
 
             # First unpack useful statistics for each base participating in the variant call
-            per_bp_stats = self._unpack_stats(supporting_positions, filt_r1_mms, filt_r2_mms)
+            refs, alts, positions, per_bp_stats = self._unpack_stats(supporting_positions, filt_r1_mms, filt_r2_mms)
+
+            # Update the call tuple key to put the component REFs, ALTs, and positions
+            new_call_tuple = CALL_TUPLE(
+                contig=call_tuple.contig, pos=call_tuple.pos, ref=call_tuple.ref, alt=call_tuple.alt,
+                refs=refs, alts=alts, positions=positions)
 
             # Then store the counts and stats into a dict to facilitate summation across reads
-            self._add_counts_and_stats(call_tuple, per_bp_stats, r1_nm, r2_nm, r1_strand, r2_strand)
+            self._add_counts_and_stats(new_call_tuple, per_bp_stats, r1_nm, r2_nm, r1_strand, r2_strand)
 
     @staticmethod
     def _get_unmasked_positions(align_seg):
-        """Gets the aligned reference positions of the read that are not masked.
+        """Gets the aligned reference positions of the read that are not BQ-masked.
 
         :param pysam.AlignedSegment align_seg: read object
         :return set: set of reference positions
@@ -530,6 +610,23 @@ class VariantCaller(object):
 
         return unmasked_positions
 
+    @staticmethod
+    def _reads_overlap(r1, r2):
+        r"""Determines if paired reads overlaps.
+
+        :param pysam.AlignedSegment r1: R1 read object
+        :param pysam.AlignedSegment r2: R2 read object
+        :return bool: whether or not the reads have any overlap (even 1 nt)
+        """
+
+        r1_ref_pos = set(r1.get_reference_positions())
+        r2_ref_pos = set(r2.get_reference_positions())
+
+        if len(r1_ref_pos & r2_ref_pos) > 0:
+            return True
+
+        return False
+
     def _update_pos_dp(self, r1, r2):
         r"""Updates the reference position dict for fragment coverage.
 
@@ -543,11 +640,13 @@ class VariantCaller(object):
         ref_positions |= self._get_unmasked_positions(r2)
 
         if len(ref_positions) == 0:
-            return
+            return None
 
+        # Reference positions are 0-based; reference_end (last element in positions) points to one past the last
+        # aligned base, thus no need to add 1 in range stop
         min_ref_pos = min(ref_positions)
         max_ref_pos = max(ref_positions)
-        fragment_pos = range(min_ref_pos, max_ref_pos + 1)
+        fragment_pos = range(min_ref_pos, max_ref_pos)
 
         for pos in fragment_pos:
             # Enumerate the read pair for the DP denominator to frequency
@@ -560,7 +659,6 @@ class VariantCaller(object):
         :param pysam.AlignmentFile af1: object corresponding to the R1 BAM
         :param pysam.AlignmentFile af2: object corresponding to the R2 BAM
         :param int min_bq: min base quality
-        :param int min_mapq: min map quality
         :param int max_nm: max edit distance (NM tag) to consider a read for variant calls
         :param int max_mnp_window: max number of consecutive nucleotides to search for haplotypes
         """
@@ -575,19 +673,17 @@ class VariantCaller(object):
                 raise RuntimeError(
                     "Improper pairing of reads. R1 was %s and R2 was %s" % (r1.query_name, r2.query_name))
 
-            # If either read is unmapped, we will not call variants as by definition it would not be concordant
-            # We should have already filtered these reads however
-            if r1.is_unmapped or r2.is_unmapped:
-                continue
-
-            # Compute fragment coverage/depth; note here filtered fragments still contribute to DP
-            self._update_pos_dp(r1, r2)
-
-            # Now only call variants for pairs that pass the other filters
+            # Only call variants for pairs that pass filters
             r1_nm = su.get_edit_distance(r1)
             r2_nm = su.get_edit_distance(r2)
             if r1_nm > max_nm or r2_nm > max_nm:
                 continue
+
+            if not self._reads_overlap(r1, r2):
+                continue
+
+            # Compute fragment coverage/depth; note only filtered read pairs contibute to depth
+            self._update_pos_dp(r1, r2)
 
             # Enumerate mismatch positions for each read in the pair
             r1_mms = self._enumerate_mismatches(r1, min_bq)
@@ -600,7 +696,7 @@ class VariantCaller(object):
             if len(filt_r1_mms) == 0:
                 continue
 
-            # Call haplotypes
+            # Call MNPs and haplotypes
             haplotype_res = self._call_haplotypes(filt_r1_mms, max_mnp_window)
 
             if isinstance(haplotype_res, tuple):
@@ -655,23 +751,6 @@ class VariantCaller(object):
 
         return position_stat_summary
 
-    def _get_var_coord(self, call_tuple, var_list):
-        """Gets the POS, REF, and ALT fields for the variant.
-
-        :param collections.namedtuple call_tuple: CALL_TUPLE specifying the variant
-        :param list var_list: nested list containing data for each read/strand pair
-        :return tuple: (POS, REF, ALT) fields for the variant
-        """
-
-        for read_pair in var_list:
-            if read_pair[self.R_COUNTS_INDEX] != 0:
-                pos = read_pair[self.R_POS_INDEX]
-                refs = read_pair[self.R_REF_INDEX]
-                alts = read_pair[self.R_ALT_INDEX]
-                return pos, refs, alts
-        else:
-            raise RuntimeError("Unexpected lack of data for variant key %s" % str(call_tuple))
-
     def _get_read_pos_stats(self, var_list, pos_index):
         """Gets the median read positions for each read/strand pair.
 
@@ -697,7 +776,7 @@ class VariantCaller(object):
         return tuple(bq_stats)
 
     def _get_read_nm_stats(self, var_list):
-        """Gets the median BQs for each read/strand pair.
+        """Gets the median NM for each read/strand pair.
 
         :param list var_list: nested list containing data for each read/strand pair
         :return tuple: tuple of str (r1_plus_nm, r1_minus_nm, r2_plus_nm, r2_minus_nm)
@@ -721,9 +800,9 @@ class VariantCaller(object):
         concordant_counts_dict = collections.OrderedDict()
 
         # TODO: Consider vectorizing or parallelizing per-variant operations
-        # k = CALL_TUPLE = collections.namedtuple("CALL_TUPLE", "contig, pos, ref, alt")
-        # v is nested list: 4 elements for each read/strand pair, with internal 7-element list containing
-        # counts, REFs, ALTs, POSs, BQs, RPs, NMs
+        # k = collections.namedtuple("CALL_TUPLE", "contig, pos, ref, alt, refs, alts, positions")
+        # v is nested list: 4 elements for each read/strand pair, with internal 4-element lists containing
+        # counts and lists of BQs, RPs, NMs with each element specifying a supporting read
         for k, v in self.variant_counts.items():
 
             # We just count one of the mates as we are getting fragment-based counts and frequencies
@@ -735,7 +814,10 @@ class VariantCaller(object):
             if cao < min_supporting_qnames:
                 continue
 
-            var_pos, var_refs, var_alts = self._get_var_coord(k, v)
+            # Unpack the component positions, REF bases, and ALT bases in each primary POS, REF, ALT call
+            var_refs = k.refs.split(self._STATS_DELIM)
+            var_alts = k.alts.split(self._STATS_DELIM)
+            var_pos = list(map(int, k.positions.split(self._STATS_DELIM)))
             var_nm_stats = self._get_read_nm_stats(v)
 
             # For MNPs use the floor of the contributed DP to fix the denominator
@@ -752,7 +834,7 @@ class VariantCaller(object):
             norm_cao = cao * self.norm_factor
             caf = cao / dp
 
-            # Report stats for each base in the variant (needed for delineating contributing bases to haplotypes)
+            # Report stats for each component base in variant (for delineating contributing bases to MNPs/haplotypes)
             for i in range(len(var_pos)):
 
                 # We will split out MNPs into multiple records, for each component base
@@ -872,10 +954,9 @@ class VariantCaller(object):
 
         reference_candidates_fh.write(new_variant_record)
 
-    def _create_vcf_header(self, contigs):
+    def _create_vcf_header(self):
         """Creates a VCF header for the candidate variants.
 
-        :param tuple contigs: Contigs to include in the header
         :return pysam.VariantHeader: VCF header object
         """
 
@@ -886,8 +967,8 @@ class VariantCaller(object):
 
         vcf_header.add_line(vu.VCF_METADATA_CHAR + "source=" + class_module_path)
 
-        # Add the contig IDs
-        for contig in contigs:
+        # Add the contig ID(s)
+        for contig in self.contigs:
             vcf_header.add_line(vu.VCF_CONTIG_HEADER_FORMAT.format(contig))
 
         aa_mapper_module_path = ".".join(
@@ -946,15 +1027,13 @@ class VariantCaller(object):
         return vcf_header
 
     def workflow(self, min_bq=VARIANT_CALL_MIN_BQ, max_nm=VARIANT_CALL_MAX_NM,
-                 min_supporting_qnames=VARIANT_CALL_MIN_DP, max_mnp_window=VARIANT_CALL_MAX_MNP_WINDOW,
-                 mut_sig=VARIANT_CALL_MUT_SIG):
+                 min_supporting_qnames=VARIANT_CALL_MIN_DP, max_mnp_window=VARIANT_CALL_MAX_MNP_WINDOW):
         """Executes the variant calling workflow with specified quality parameters and count thresholds.
 
         :param int min_bq: min base quality
         :param int max_nm: max edit distance (NM tag) to consider a read for variant calls
         :param int min_supporting_qnames: min number of fragments with R1-R2 concordant coverage to keep a variant
         :param int max_mnp_window: max number of consecutive nucleotides to search for MNPs; must be >= 3
-        :param str mut_sig: mutagenesis signature- one of {NNN, NNK, NNS}. Default NNK.
         :return tuple: (VCF, BED) filepaths
         :raises NotImplementedError: if min_bq is 0 while primers are provided, or the max_mnp_window is < 3
         """
@@ -962,13 +1041,12 @@ class VariantCaller(object):
         _logger.info("Starting variant calling workflow.")
 
         if self.primers is not None and min_bq == 0:
-            raise NotImplementedError("The min_bq must be >= 1 so that synthetic primer regions can be detected.")
+            raise NotImplementedError("If primers are provided, min_bq must be >= 1 so that synthetic sequences "
+                                      "can be detected.")
 
-        if max_mnp_window < self.VARIANT_CALL_MAX_MNP_WINDOW:
+        if max_mnp_window != self.VARIANT_CALL_MAX_MNP_WINDOW:
             raise NotImplementedError(
-                "The max_mnp_window must be >= 3 so that all possible AA-changing MNPs are discovered.")
-
-        _logger.info("Starting on %s" % self.am)
+                "The max_mnp_window must be <= 3 so that all possible AA-changing MNPs are discovered.")
 
         # Create some temp vcfs to use in patch for removing pysam's obligatory END INFO tag addition,
         # which interferes with IGV visualization.
@@ -981,7 +1059,7 @@ class VariantCaller(object):
         reference_bed = fu.add_extension(self.prefix, self.VARIANT_CALL_COV_EXT)
 
         # The headers are specific to the type because they include the contig names.
-        reference_vcf_header = self._create_vcf_header(tuple(self.target_contigs))
+        reference_vcf_header = self._create_vcf_header()
 
         with pysam.AlignmentFile(self.vc_preprocessor.r1_calling_bam, "rb", check_sq=False) as af1, \
                 pysam.AlignmentFile(self.vc_preprocessor.r2_calling_bam, "rb", check_sq=False) as af2, \
@@ -997,15 +1075,19 @@ class VariantCaller(object):
             _logger.info("Writing results.")
             self._write_results(concordant_counts, cov_fh, reference_candidates_fh)
 
-        # TODO: intersect variant calls with the target BED
-
         # Run the patch to remove the INFO END tag, which interferes with visualization of VCFs in IGV
-        vu.remove_end_info_tag(in_vcf=patch_reference, out_vcf=reference_vcf)
+        temp_files = [patch_reference]
+        if self.targets is None:
+            vu.remove_end_info_tag(in_vcf=patch_reference, out_vcf=reference_vcf)
+        else:
+            patch_temp = vu.remove_end_info_tag(in_vcf=patch_reference)
+            intersect_features(ff1=patch_temp, ff2=self.targets, outfile=reference_vcf)
+            temp_files.append(patch_temp)
 
-        # Create summary tables for the reference VCF
+        # Create a summary table for the VCF
         vu.table_from_vcf(reference_vcf)
 
-        fu.safe_remove((patch_reference,))
+        fu.safe_remove(tuple(temp_files))
 
         _logger.info("Completed variant calling workflow.")
 

@@ -116,7 +116,7 @@ def workflow(alignments, targets, ref, transcript_gff, gff_reference, outdir=Non
     """
 
     vc = VariantCaller(
-        am=alignments, targets=targets, ref=ref, transcript_gff=transcript_gff, gff_reference=gff_reference,
+        am=alignments, targets=targets, ref=ref, trx_gff=transcript_gff, gff_ref=gff_reference,
         primers=primers, output_dir=outdir, nthreads=nthreads, exclude_n=not include_n)
 
     output_vcf, output_bed = vc.workflow(

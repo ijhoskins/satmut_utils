@@ -57,7 +57,10 @@ VCF_QUAL_INDEX = 5
 VCF_FILTER_INDEX = 6
 VCF_INFO_INDEX = 7
 
-### Variant INFO field IDs ###
+# Variant INFO field IDs
+
+VCF_ND_ID = "ND"  # number PCR duplicates
+
 # VariantCaller constants
 VCF_END_ID = "END"
 VCF_DP_ID = "DP"

@@ -78,10 +78,7 @@ class TestBowtie2(TestAligners):
         has_dels = False
 
         with pysam.AlignmentFile(self.test_bam.name, "rb") as af:
-            for align_seg in af.fetch(until_eof=True):
-
-                if align_seg.is_unmapped:
-                    continue
+            for align_seg in af.fetch():
 
                 # These could potentially change with different alignment params
                 if align_seg.query_name == "WT":

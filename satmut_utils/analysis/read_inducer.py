@@ -93,6 +93,7 @@ class ReadEditorPreprocessor(object):
 class ReadEditor(object):
     """Class for editing variants into sequencing data."""
 
+    DEFAULT_REFERENCE_DIR = "./references"
     DEFAULT_ENSEMBL_ID = None
     DEFAULT_REF = None
     DEFAULT_PRIMERS = None

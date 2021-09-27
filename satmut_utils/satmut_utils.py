@@ -5,17 +5,15 @@ import argparse
 import datetime
 import logging
 import os
-import pysam
 import sys
 import tempfile
 
 from analysis.read_preprocessor import FastqPreprocessor, UMIExtractor, ReadGrouper, \
     ConsensusDeduplicatorPreprocessor, ConsensusDeduplicator, ReadMasker
 
-from analysis.aligners import BowtieConfig
 import analysis.read_inducer as ri
 from analysis.references import get_ensembl_references
-from analysis.seq_utils import UNKNOWN_BASE, FASTA_INDEX_SUFFIX
+from analysis.seq_utils import UNKNOWN_BASE
 from analysis.variant_caller import VariantCaller
 
 import core_utils.file_utils as fu
@@ -46,6 +44,7 @@ __logger.addHandler(__fhandler)
 
 tempfile.tempdir = os.getenv("SCRATCH", "/tmp")
 
+
 def parse_commandline_params(args):
     """Parses command line parameters.
 
@@ -59,11 +58,14 @@ def parse_commandline_params(args):
     parser.add_argument("-ei", "-ensembl_id", type=str,
                         help='Ensembl gene (ENSG) or transcript (ENST) ID to use for a reference.')
 
+    parser.add_argument("-rd", "--reference_dir", type=str, default="./references",
+                        help='Directory containing curated reference files.')
+
     parser.add_argument("-r", "--reference", type=str, help='Reference FASTA for alignment.')
 
     parser.add_argument("-g", "--transcript_gff", type=str,
-                        help='GFF file containing transcript metafeatures and exon features. The GFF must be '
-                             'from 5\' to 3\', regardless of strand.')
+                        help='GFF file containing transcript metafeatures and exon features. The GFF must be from 5\' '
+                             'to 3\', regardless of strand, and contain transcript, exon, CDS, and stop_codon features.')
 
     parser.add_argument("-p", "--primers", type=none_or_str,
                         help='Optional primer feature file, e.g. BED, GFF, or GTF. Must have strand field. '
@@ -79,14 +81,15 @@ def parse_commandline_params(args):
     parser_sim = subparsers.add_parser('sim', help='sim help')
     parser_sim.set_defaults(func=sim_workflow)
 
-    parser_sim.add_argument("-a", "--alignments", type=str, help='SAM/BAM file containing alignments to induce into.')
+    parser_sim.add_argument("-a", "--alignments", required=True, type=str,
+                            help='SAM/BAM file containing alignments to edit.')
 
-    parser_sim.add_argument("-v", "--vcf", type=str,
-                        help='VCF file specifying variants to induce. Should have an AF INFO field specifying a '
-                             'fraction of fragments to induce into.')
+    parser_sim.add_argument("-v", "--vcf",  required=True, type=str,
+                        help='VCF file specifying variants to edit. Should have an AF INFO field specifying a '
+                             'fraction/proportion of fragments to edit into.')
 
     parser_sim.add_argument("-o", "--output_prefix", type=none_or_str,
-                        default=".".join([datetime.datetime.now().strftime("%d%b%Y.%I.%M%p"), "read_inducer"]),
+                        default=".".join([datetime.datetime.now().strftime("%d%b%Y.%I.%M%p"), "ReadEditor"]),
                         help='Output prefix for FASTQs and BAM.')
 
     parser_sim.add_argument("-s", "--single_end", action="store_true",
@@ -119,9 +122,6 @@ def parse_commandline_params(args):
 
     parser_call.add_argument("-gr", "--gff_reference", type=str, help='Reference FASTA for the GFF.')
 
-    parser_call.add_argument("-d", "--deduplicate", action="store_true",
-                             help='Flag indicating the read/reads contain UMIs and should be deduplicated.')
-
     parser_call.add_argument("-cd", "--consensus_deduplicate", action="store_true",
                              help='Flag indicating consensus reads should be generated during deduplication.')
 
@@ -134,7 +134,7 @@ def parse_commandline_params(args):
                                   'but align to different coordinates, and will be merged, possibly with large gaps.')
 
     parser_call.add_argument("-pf", "--primer_fa", type=none_or_str,
-                             help='If -d/-cd, this may optionally be set to append originating primers to read names.'
+                             help='If -cd, this may optionally be set to append originating primers to read names.'
                                   'Useful for RACE-like (e.g. AMP) libraries to prohibit R2 merging. That is, without '
                                   'this flag, tiled R2s sharing the same R1 will be merged into '
                                   'contigs during consensus deduplication (-cd).')
@@ -186,29 +186,10 @@ def parse_commandline_params(args):
     return parsed_args
 
 
-def index_reference(ref):
-    """samtools and bowtie2-indexes the reference FASTA.
-
-    :param str ref: path to reference FASTA used in alignment. Must be bowtie2 FM-index and samtools faidx indexed.
-    """
-
-    # Need to index the reference with samtools and create a FM-index with bowtie2
-    # if they have not been done
-
-    if not os.path.exists(fu.add_extension(ref, FASTA_INDEX_SUFFIX)):
-        pysam.faidx(ref)
-
-    # Build the bowtie2 index if it doesn't exist
-    try:
-        _ = BowtieConfig(ref=ref)
-    except RuntimeError:
-        # This exception is passed if the reference is not FM-indexed
-        _ = BowtieConfig(ref=ref).build_fm_index()
-
-
-def get_sim_reference(ensembl_id, ref, outdir="./references"):
+def get_sim_reference(reference_dir, ensembl_id, ref, outdir=ri.ReadEditor.DEFAULT_REFERENCE_DIR):
     """Get and build index files for the sim workflow reference FASTA.
 
+    :param str reference_dir: directory containing curated APPRIS reference files
     :param str ensembl_id: Ensembl gene or transcript ID, with version number
     :param str ref: path to reference FASTA used in alignment. Must be bowtie2 FM-index and samtools faidx indexed.
     :param str outdir: optional output dir for the reference files
@@ -224,18 +205,18 @@ def get_sim_reference(ensembl_id, ref, outdir="./references"):
         if ref is not None:
             raise RuntimeError("Both an Ensembl ID and a reference FASTA were provided. Please choose one.")
 
-        ref_fa, _ = get_ensembl_references(ensembl_id=ensembl_id, outdir=outdir)
-
-    index_reference(ref)
+        ref_fa, _ = get_ensembl_references(reference_dir=reference_dir, ensembl_id=ensembl_id, outdir=outdir)
 
     return ref_fa
 
 
-def get_call_references(ensembl_id, ref, transcript_gff, gff_reference, outdir="./references"):
+def get_call_references(reference_dir, ensembl_id, ref, transcript_gff, gff_reference,
+                        outdir=VariantCaller.VARIANT_CALL_REFERENCE_DIR):
     """Get and/or build index files for references.
 
-    :param str ensembl_id: Ensembl gene or transcript ID, with version number
-    :param str ref: path to reference FASTA used in alignment. Must be bowtie2 FM-index and samtools faidx indexed.
+    :param str reference_dir: directory containing curated APPRIS reference files
+    :param str | None ensembl_id: Ensembl gene or transcript ID, with version number
+    :param str | None ref: path to reference FASTA used in alignment. Must be bowtie2 FM-index and samtools faidx indexed.
     :param str transcript_gff: GFF/GTF file containing transcript metafeatures and exon features, in 5' to 3' order, \
     regardless of strand. Ordering is essential.
     :param str gff_reference: reference FASTA corresponding to the GFF features
@@ -255,24 +236,23 @@ def get_call_references(ensembl_id, ref, transcript_gff, gff_reference, outdir="
         if ref is not None:
             raise RuntimeError("Both an Ensembl ID and a reference FASTA were provided. Please choose one.")
 
-        ref_fa, gff = get_ensembl_references(ensembl_id=ensembl_id, outdir=outdir)
-        gff_ref = GRCH38_FASTA
-
-    index_reference(ref_fa)
+        ref_fa, gff = get_ensembl_references(reference_dir=reference_dir, ensembl_id=ensembl_id, outdir=outdir)
+        gff_ref = os.path.join(reference_dir, GRCH38_FASTA)
 
     return ref_fa, gff, gff_ref
 
 
-def sim_workflow(am, vcf, ensembl_id=ri.ReadEditor.DEFAULT_ENSEMBL_ID, ref=ri.ReadEditor.DEFAULT_REF,
-                 primers=ri.ReadEditor.DEFAULT_PRIMERS, outdir=ri.ReadEditor.DEFAULT_OUTDIR,
+def sim_workflow(am, vcf, ensembl_id=ri.ReadEditor.DEFAULT_ENSEMBL_ID, reference_dir=ri.ReadEditor.DEFAULT_REFERENCE_DIR,
+                 ref=ri.ReadEditor.DEFAULT_REF, primers=ri.ReadEditor.DEFAULT_PRIMERS, outdir=ri.ReadEditor.DEFAULT_OUTDIR,
                  output_prefix=ri.ReadEditor.DEFAULT_PREFIX, single_end=ri.ReadEditor.DEFAULT_SINGLE_END,
                  filter_edited=ri.ReadEditor.DEFAULT_FILTER, random_seed=ri.ReadEditor.DEFAULT_SEED):
     """Runs the satmut_utils sim workflow.
 
     :param str am: SAM/BAM file to edit into
     :param str vcf: VCF file specifying variants to edit
-    :param str ensembl_id: Ensembl gene or transcript ID, with version number
-    :param str ref: reference FASTA
+    :param str | None ensembl_id: Ensembl gene or transcript ID, with version number
+    :param str reference_dir: directory containing curated APPRIS reference files. Default ./references.
+    :param str ref: indexed reference FASTA
     :param str | None primers: feature file of primer locations for read masking and primer detection
     :param str outdir: Optional output directory to store generated FASTQs and BAM
     :param str | None output_prefix: Optional output prefix for the FASTQ(s) and BAM; if None, use same prefix as BAM.
@@ -285,7 +265,8 @@ def sim_workflow(am, vcf, ensembl_id=ri.ReadEditor.DEFAULT_ENSEMBL_ID, ref=ri.Re
     if not os.path.exists(outdir):
         os.mkdir(outdir)
 
-    ref_fa = get_sim_reference(ensembl_id=ensembl_id, ref=ref, outdir=os.path.join(outdir, "references"))
+    ref_fa = get_sim_reference(
+        reference_dir=reference_dir, ensembl_id=ensembl_id, ref=ref, outdir=os.path.join(outdir, "references"))
 
     out_prefix = output_prefix
     if output_prefix is None:
@@ -299,7 +280,9 @@ def sim_workflow(am, vcf, ensembl_id=ri.ReadEditor.DEFAULT_ENSEMBL_ID, ref=ri.Re
     return output_bam, zipped_r1_fastq, zipped_r2_fastq
 
 
-def call_workflow(f1, f2, r1_fiveprime_adapters, r1_threeprime_adapters, ensembl_id=VariantCaller.VARIANT_CALL_ENSEMBL_ID,
+def call_workflow(f1, f2, r1_fiveprime_adapters, r1_threeprime_adapters,
+                  ensembl_id=VariantCaller.VARIANT_CALL_ENSEMBL_ID,
+                  reference_dir=VariantCaller.VARIANT_CALL_REFERENCE_DIR,
                   ref=VariantCaller.VARIANT_CALL_REF, transcript_gff=VariantCaller.VARIANT_CALL_GFF,
                   gff_reference=VariantCaller.VARIANT_CALL_GFF_REF, targets=VariantCaller.VARIANT_CALL_TARGET,
                   outdir=VariantCaller.VARIANT_CALL_OUTDIR, primers=VariantCaller.VARIANT_CALL_PRIMERS,
@@ -319,11 +302,12 @@ def call_workflow(f1, f2, r1_fiveprime_adapters, r1_threeprime_adapters, ensembl
     :param str f2: path of the R2 FASTQ
     :param str r1_fiveprime_adapters: comma-delimited 5' adapters to trim from R1
     :param str r1_threeprime_adapters: comma-delimited 3' adapters to trim from R1
-    :param str ensembl_id: Ensembl gene or transcript ID, with version number
-    :param str ref: path to reference FASTA used in alignment. Must be bowtie2 FM-index and samtools faidx indexed.
-    :param str transcript_gff: GFF/GTF file containing transcript metafeatures and exon features, in 5' to 3' order, \
-    regardless of strand. Ordering is essential.
-    :param str gff_reference: reference FASTA corresponding to the GFF features
+    :param str | None ensembl_id: Ensembl gene or transcript ID, with version number
+    :param str reference_dir: directory containing curated APPRIS reference files. Default ./references.
+    :param str | None ref: path to reference FASTA used in alignment. Must be bowtie2 FM-index and samtools faidx indexed.
+    :param str | None transcript_gff: GFF/GTF file containing transcript metafeatures and exon features, in 5' to 3' \
+    order, regardless of strand. Ordering is essential.
+    :param str | None gff_reference: reference FASTA corresponding to the GFF features
     :param str | None targets: BED or GFF containing target regions to call variants in
     :param str outdir: optional output dir for the results
     :param str | None primers: BED or GFF file containing primers to mask. Must contain a strand field.
@@ -347,8 +331,8 @@ def call_workflow(f1, f2, r1_fiveprime_adapters, r1_threeprime_adapters, ensembl
 
     # Get and index the references
     ref_fa, gff, gff_ref = get_call_references(
-        ensembl_id=ensembl_id, ref=ref, transcript_gff=transcript_gff, gff_reference=gff_reference,
-        outdir=os.path.join(outdir, "references"))
+        reference_dir=reference_dir, ensembl_id=ensembl_id, ref=ref, transcript_gff=transcript_gff,
+        gff_reference=gff_reference, outdir=os.path.join(outdir, "references"))
 
     if mut_sig not in VariantCaller.VARIANT_CALL_VALID_MUT_SIGS:
         raise RuntimeError("Mutation signature %s not one of NNN, NNK, or NNS" % mut_sig)
@@ -387,16 +371,16 @@ def call_workflow(f1, f2, r1_fiveprime_adapters, r1_threeprime_adapters, ensembl
     vc_in_bam = preproc_in_bam
     if primers is not None:
         rm = ReadMasker(
-            in_bam=preproc_in_bam, feature_file=primers, dedup=dedup, consensus_dedup=consensus_dedup, outdir=outdir)
+            in_bam=preproc_in_bam, feature_file=primers, consensus_dedup=consensus_dedup, outdir=outdir)
         vc_in_bam = rm.out_bam
 
     # Initialize the VariantCaller and prepare the alignments
     vc = VariantCaller(
-        am=vc_in_bam, targets=targets, ref=ref_fa, transcript_gff=gff, gff_reference=gff_ref, primers=primers,
+        am=vc_in_bam, targets=targets, ref=ref_fa, trx_gff=gff, gff_ref=gff_ref, primers=primers,
         output_dir=outdir,  nthreads=nthreads, exclude_n=not include_n, mut_sig=mut_sig)
 
     # Run variant calling
-    output_vcf, output_bed = vc.workflow(min_bq, max_nm, min_supporting_qnames, max_mnp_window, mut_sig)
+    output_vcf, output_bed = vc.workflow(min_bq, max_nm, min_supporting_qnames, max_mnp_window)
 
     return output_vcf, output_bed
 

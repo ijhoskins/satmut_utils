@@ -27,8 +27,6 @@ __status__ = "Development"
 tempfile.tempdir = os.getenv("SCRATCH", "/tmp")
 _logger = logging.getLogger(__name__)
 
-HGVS_AA_FORMAT = "p.{}{}{}"
-MUT_SIG_UNEXPECTED_WOBBLE_BPS = {"NNK": {"A", "C"}, "NNS": {"A", "T"}}
 NNK_PROB_TUPLE = collections.namedtuple("NNK_PROB_TUPLE", "nnk_match, nnk_mismatch")
 VAR_ID_TUPLE = collections.namedtuple("VAR_ID_TUPLE", "pos, ref, alt, aa_change, nnk_match")
 

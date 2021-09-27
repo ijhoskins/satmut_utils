@@ -150,8 +150,8 @@ def get_genome_file(ref, output_file=None):
     return outfile
 
 
-def slop_features(feature_file, genome_file=su.GENOMIC_GENOME_FILE, bp_left=DEFAULT_BP_SLOP, bp_right=DEFAULT_BP_SLOP,
-                  by_strand=True, output=None):
+def slop_features(feature_file, genome_file, bp_left=DEFAULT_BP_SLOP, bp_right=DEFAULT_BP_SLOP, by_strand=True,
+                  output_filename=None):
     """Slop a feature file in one or both directions.
 
     :param str feature_file: BED, GFF, or GTF
@@ -159,15 +159,15 @@ def slop_features(feature_file, genome_file=su.GENOMIC_GENOME_FILE, bp_left=DEFA
     :param int bp_left: number bases to slop to left; "left" defined by by_strand kwarg
     :param int bp_right: number bases to slop to right; "right" defined by by_strand kwarg
     :param bool by_strand: directionality is defined by strand- for (-) strand read, left is higher coordinate
-    :param str output: Optional output file; if None, tempfile will be created
+    :param str output_filename: Optional output file; if None, tempfile will be created
     :return str: path of the output file
     """
 
     ff_bedtool = pybedtools.BedTool(feature_file)
     ff_slop_bedtool = ff_bedtool.slop(g=genome_file, l=bp_left, r=bp_right, s=by_strand)
 
-    output_file = output
-    if output is None:
+    output_file = output_filename
+    if output_filename is None:
         output_file = tempfile.NamedTemporaryFile(suffix=".slop.tmp", delete=False).name
 
     ff_slop_bedtool.moveto(output_file)
@@ -180,7 +180,7 @@ class DuplicateFeatureException(Exception):
     pass
 
 
-def store_coords(feature_file, feature_slop=3, primer_allowable=False, use_name=True):
+def store_coords(feature_file, feature_slop=0, primer_allowable=False, use_name=True):
     r"""Stores primer coordinates from a feature file in a consistent dictionary format.
 
     :param str feature_file: BED, GFF, or GTF
@@ -190,6 +190,7 @@ def store_coords(feature_file, feature_slop=3, primer_allowable=False, use_name=
     :param bool use_name: Should the feature name field be used as the key? Default True. Otherwise, use the contig \
     and coordinate range as the key.
     :return collections.OrderedDict: {"contig:start-stop" | name: COORD_TUPLE}
+    :raises RuntimeError: if the strand field is absent or contains an invalid character
     """
 
     feature_dict = collections.OrderedDict()
@@ -210,29 +211,25 @@ def store_coords(feature_file, feature_slop=3, primer_allowable=False, use_name=
         feature_score = float(feature.score) if feature.score not in PYBEDTOOLS_NULL_CHARS else 1.0
         feature_len = len(feature)
 
-        # Compute allowable start coordinates for enumerating primers. In general this should be downstream of the primer
-        # start coordinate but sometimes alignment shifts and mismatches may cause read to align just upstream, so flank
-        # the start in both directions
+        # Compute allowable start coordinates for enumerating primers.
         downstream_offset = feature_len if primer_allowable else feature_slop
 
         # Allowable coordinates will contain 1-based coordinates;
         # Note +1 on the 1-based stop coords includes the terminal base to be in the set (given python range behavior)
         if feature_strand is None:
-            # If we don't know the strand of the primer, make no assumptions and allow both ends as starts
-            allowable_coords = set(list(range(feature.start - feature_slop + 1, feature.start + downstream_offset + 1)) +
-                                   list(range(feature.stop - downstream_offset, feature.stop + feature_slop + 1)))
+            # If we don't know the strand of the primer, do not proceed
+            raise RuntimeError("Absent strand information for {}".format(FILE_DELIM.join(feature.fields)))
         elif feature_strand == su.Strand.PLUS:
             allowable_coords = set(range(feature.start - feature_slop + 1, feature.start + downstream_offset + 1))
         elif feature_strand == su.Strand.MINUS:
-
             allowable_coords = set(range(feature.stop - downstream_offset + 1, feature.stop + feature_slop + 1))
         else:
             raise RuntimeError("Unrecognized strand for feature {}".format(FILE_DELIM.join(feature.fields)))
 
         feature_key = feature_name if use_name else feature_coords
 
-        feature_dict[feature_key] = COORD_TUPLE(
-            str(feature.chrom), feature.start, feature.stop, feature_name, feature_strand, feature_score, allowable_coords)
+        feature_dict[feature_key] = COORD_TUPLE(str(feature.chrom), feature.start, feature.stop,
+                                                feature_name, feature_strand, feature_score, allowable_coords)
 
         observed_features.add(feature_coords)
 
