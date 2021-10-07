@@ -9,7 +9,7 @@ import sys
 
 import core_utils.file_utils as fu
 from core_utils.string_utils import none_or_str
-import analysis.read_inducer as ri
+import analysis.read_editor as ri
 
 __author__ = "Ian Hoskins"
 __credits__ = ["Ian Hoskins"]

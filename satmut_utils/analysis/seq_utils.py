@@ -108,7 +108,6 @@ MD_DEL = "^"  # precedes del length
 __logger = logging.getLogger(__name__)
 
 
-# See https://stackoverflow.com/questions/43202777/get-enum-name-from-multiple-values-python
 class Strand(aenum.MultiValueEnum):
     """Enum for strand representation."""
     PLUS = "+", False  # alternate values for pysam.AlignedSegment.is_reverse
@@ -475,8 +474,6 @@ def get_edit_distance(align_seg):
     return nm
 
 
-
-
 def introduce_error(seq, prob=DEFAULT_ERROR_RATE, letters=DNA_BASES):
     """Introduce sequencing error in a sequence.
 
@@ -549,4 +546,99 @@ def introduce_indels(seq, prob=DEFAULT_INDEL_RATE, letters=DNA_BASES):
 
     mutated_seq = "".join(mutated_list)
     return mutated_seq
+
+
+def bq_int_to_ascii(bq, offset=ILLUMINA_BQ_OFFSET):
+    """Converts a integer base quality to an ASCII.
+
+    :param int bq: integer BQ
+    :param int offset: encoding offset
+    :return str: ASCII BQ
+    """
+
+    return str(chr(bq + offset))
+
+
+def bq_ascii_to_int(bq, offset=ILLUMINA_BQ_OFFSET):
+    """Converts a integer base quality to an ASCII.
+
+    :param str bq: ASCII BQ
+    :param int offset: encoding offset
+    :return int: integer BQ
+    """
+
+    return ord(bq) - offset
+
+
+def fasta_to_fastq(in_fasta, out_fastq=None, min_bq=DEFAULT_MIN_BQ, max_bq=DEFAULT_MAX_BQ, max_len=DEFAULT_READ_LEN,
+                   add_error_snps=True, add_error_indels=False, snp_prob=DEFAULT_ERROR_RATE,
+                   indel_prob=DEFAULT_INDEL_RATE, letters=DNA_BASES):
+    r"""Adds random quality scores to a FASTA to generate a FASTQ, optionally trims sequences to a max read length, \
+    and adds sequencing error to simulate real sequencing reads.
+
+    :param str in_fasta: input FASTQ
+    :param str | None out_fastq: Optional output FASTQ
+    :param int min_bq: Min BQ to assign
+    :param int max_bq: Max BQ to assign
+    :param int | None max_len: Max read length to trim reads to if larger than this value; if None, will not trim seqs
+    :param bool add_error_snps: should sequencing errors in the form of SNPs be added? Default True.
+    :param bool add_error_indels: should sequencing errors in the form of InDels be added? Default False.
+    :param float snp_prob: proportion of bases to mutate to SNPs
+    :param float indel_prob: proportion of bases to mutate to InDels
+    :param tuple letters: available letters to mutate to
+    :return str: name of the output FASTQ
+    """
+
+    def _create_fastq_lines(out_fh):
+        """Writes a FASTQ record from a FASTA sequence.
+
+        :param file out_fh: output file handle to write to
+        """
+
+        seq_len = len(seq)
+
+        new_seq = seq
+        if max_len is not None and seq_len > max_len:
+            new_seq = seq[:max_len]
+
+        # Add sequencing error and InDels to challenge variant callers
+        if add_error_snps:
+            new_seq = introduce_error(new_seq, prob=snp_prob, letters=letters)
+
+        if add_error_indels:
+            new_seq = introduce_indels(new_seq, prob=indel_prob, letters=letters)
+
+        new_bqs = "".join([bq_int_to_ascii(random.randint(min_bq, max_bq)) for _ in range(len(new_seq))])
+
+        out_fh.write(new_seq + FILE_NEWLINE)
+        out_fh.write(FASTQ_SPACER_CHAR + FILE_NEWLINE)
+        out_fh.write(new_bqs + FILE_NEWLINE)
+
+    out_fq = out_fastq
+    if out_fastq is None:
+        out_fq = tempfile.NamedTemporaryFile(suffix=".fastq", delete=False).name
+
+    with open(in_fasta, "r") as infile, \
+            open(out_fq, "w") as outfile:
+
+        # Need to potentially concatenate multi-line FASTA sequences which makes for somewhat more complicated parsing
+        seq = ""
+        for (rec_num, line) in enumerate(infile):
+            if line.startswith(FASTA_HEADER_CHAR):
+                if rec_num == 0:
+                    outfile.write(FASTQ_QNAME_CHAR + line[1:])
+                else:
+                    # Write the last entry's seq and quals before a new one
+                    _create_fastq_lines(outfile)
+
+                    # Reset the last seq then write the new qname
+                    seq = ""
+                    outfile.write(FASTQ_QNAME_CHAR + line[1:])
+            else:
+                seq += line.rstrip("\r\n")
+        else:
+            # This allows us to write single-record FASTAs and the last records of a multi-line FASTA
+            _create_fastq_lines(outfile)
+
+        return out_fq
 

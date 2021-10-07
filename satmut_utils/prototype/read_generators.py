@@ -1,5 +1,5 @@
 #!/usr/bin/env/python
-""" Objects for generating in silico NGS reads."""
+"""Objects for generating in silico NGS reads."""
 
 import abc
 import collections
@@ -9,7 +9,6 @@ import pybedtools
 import random
 import re
 import tempfile
-import pdb
 
 from analysis.seq_utils import fasta_to_fastq, extract_seq, reverse_complement, FASTA_HEADER_CHAR, GENOMIC_FASTA, \
     DEFAULT_READ_LEN, DEFAULT_FRAG_LEN, MIN_FRAG_LENGTH, SD_FROM_MEAN_FACTOR, COORD_FORMAT, Strand, HumanContig
@@ -36,7 +35,7 @@ MEAN_EXON_LEN = 170
 
 
 class InsufficientFragLengthException(Exception):
-    """ Exception raised when a desired fragment length is too small to generate reads."""
+    """Exception raised when a desired fragment length is too small to generate reads."""
     pass
 
 

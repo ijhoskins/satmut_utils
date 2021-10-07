@@ -26,8 +26,8 @@ __status__ = "Development"
 
 
 VARIANT_CONFIG_TUPLE = collections.namedtuple("VARIANT_CONFIG_TUPLE", "type, contig, pos, ref, alt, af, ie, ir")
-EDIT_KEY_TUPLE = collections.namedtuple("INDUCE_KEY_TUPLE", "qname, mate")
-EDIT_CONFIG_TUPLE = collections.namedtuple("INDUCE_CONFIG_TUPLE", "contig, pos, ref, alt, read_pos, ie, ir")
+EDIT_KEY_TUPLE = collections.namedtuple("EDIT_KEY_TUPLE", "qname, mate")
+EDIT_CONFIG_TUPLE = collections.namedtuple("EDIT_CONFIG_TUPLE", "contig, pos, ref, alt, read_pos, ie, ir")
 
 tempfile.tempdir = os.getenv("SCRATCH", "/tmp")
 
@@ -67,8 +67,7 @@ class ReadEditorPreprocessor(object):
             input_bam = su.sam_view(self.am)
 
         # We consider masking synthetic primer regions to enable facile detection of variants "under" primers. In these
-        # cases we want to ensure we don't edit into a read such that the variant appears to be a synthesis error;
-        # we should only edit for reads that "readthrough".
+        # cases we want to ensure we don't edit into a read such that the variant appears to be a synthesis error
         self.preprocessed_input_bam = input_bam
         if self.primers is not None:
 
@@ -77,9 +76,6 @@ class ReadEditorPreprocessor(object):
 
         # Note: do not intersect input alignments with the VCF as this could lead to unequal R1-R2 pairs that result
         # in unequal-length output FASTQs, which by definition would be invalid.
-        # Alternatively, if only variant-overlapping reads are desired in the output, slop the input variants so that
-        # both mates will always exist in the input BAM (and thus the output BAM, FASTQs).
-
         am_basename = os.path.basename(am)
 
         # We will need a coordinate- and qname- sorted BAM for the pileup and then the editing

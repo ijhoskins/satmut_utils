@@ -31,7 +31,9 @@ https://docs.conda.io/en/latest/miniconda.html
 For convenience, a curated transcriptome of primary transcripts from APPRIS is provided, allowing the user to pass an Ensembl gene or transcript ID to satmut_utils. However, if the requested Ensembl ID is not found in this set, the user must pass their own reference files. These include:
 
 A. Transcript reference (FASTA)
+
 B. Transcript annotations (GFF)
+
 C. GFF reference (FASTA)
 
 Common transcript annotations in GFF format map coordinates in the genome. For this typical case, file A should specify a transcript FASTA and file C should specify the genome FASTA.
@@ -48,35 +50,39 @@ python satmut_utils sim -h
 python satmut_utils call -h
 ```
 
+Run the sim workflow:
+
+
+
 Run the call workflow by specifying an Ensembl transcript ID:
 ```
-python satmut_utils call -f1 R1.fq.gz -f2 R2.fq.gz -a5 R1_5p_adapters TACACGACGCTCTTCCGATCT,CAAGTTTGTACAAAAAAGTTGGC -a3 AGATCGGAAGAGCACACGTCT,CCAACTTTCTTGTACAAAGTGGT -ei ENST00000398165.7
+python satmut_utils call -f1 R1.fq.gz -f2 R2.fq.gz -a5  TACACGACGCTCTTCCGATCT,CAAGTTTGTACAAAAAAGTTGGC -a3 AGATCGGAAGAGCACACGTCT,CCAACTTTCTTGTACAAAGTGGT -ei ENST00000398165.7
 ```
 
 Or by specifying an Ensembl gene ID:
 ```
-python satmut_utils call -f1 R1.fq.gz -f2 R2.fq.gz -a5 R1_5p_adapters TACACGACGCTCTTCCGATCT,CAAGTTTGTACAAAAAAGTTGGC -a3 AGATCGGAAGAGCACACGTCT,CCAACTTTCTTGTACAAAGTGGT -ei ENSG00000160200.17
+python satmut_utils call -f1 R1.fq.gz -f2 R2.fq.gz -a5  TACACGACGCTCTTCCGATCT,CAAGTTTGTACAAAAAAGTTGGC -a3 AGATCGGAAGAGCACACGTCT,CCAACTTTCTTGTACAAAGTGGT -ei ENSG00000160200.17
 ```
 
-Note that more than one 5' adapter and more than one 3' adapter are often needed to additionally trim vector sequences (e.g. attB sites) from reads originating from terminal PCR tiles that span the vector-CDS junctions.
+Note that more than one 5' adapter and more than one 3' adapter are often needed to additionally trim vector sequences (e.g. attB sites) from reads of terminal PCR tiles that span the vector-CDS junctions.
 
 If the Ensembl ID is not in our curated set of primary transcripts from APPRIS, the user must provide their own reference files:
 ```
-python satmut_utils call -f1 R1.fq.gz -f2 R2.fq.gz -a5 R1_5p_adapters TACACGACGCTCTTCCGATCT,CAAGTTTGTACAAAAAAGTTGGC -a3 AGATCGGAAGAGCACACGTCT,CCAACTTTCTTGTACAAAGTGGT -r CBS.fa -g CBS.gtf -gr GRCh38.fa
+python satmut_utils call -f1 R1.fq.gz -f2 R2.fq.gz -a5  TACACGACGCTCTTCCGATCT,CAAGTTTGTACAAAAAAGTTGGC -a3 AGATCGGAAGAGCACACGTCT,CCAACTTTCTTGTACAAAGTGGT -r CBS.fa -g CBS.gtf -gr GRCh38.fa
 ```
 
-Additional files may be passed, such as a primer and target BED file, and the output directory.
+Additional files may be passed, such as a primer and target BED file, or the output directory.
 ```
-python satmut_utils call -f1 R1.fq.gz -f2 R2.fq.gz -a5 R1_5p_adapters TACACGACGCTCTTCCGATCT,CAAGTTTGTACAAAAAAGTTGGC -a3 AGATCGGAAGAGCACACGTCT,CCAACTTTCTTGTACAAAGTGGT -ei ENST00000398165.7 -t CBS_target.bed -p CBS_primers_coding.bed -o $OUTPUT_DIR
+python satmut_utils call -f1 R1.fq.gz -f2 R2.fq.gz -a5  TACACGACGCTCTTCCGATCT,CAAGTTTGTACAAAAAAGTTGGC -a3 AGATCGGAAGAGCACACGTCT,CCAACTTTCTTGTACAAAGTGGT -ei ENST00000398165.7 -t CBS_target.bed -p CBS_primers_coding.bed -o $OUTPUT_DIR
 ```
 
 ## call outputs
 
 The call workflow produces a VCF of candidate variant calls as well as a BED file reporting fragment coverage across the reference.
 
-The output VCF and its corresponding tab-delimited file contain records for each mismatched base in an MNP, so that quality information for the mismatches can be used for machine learning-based error correction models.
+The output VCF and its corresponding tab-delimited summary.txt file contain records for each mismatched base in an MNP, so that quality information for the mismatches can be used for learning-based error correction.
 
-A number of useful R functions exist in prototype.summarization_utils.r for parsing and summarizing the *.var.cand.vcf.summary.txt file. See the VCF header for column/feature descriptions.
+A number of useful R functions exist in prototype.summarization_utils.r for parsing and summarizing the VCF summary file. See the VCF header for column/feature descriptions.
 
 
 ## Tests
@@ -89,18 +95,19 @@ nose2 -v
 
 ## Accessory scripts
 
-To help the user simulate reads and variants in a desired transcript, additional command-line scripts are provided in the scripts directory. Code here is not fully tested and is only provided for convenience.
+To facilitate simulation of reads and variants in a desired transcript de novo, additional command-line scripts are provided in the scripts directory. Code here is not fully tested and is only provided for convenience.
 
 1. run_read_generator.py.
 This may be used to simulate paired-end RNA reads with random addition of noise. However, we recommend one of the many NGS read simulators that construct error models to generate test reads.
 
 2. run_variant_generator.py
-This script may be used to generate a VCF of all SNPs, MNPs, and haplotypes up to read length in a desired transcript coding region.
+This script may be used to generate a VCF of all SNP and MNP codon permutations in a desired transcript coding region.
 
 3. run_vcf_subsampler.py
 This script can be used to subsample variants from the VCF produced by run_variant_generator.py.
 
 4. run_ec_data_generator.py
-As input, this script requires satmut_utils call output summary.txt files for a true mutagenized library and a non-mutagenized negative control library. It then generates variants with the VariantGenerator and configures variant frequencies by estimating parameters from the true mutagenized summary.txt file. It finally invokes satmut_utils sim  and then call to generate training data for machine learning error models.
+As input, this script requires satmut_utils call output summary.txt files for a true mutagenized library and a non-mutagenized negative control library. It then generates variants and configures variant frequencies by estimating parameters from the true mutagenized summary.txt file. It finally invokes satmut_utils sim and call to generate training data for modeling.
 
-Additionally, secondary analysis functions are provided in R for parsing and summarizing of satmut_utils call summary.txt files (summarization_utils.R) and for training ML models (modeling_utils.R).
+Secondary analysis functions are provided in R for parsing and summarizing of satmut_utils call summary.txt files (summarization_utils.R) and for training several models (modeling_utils.R).
+

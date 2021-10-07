@@ -1,10 +1,10 @@
 #!/usr/bin/env/python
 """Tests for analysis.seq_utils."""
 
+import gzip
 import os
 import pysam
 import random
-import re
 import tempfile
 import unittest
 
@@ -39,30 +39,7 @@ chr19	59062932	59063143	gi|571026644|ref|NM_014453.3|:703-913	500	-
 """
 
 TEST_SAM = """@HD	VN:1.0	SO:coordinate
-@SQ	SN:chr1	LN:249250621
-@SQ	SN:chr2	LN:243199373
-@SQ	SN:chr3	LN:198022430
-@SQ	SN:chr4	LN:191154276
-@SQ	SN:chr5	LN:180915260
-@SQ	SN:chr6	LN:171115067
-@SQ	SN:chr7	LN:159138663
-@SQ	SN:chrX	LN:155270560
-@SQ	SN:chr8	LN:146364022
-@SQ	SN:chr9	LN:141213431
-@SQ	SN:chr10	LN:135534747
-@SQ	SN:chr11	LN:135006516
-@SQ	SN:chr12	LN:133851895
-@SQ	SN:chr13	LN:115169878
-@SQ	SN:chr14	LN:107349540
-@SQ	SN:chr15	LN:102531392
-@SQ	SN:chr16	LN:90354753
-@SQ	SN:chr17	LN:81195210
-@SQ	SN:chr18	LN:78077248
-@SQ	SN:chr20	LN:63025520
-@SQ	SN:chrY	LN:59373566
 @SQ	SN:chr19	LN:59128983
-@SQ	SN:chr22	LN:51304566
-@SQ	SN:chr21	LN:48129895
 @RG	ID:20Feb2019.08:11PM.read_gen.dna
 @PG	ID:bowtie2	PN:bowtie2	VN:2.3.4.3	CL:"/Users/ianhoskins/.conda/envs/Cenik_lab/bin/bowtie2-align-s --wrapper basic-0 --local --rg-id 20Feb2019.08:11PM.read_gen.dna -x /usr/local/bin/hg19.fa -1 read_gen_results/20Feb2019.08:11PM.read_gen.dna.r1.fq -2 read_gen_results/20Feb2019.08:11PM.read_gen.dna.r2.fq"
 chr19:59063248-59063359_657LTC3T6CFQ	163	chr19	59063256	44	103M1S	=	59063256	-104	GGATTTGGAGCACTCACTCGACAGCTCATCTGTTAGGCTAAGTCCCAGCTCATCCAGAACCTGGGACACCACAGCATCACTAGGGAAGAGAGAGAACTCAGTGT	IRLRQKLQSSMQKIJOKLOSKSPQISJKQSJMJJIOPMKQISLSPIKMPSQOMLQMMIORJQQLOPLIOSIQIOPNSQKMMSSJQNMPOSRIMMKJRRSOLOOL	AS:i:206	XN:i:0	XM:i:0	XO:i:0	XG:i:0	NM:i:0	MD:Z:103	YS:i:200	YT:Z:CP	RG:Z:20Feb2019.08:11PM.read_gen.dna
@@ -80,9 +57,27 @@ chr19:59066330-59066516_THRZC67832XD	147	chr19	59066343	44	150M	=	59066332	-161	
 
 class TestSeqUtilsSetup(object):
 
+    APPRIS_REF = "GRCh38.chr21.fa.gz"
+
     @classmethod
     def setUpClass(cls):
         """Setup for TestSeqUtils."""
+
+        cls.tempdir = tempfile.mkdtemp()
+        cls.test_dir = os.path.dirname(__file__)
+        cls.test_data_dir = os.path.abspath(os.path.join(cls.test_dir, "..", "test_data"))
+
+        cls.appris_ref_gz = os.path.join(cls.test_data_dir, cls.APPRIS_REF)
+
+        with gzip.open(cls.appris_ref_gz) as appris_ref_in, \
+                tempfile.NamedTemporaryFile(suffix=".fa", delete=False) as appris_ref_out:
+
+            for line in appris_ref_in:
+                appris_ref_out.write(line)
+
+            cls.CRCH38_chr21 = appris_ref_out.name
+
+        pysam.faidx(cls.CRCH38_chr21)
 
         cls.seq = "ATCGATTACG"
 
@@ -106,8 +101,7 @@ class TestSeqUtilsSetup(object):
 
     @classmethod
     def tearDownClass(cls):
-        test_files = [fn for fn in os.listdir(tempfile.gettempdir()) if re.search("test", fn)]
-        fu.safe_remove(tuple(test_files))
+        fu.safe_remove((cls.tempdir,), force_remove=True)
 
 
 # Note multiple inheritance may not work with more than one non-unittest.TestCase superclass:
@@ -141,8 +135,8 @@ class TestSeqUtils(TestSeqUtilsSetup, unittest.TestCase):
 
         random.seed(9)
 
-        wt_seq = "GACGGACACCCGTTTCCGCTTCCGGGTCACGCTTCTCTTTCTGGGATCCCCGACTTGCCCACCAACTAAGGCCCCTCGGTCCTGTCGCCGCCGCCGCCGTTTCCGGATTAAACGACGTGACGTAACATGCCCCGCCCGCACCCGGAACGT"
-        indel_seq = su.introduce_indels(wt_seq, 0.02)
+        wt_seq = "GGAGAAGGGCTTCGACCAGGCGCCCGTGGTGGATGAGGCGGGGGTAATCCTGGGAATGGTGACGCTTGGGAACATGCTCTCGTCCCTGCTTGCCGGGAAGGTGCA"
+        indel_seq = su.introduce_indels(wt_seq, 0.03)
         fasta_lines = [">WT", wt_seq, ">InDels", indel_seq]
 
         has_indels = False
@@ -153,11 +147,13 @@ class TestSeqUtils(TestSeqUtilsSetup, unittest.TestCase):
             test_fasta.write(fu.FILE_NEWLINE.join(fasta_lines) + fu.FILE_NEWLINE)
             fu.flush_files((test_fasta,))
             
-            al.Bowtie2(f1=test_fasta.name, output_bam=test_bam.name, config=al.BowtieConfig(su.GENOMIC_FASTA, False, "f"))
+            al.Bowtie2(f1=test_fasta.name, output_bam=test_bam.name,
+                       config=al.BowtieConfig(self.CRCH38_chr21, False, 0, "f"))
+
             fu.flush_files((test_bam,))
 
             with pysam.AlignmentFile(test_bam.name, "rb") as af:
-                for align_seg in af.fetch(until_eof=True):
+                for align_seg in af.fetch():
 
                     if align_seg.is_unmapped:
                         continue
@@ -167,25 +163,11 @@ class TestSeqUtils(TestSeqUtilsSetup, unittest.TestCase):
 
         self.assertTrue(has_indels)
 
-    def test_bq_int_to_ascii(self):
-        """Test for proper conversion between Illumina-offset int to ASCII format."""
-
-        observed = su.bq_int_to_ascii(0)
-        expected = "!"
-        self.assertEqual(observed, expected)
-
-    def test_bq_ascii_to_int(self):
-        """Test for proper conversion between Illumina-offset ASCII to int."""
-
-        observed = su.bq_ascii_to_int("!")
-        expected = 0
-        self.assertEqual(observed, expected)
-
     def test_extract_seq(self):
         """Test that we properly extract sequences from the genome."""
 
-        observed = su.extract_seq("chr19", 59065436, 59065475)
-        expected = "CTTAATGTCTGCAATGATTTTCTTCTCCTGGGTCTCTAGT"
+        observed = su.extract_seq("21", 43053185, 43053195, self.CRCH38_chr21).upper()
+        expected = "CCACAATTGTG"
         self.assertEqual(observed, expected)
 
 
@@ -201,6 +183,12 @@ class TestSamtools(TestSeqUtilsSetup, unittest.TestCase):
             cls.test_sam_name = test_sam.name
 
         random.seed(9)
+
+    @classmethod
+    def tearDownClass(cls):
+        """Tear down for TestSamtools."""
+
+        fu.safe_remove((cls.test_sam_name,))
 
     def test_sam_view(self):
         """Tests the pysam.view call."""
@@ -267,23 +255,14 @@ class TestSamtools(TestSeqUtilsSetup, unittest.TestCase):
         """Test we can create an index file on a sorted BAM."""
 
         res = su.sam_view(self.test_sam_name)
-
         su.index_bam(res)
-
-        self.assertTrue(os.path.exists("{}.{}".format(res, "bai")))
+        self.assertTrue(os.path.exists(fu.add_extension(res, su.BAM_INDEX_SUFFIX)))
 
     def test_sort_and_index(self):
         """Test for proper creation and indexing of a coordinate-sorted BAM."""
 
         res = su.sort_and_index(self.test_sam_name)
-
-        self.assertTrue(res.endswith(su.BAM_SUFFIX) and os.path.exists("{}.{}".format(res, "bai")))
-
-    def test_merge_ams(self):
-        """Test that we can merge BAMs."""
-        # TODO
-        # Not essential at this time
-        pass
+        self.assertTrue(res.endswith(su.BAM_SUFFIX) and os.path.exists(fu.add_extension(res, su.BAM_INDEX_SUFFIX)))
 
 
 class TestFastaToFastq(TestSeqUtilsSetup, unittest.TestCase):
@@ -293,7 +272,9 @@ class TestFastaToFastq(TestSeqUtilsSetup, unittest.TestCase):
     def setUpClass(cls):
         """Tests for TestFastaToFastq."""
 
-        super(TestFastaToFastq, cls).setUpClass()
+        with tempfile.NamedTemporaryFile("w+", suffix=".test.fa", delete=False) as test_fasta:
+            test_fasta.write(TEST_FASTA)
+            cls.test_fasta = test_fasta.name
 
         with tempfile.NamedTemporaryFile(suffix=".out.fq", delete=False) as test_fastq_file:
             output_fn = test_fastq_file.name
@@ -305,8 +286,14 @@ class TestFastaToFastq(TestSeqUtilsSetup, unittest.TestCase):
             expected_seq = "ATGTTACGTCACGTCGTTTAATCCGGAAACGGCGGCGGCGGCGACAGGACCGAGGGGCCTTAGTTGGTGGGCAAGTCGGGGATCCCAGAAAGAGAAGCGTGACCCGGAAGCGGAAACGGGTGTCCGTCCCAGCTCCGGCCTGCCAGTGAGCTTCTACCATCATGGACCTATTGTTCGGGCGCCGGAAGACGCCAGAGGAGCTACTGCGGCAGAACCAGAGGGCCCTGAACCGTGCCATGCGGGAGCTGGACCGCGAGCGACAGAAACTAGAGACCCAGGAGAAGAAAATCATTGCAGACATTAAGAAGATGGCCAAGCAAGGCCAGATGGATGCTGTTCGCATCATGGCAAAAGACTTGGTGCGCACCCGGCGCTATGTGCGCAAGTTTGTATTGATGCGGGCCAACATCCAGGCTGTGTCCCTCAAGATCCAGACACTCAAGTCCAACAACTCGATGGCACAAGCCATGAAGGGTGTCACCAAGGCCATGGGCACCATGAACAGACAGCTGAAGTTGCCCCAGATCCAGAAGATCATGATGGAGTTTGAGCGGCAGGCAGAGATCATGGATATGAAGGAGGAGATGATGAATGATGCCATTGATGATGCCATGGGTGATGAGGAAGATGAAGAGGAGAGTGATGCTGTGGTGTCCCAGGTTCTGGATGAGCTGGGACTTAGCCTAACAGATGAGCTGTCGAACCTCCCCTCAACTGGGGGCTCGCTTAGTGTGGCTGCTGGTGGGAAAAAAGCAGAGGCCGCAGCCTCAGCCCTAGCTGATGCTGATGCAGACCTGGAGGAACGGCTTAAGAACCTGCGGAGGGACTGAGTGCCCCTGCCACTCCGAGATAACCAGTGGATGCCCAGGATCTTTTACCACAACCCCTCTGTAATAAAAGAGATTTGACACTAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
             cls.zipped_seqs = list(zip(observed_seq, expected_seq))
 
+    @classmethod
+    def tearDownClass(cls):
+        """Tear down for TestFastaToFastq."""
+
+        fu.safe_remove((cls.test_fasta,))
+
     def test_fasta_to_fastq_proportion_error(self):
-        """Test for the correct error proportion."""
+        """Tests correct error proportion."""
 
         observed_num = 0
         expected_num = 94
@@ -318,7 +305,7 @@ class TestFastaToFastq(TestSeqUtilsSetup, unittest.TestCase):
         self.assertEqual(observed_num, expected_num)
 
     def test_fasta_to_fastq_letters(self):
-        """Test that we can introduce specific bases as errors."""
+        """Tests introduction of specific bases as errors."""
 
         expected_num = 0
         observed_num = 0
@@ -331,23 +318,22 @@ class TestFastaToFastq(TestSeqUtilsSetup, unittest.TestCase):
         self.assertEqual(observed_num, expected_num)
 
 
-class TestAddErrorToFasta(TestSeqUtilsSetup, unittest.TestCase):
-    """Tests for su.add_error_to_fasta."""
-    # TODO
-    # Not a priority right now as we already test the error functions by themselves
-    pass
-
-
 class TestEnums(unittest.TestCase):
     """Tests for Enums."""
     
     def test_Strand(self):
         """Test strand equality with various inputs."""
-        
+
+        # Comes from AlignedSegment.is_reverse flag
         self.assertTrue(su.Strand("+") == su.Strand(False))
         
-    def test_HumanContig(self):
-        """Test contig equality with various inputs."""
+    def test_HumanContig_strings(self):
+        """Test contig equality with string inputs."""
 
         self.assertTrue(su.HumanContig("chrX") == su.HumanContig("NC_000023"))
+
+    def test_HumanContig_string_int(self):
+        """Test contig equality with string and int inputs."""
+
+        self.assertTrue(su.HumanContig("chr1") == su.HumanContig(1))
 

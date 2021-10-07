@@ -44,7 +44,6 @@ class BowtieConfig(object):
         """
 
         self.ref = ref
-        self.test_build()
         self.local = local
         self.nthreads = nthreads
         self.args = args
@@ -81,7 +80,7 @@ class Bowtie2(object):
         :param str f1: path to FASTA or FASTQ 1
         :param str | None f2: optional path to FASTA or FASTQ 2
         :param str output_dir: optional output directory to write the output BAM to
-        :param str | None output_bam: output BAM basename to create
+        :param str | None output_bam: optional output BAM filename. Default use f1 basename.
         """
 
         self.config = config
@@ -92,14 +91,14 @@ class Bowtie2(object):
         if not os.path.exists(output_dir):
             os.mkdir(output_dir)
 
-        out_name = output_bam
+        self.output_bam = output_bam
         if output_bam is None:
             if f2 is None:
                 out_name = fu.replace_extension(self.f1, su.BAM_SUFFIX)
             else:
                 out_name = fu.add_extension(os.path.basename(os.path.commonprefix([f1, f2])), su.BAM_SUFFIX)
 
-        self.output_bam = os.path.join(output_dir, out_name)
+            self.output_bam = os.path.join(output_dir, out_name)
 
         if f2 is None:
             rg_id = os.path.basename(fu.remove_extension(f1))
@@ -153,7 +152,6 @@ class Bowtie2(object):
 
             align_p = subprocess.Popen(call, stdout=subprocess.PIPE, stderr=bowtie2_stderr)
 
-            # filter 48- REVERSE, MREVERSE
             tobam_p = subprocess.Popen(["samtools", "view", "-bu", "-"],
                                        stdin=align_p.stdout, stdout=subprocess.PIPE, stderr=bowtie2_stderr)
             sort_p = subprocess.Popen(["samtools", "sort", "-"],

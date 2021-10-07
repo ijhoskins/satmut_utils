@@ -13,7 +13,7 @@ import analysis.seq_utils as su
 import core_utils.file_utils as fu
 from definitions import *
 
-tempfile.tempdir = "/tmp"
+tempfile.tempdir =os.getenv("SCRATCH", "/tmp")
 
 TEST_SAM = """@HD	VN:1.0	SO:unknown
 @SQ	SN:CBS_pEZY3	LN:7108
@@ -54,7 +54,7 @@ class TestVariantCaller(unittest.TestCase):
 
         cls.tempdir = tempfile.mkdtemp()
         cls.test_dir = os.path.dirname(__file__)
-        cls.test_data_dir = os.path.join(cls.test_dir, "test_data")
+        cls.test_data_dir = os.path.abspath(os.path.join(cls.test_dir, "..", "test_data"))
 
         cls.ref = os.path.join(cls.test_data_dir, cls.GFF_REF)
         cls.gff = os.path.join(cls.test_data_dir, cls.GFF)

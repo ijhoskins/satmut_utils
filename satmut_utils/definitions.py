@@ -11,7 +11,7 @@ APPRIS_CONTIG_IDS = "appris_human_v1_actual_regions_contigs.txt"
 APPRIS_TRX_IDS = "appris_human_v1_actual_regions_trx_ids.txt"
 APPRIS_GENE_IDS = "appris_human_v1_actual_regions_gene_ids.txt"
 APPRIS_TRX_FASTA = "appris_human_24_01_2019_selected.fa"
-APPRIS_TRX_GFF = "gencode.v29.annotation.gtf"
+GENCODE_TRX_GFF = "gencode.v29.annotation.gtf"
 GRCH38_FASTA = "GRCh38.fa"
 
 # CTCCTTTC

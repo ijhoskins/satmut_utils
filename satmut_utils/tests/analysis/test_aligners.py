@@ -10,17 +10,24 @@ import analysis.seq_utils as su
 import core_utils.file_utils as fu
 from definitions import *
 
-tempfile.tempdir = "/tmp"
+tempfile.tempdir = os.getenv("SCRATCH", "/tmp")
 
 
 class TestAligners(unittest.TestCase):
     """Tests for read aligners."""
 
+    CBS_PEZY3_REF = "CBS_pEZY3.fa"
+
     @classmethod
     def setUpClass(cls):
         """Set up for TestAligners."""
 
-        cls.wt_seq = "GACGGACACCCGTTTCCGCTTCCGGGTCACGCTTCTCTTTCTGGGATCCCCGACTTGCCCACCAACTAAGGCCCCTCGGTCCTGTCGCCGCCGCCGCCGTTTCCGGATTAAACGACGTGACGTAACATGCCCCGCCCGCACCCGGAACGT"
+        cls.tempdir = tempfile.mkdtemp()
+        cls.test_dir = os.path.dirname(__file__)
+        cls.test_data_dir = os.path.abspath(os.path.join(cls.test_dir, "..", "test_data"))
+        cls.ref = os.path.join(cls.test_data_dir, cls.CBS_PEZY3_REF)
+
+        cls.wt_seq = "GGAGAAGGGCTTCGACCAGGCGCCCGTGGTGGATGAGGCGGGGGTAATCCTGGGAATGGTGACGCTTGGGAACATGCTCTCGTCCCTGCTTGCCGGGAAGGTGCA"
         cls.snp_seq = su.introduce_error(cls.wt_seq, 0.05)
         cls.indel_seq = su.introduce_indels(cls.wt_seq, 0.05)
         fasta_lines = [">WT", cls.wt_seq, ">SNPs", cls.snp_seq, ">InDels", cls.indel_seq]
@@ -30,7 +37,7 @@ class TestAligners(unittest.TestCase):
         with open(cls.test_fasta) as test_fa_fh:
             test_fa_fh.write(fasta_string)
 
-        cls.test_bam = tempfile.NamedTemporaryFile("w+b", suffix=".test.bam", delete=False).name
+        cls.test_bam = tempfile.NamedTemporaryFile(suffix=".test.bam", delete=False).name
 
     @classmethod
     def tearDownClass(cls):
@@ -46,7 +53,7 @@ class TestBowtie2(TestAligners):
         """Test proper passing of args."""
 
         # Pass the -f flag to align a FASTA
-        bowtie_config = al.BowtieConfig(GRCH38_FASTA, True, 1, "f")
+        bowtie_config = al.BowtieConfig(self.ref, True, 1, "f")
         _ = al.Bowtie2(config=bowtie_config, f1=self.test_fasta, output_bam=self.test_bam)
 
         # To count reads we have to index
@@ -61,33 +68,25 @@ class TestBowtie2(TestAligners):
         """Test proper passing of kwargs."""
 
         # Pass the --skip flag to align the last two reads
-        bowtie_config = al.BowtieConfig(GRCH38_FASTA, local=True, nthreads=1, skip=1)
+        bowtie_config = al.BowtieConfig(self.ref, local=True, nthreads=1, skip=1)
         _ = al.Bowtie2(config=bowtie_config, f1=self.test_fasta, output_bam=self.test_bam)
 
-        valid_qnames = {align_seg.query_name for align_seg in
-                        pysam.AlignmentFile("rb", self.test_bam).fetch(until_eof=True)}
+        observed_qnames = {align_seg.query_name for align_seg in pysam.AlignmentFile(self.test_bam, "rb").fetch()}
 
-        self.assertTrue("WT" not in valid_qnames)
+        self.assertTrue("WT" not in observed_qnames)
 
     def test_alignment(self):
         """Test proper alignment of various types of reads."""
 
-        has_soft_clip = False
-        has_snps = False
-        has_ins = False
-        has_dels = False
-
-        with pysam.AlignmentFile(self.test_bam.name, "rb") as af:
+        with pysam.AlignmentFile(self.test_bam, "rb") as af:
             for align_seg in af.fetch():
-
-                # These could potentially change with different alignment params
                 if align_seg.query_name == "WT":
-                    # A terminal error in this read causes soft clipping
-                    has_soft_clip = "S" in align_seg.cigarstring
+                    # This read should match the reference exactly
+                    matches_ref = align_seg.cigarstring == "105M"
                 if align_seg.query_name == "SNPs":
                     has_snps = align_seg.get_tag(su.SAM_EDIT_DIST_TAG) >= 0
                 if align_seg.query_name == "InDels":
                     has_ins = "I" in align_seg.cigarstring
                     has_dels = "D" in align_seg.cigarstring
 
-        self.assertTrue(has_soft_clip and has_snps and has_ins and has_dels)
+        self.assertTrue(matches_ref and has_snps and (has_ins or has_dels))

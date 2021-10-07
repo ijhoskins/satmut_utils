@@ -10,7 +10,7 @@ import analysis.coordinate_mapper as cm
 import core_utils.file_utils as fu
 from definitions import *
 
-tempfile.tempdir = "/tmp"
+tempfile.tempdir = os.getenv("SCRATCH", "/tmp")
 
 
 class TestAminoAcidMapper(unittest.TestCase):
@@ -20,9 +20,7 @@ class TestAminoAcidMapper(unittest.TestCase):
     GFF_REF = "CBS_pEZY3.fa"
     PRIMERS = "CBS_pEZY3_primers.bed"
     TARGETS = "CBS_pEZY3_targets.bed"
-
     APPRIS_REF = "GRCh38.chr21.fa.gz"
-    APPRIS_GFF = "appris_test_transcripts.gff"
     CBS_REF = "CBS.fa"
     PKNOX1_REF = "PKNOX1.fa"
 
@@ -32,7 +30,7 @@ class TestAminoAcidMapper(unittest.TestCase):
 
         cls.tempdir = tempfile.mkdtemp()
         cls.test_dir = os.path.dirname(__file__)
-        cls.test_data_dir = os.path.join(cls.test_dir, "test_data")
+        cls.test_data_dir = os.path.abspath(os.path.join(cls.test_dir, "..", "test_data"))
 
         # Validate coordinate mapping for both a custom vector reference and for default APPRIS annotations
 
@@ -57,13 +55,13 @@ class TestAminoAcidMapper(unittest.TestCase):
         cls.appris_ref_gz = os.path.join(cls.test_data_dir, cls.APPRIS_REF)
 
         # This just has CBS and PKNOX1 annotations
-        cls.appris_gff = os.path.join(cls.test_data_dir, cls.APPRIS_GFF)
+        cls.appris_gff = os.path.join(cls.test_data_dir, GENCODE_TRX_GFF)
 
         # For sequence comparison use the sequences extracted from the transcriptome
         cls.cbs_ref = os.path.join(cls.test_data_dir, cls.CBS_REF)
         cls.pknox1_ref = os.path.join(cls.test_data_dir, cls.PKNOX1_REF)
 
-        with gzip.open(cls.APPRIS_REF) as appris_ref_in, \
+        with gzip.open(cls.appris_ref_gz) as appris_ref_in, \
                 tempfile.NamedTemporaryFile(suffix=".fa", delete=False) as appris_ref_out:
 
             for line in appris_ref_in:
@@ -94,6 +92,12 @@ class TestAminoAcidMapper(unittest.TestCase):
                 cls.appris_pknox1_trx_seq += line.rstrip(fu.FILE_NEWLINE)
 
         cls.appris_pknox1_cds_seq = cls.appris_pknox1_trx_seq[211:1519]
+
+    @classmethod
+    def tearDownClass(cls):
+        """Tear down for TestAminoAcidMapper."""
+
+        fu.safe_remove((cls.tempdir, cls.temp_ref_fa), force_remove=True)
 
     def test_add_cds_info(self):
         """Tests that transcript information is added to the CDS info dict."""
@@ -255,9 +259,3 @@ class TestAminoAcidMapper(unittest.TestCase):
             trx_id="ENST00000291547.9", pos=218, ref="GCT", alt="ACA")
 
         self.assertEqual(expected, observed)
-
-    @classmethod
-    def tearDownClass(cls):
-        """Tear down for TestAminoAcidMapper."""
-
-        fu.safe_remove((cls.tempdir, cls.temp_ref_fa))

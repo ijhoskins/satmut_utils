@@ -13,7 +13,7 @@ import analysis.seq_utils as su
 import core_utils.file_utils as fu
 from definitions import *
 
-tempfile.tempdir = "/tmp"
+tempfile.tempdir = os.getenv("SCRATCH", "/tmp")
 
 # First pair contains no adapter readthrough and is first pair in CBS1_65
 # Second pair contains typical adapter readthrough and was selected from CBS1_63 by grep first instance of adapter match

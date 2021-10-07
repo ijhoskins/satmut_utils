@@ -24,13 +24,18 @@ class EnsemblIdNotFound(Exception):
     pass
 
 
+class InvalidEnsemblId(Exception):
+    """Exception for when an Ensembl transcript or gene ID is not in valid format."""
+    pass
+
+
 def ensembl_id_exists(reference_dir, ensembl_id):
     """Determines if ensembl_id is present in curated APPRIS reference files.
 
     :param str reference_dir: directory containing curated APPRIS reference files
     :param str ensembl_id: Ensembl gene or transcript ID, with version number
     :return tuple: (bool, str | None) if ensembl_id is in the references, alternative ID if present
-    :raises RuntimeError: if the Ensembl ID does not start with ENST or ENSG
+    :raises InvalidEnsemblId: if the Ensembl ID does not start with ENST or ENSG
     """
 
     if re.search(MapperBase.ENSEMBL_TRX_PREFIX, ensembl_id):
@@ -38,7 +43,7 @@ def ensembl_id_exists(reference_dir, ensembl_id):
     elif re.search(MapperBase.ENSEMBL_GENE_PREFIX, ensembl_id):
         ids = {line.rstrip(fu.FILE_NEWLINE) for line in open(os.path.join(reference_dir, APPRIS_GENE_IDS), "r")}
     else:
-        raise RuntimeError("Ensembl ID %s was passed. Please provide a valid Ensembl identifier." % ensembl_id)
+        raise InvalidEnsemblId("Ensembl ID %s was passed. Please provide a valid Ensembl identifier." % ensembl_id)
 
     if ensembl_id in ids:
         return True, None
@@ -95,8 +100,10 @@ def extract_gff_reference(reference_dir, ensembl_id, outdir="."):
     ensembl_id_base = ensembl_id.split(".")[0]
     output_gff = os.path.join(outdir, fu.add_extension(ensembl_id_base, su.GFF_DEFAULT_EXT))
 
-    save_features = {MapperBase.GENE_ID, MapperBase.TRX_ID, MapperBase.CDS_ID, MapperBase.STOP_CODON_ID}
-    default_trx_gff_bedtool = pybedtools.BedTool(os.path.join(reference_dir, APPRIS_TRX_GFF))
+    save_features = {MapperBase.GENE_ID, MapperBase.TRX_ID, MapperBase.CDS_ID, MapperBase.START_CODON_ID,
+                     MapperBase.STOP_CODON_ID, MapperBase.UTR_ID}
+
+    default_trx_gff_bedtool = pybedtools.BedTool(os.path.join(reference_dir, GENCODE_TRX_GFF))
 
     with open(output_gff, "w") as out_gff_fh:
         for interval in default_trx_gff_bedtool:
@@ -112,7 +119,7 @@ def extract_gff_reference(reference_dir, ensembl_id, outdir="."):
 def index_reference(ref):
     """samtools and bowtie2-indexes the reference FASTA.
 
-    :param str ref: path to reference FASTA used in alignment. Must be bowtie2 FM-index and samtools faidx indexed.
+    :param str ref: reference FASTA
     """
 
     # Need to index the reference with samtools and create a FM-index with bowtie2 if it has not been done
@@ -122,7 +129,7 @@ def index_reference(ref):
 
     # Build the bowtie2 index if it doesn't exist
     try:
-        _ = BowtieConfig(ref=ref)
+        _ = BowtieConfig(ref=ref).test_build()
     except RuntimeError:
         _logger.info("Building FM index files for %s." % ref)
         # This exception is passed if the reference is not FM-indexed

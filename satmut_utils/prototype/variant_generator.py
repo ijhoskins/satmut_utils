@@ -216,7 +216,7 @@ class VariantGenerator(object):
                     var_type = vu.get_variant_type(ref=ref, alt=alt, split_mnps=True)
 
                     alt_aa = str(Bio.Seq.Seq(permut).translate())
-                    aa_change = HGVS_AA_FORMAT.format(ref_aa, i + 1, alt_aa)
+                    aa_change = cm.HGVS_AA_FORMAT.format(ref_aa, i + 1, alt_aa)
 
                     #mut_info_tuple = self.aam.get_codon_and_aa_changes(trx_id=trx_id, pos=pos + 1, ref=ref, alt=alt)
                     #nnk_match = str(mut_info_tuple.matches_nnk)
@@ -337,7 +337,7 @@ class CodonPermuts(object):
         :return tuple: (proportion of REF codons with NNK signature, proportion of ALT codons with NNK signature)
         """
 
-        ref_prop = len([codon for codon in self.codons if codon[2] not in MUT_SIG_UNEXPECTED_WOBBLE_BPS]) / len(self.codons)
+        ref_prop = len([codon for codon in self.codons if codon[2] not in cm.MUT_SIG_UNEXPECTED_WOBBLE_BPS]) / len(self.codons)
 
         matching_codons = 0
         total_codons = 0
@@ -488,7 +488,7 @@ class CodonPermuts(object):
             if pos is None:
                 aa_changes.add(self.AA_CHANGE_FORMAT.format(wt_aa, alt_aa))
             else:
-                aa_changes.add(HGVS_AA_FORMAT.format(wt_aa, pos, alt_aa))
+                aa_changes.add(cm.HGVS_AA_FORMAT.format(wt_aa, pos, alt_aa))
 
         return aa_changes
 

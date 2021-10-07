@@ -11,7 +11,7 @@ import tempfile
 from analysis.read_preprocessor import FastqPreprocessor, UMIExtractor, ReadGrouper, \
     ConsensusDeduplicatorPreprocessor, ConsensusDeduplicator, ReadMasker
 
-import analysis.read_inducer as ri
+import analysis.read_editor as ri
 from analysis.references import get_ensembl_references
 from analysis.seq_utils import UNKNOWN_BASE
 from analysis.variant_caller import VariantCaller
