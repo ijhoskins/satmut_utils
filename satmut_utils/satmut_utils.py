@@ -44,6 +44,9 @@ __logger.addHandler(__fhandler)
 
 tempfile.tempdir = os.getenv("SCRATCH", "/tmp")
 
+SIM_WORKFLOW = "sim"
+CALL_WORKFLOW = "call"
+
 
 def parse_commandline_params(args):
     """Parses command line parameters.
@@ -75,10 +78,10 @@ def parse_commandline_params(args):
                         help='Optional output directory. Default current working directiory.')
 
     # Subcommands
-    subparsers = parser.add_subparsers(help='sub-command help', title='subcommands')
+    subparsers = parser.add_subparsers(help='sub-command help', required=True, title='subcommands')
 
     # sim subcommand
-    parser_sim = subparsers.add_parser('sim', help='sim help')
+    parser_sim = subparsers.add_parser(SIM_WORKFLOW, help='%s help' % SIM_WORKFLOW)
     parser_sim.set_defaults(func=sim_workflow)
 
     parser_sim.add_argument("-a", "--alignments", required=True, type=str,
@@ -97,7 +100,7 @@ def parse_commandline_params(args):
                             help='Flag indicating to filter and output edited reads as BAM.')
 
     # call subcommand
-    parser_call = subparsers.add_parser('call', help='call help')
+    parser_call = subparsers.add_parser(CALL_WORKFLOW, help='%s help' % CALL_WORKFLOW)
     parser_call.set_defaults(func=call_workflow)
 
     parser_call.add_argument("-1", "--fastq1", required=True, type=str, help='R1 FASTQ.')
@@ -272,7 +275,7 @@ def sim_workflow(am, vcf, ensembl_id=ri.ReadEditor.DEFAULT_ENSEMBL_ID, reference
     return output_bam, zipped_r1_fastq, zipped_r2_fastq
 
 
-def call_workflow(f1, f2, r1_fiveprime_adapters, r1_threeprime_adapters,
+def call_workflow(fastq1, fastq2, r1_fiveprime_adapters, r1_threeprime_adapters,
                   ensembl_id=VariantCaller.VARIANT_CALL_ENSEMBL_ID,
                   reference_dir=VariantCaller.VARIANT_CALL_REFERENCE_DIR,
                   ref=VariantCaller.VARIANT_CALL_REF, transcript_gff=VariantCaller.VARIANT_CALL_GFF,
@@ -290,8 +293,8 @@ def call_workflow(f1, f2, r1_fiveprime_adapters, r1_threeprime_adapters,
                   mut_sig=VariantCaller.VARIANT_CALL_MUT_SIG):
     r"""Runs the satmut_utils call workflow.
 
-    :param str f1: path of the R1 FASTQ
-    :param str f2: path of the R2 FASTQ
+    :param str fastq1: path of the R1 FASTQ
+    :param str fastq2: path of the R2 FASTQ
     :param str r1_fiveprime_adapters: comma-delimited 5' adapters to trim from R1
     :param str r1_threeprime_adapters: comma-delimited 3' adapters to trim from R1
     :param str | None ensembl_id: Ensembl gene or transcript ID, with version number
@@ -319,6 +322,7 @@ def call_workflow(f1, f2, r1_fiveprime_adapters, r1_threeprime_adapters,
     :param bool omit_trim: flag to turn off adapter and 3' base quality trimming. Default False.
     :param str mut_sig: mutagenesis signature- one of {NNN, NNK, NNS}. Default NNK.
     :return tuple: (VCF, BED) filepaths
+    :raises RuntimeError: if mut_sig is not one of NNN, NNK, NNS
     """
 
     # Get and index the references
@@ -329,12 +333,12 @@ def call_workflow(f1, f2, r1_fiveprime_adapters, r1_threeprime_adapters,
     if mut_sig not in VariantCaller.VARIANT_CALL_VALID_MUT_SIGS:
         raise RuntimeError("Mutation signature %s not one of NNN, NNK, or NNS" % mut_sig)
 
-    fqp_r1 = f1
-    fqp_r2 = f2
+    fqp_r1 = fastq1
+    fqp_r2 = fastq2
     if consensus_dedup:
         # Run the first part of umi_tools based deduplication: UMI extraction. Note this should take place
         # before we have trimmed adapters as for umi_tools the adapter is used for "anchoring" the UMI.
-        ue = UMIExtractor(r1_fastq=f1, r2_fastq=f2, umi_regex=umi_regex,
+        ue = UMIExtractor(r1_fastq=fastq1, r2_fastq=fastq2, umi_regex=umi_regex,
                           primer_fasta=primer_fa, primer_nm_allow=primer_nm_allowance, outdir=outdir)
         fqp_r1 = ue.r1_out_fastq
         fqp_r2 = ue.r2_out_fastq
@@ -381,10 +385,7 @@ def main():
     """Runs the workflow when called from command line."""
 
     parsed_args = parse_commandline_params(sys.argv[1:])
-
-    # Call the assigned workflow
     parsed_args.func(parsed_args)
-
 
 if __name__ == "__main__":
     __logger.info("Started %s" % sys.argv[0])
