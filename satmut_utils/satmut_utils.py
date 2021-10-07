@@ -146,7 +146,7 @@ def parse_commandline_params(args):
                                   VariantCaller.VARIANT_CALL_MAX_NM)
 
     parser_call.add_argument("-m", "--min_supporting", type=int, default=VariantCaller.VARIANT_CALL_MIN_DP,
-                             help='Min R1-R2 concordant counts for establishing candidate variants. Default %i.' %
+                             help='Min concordant counts for establishing candidate variants. Default %i.' %
                                   VariantCaller.VARIANT_CALL_MIN_DP)
 
     parser_call.add_argument("-w", "--max_mnp_window", type=int, default=VariantCaller.VARIANT_CALL_MAX_MNP_WINDOW,
@@ -399,7 +399,7 @@ def main():
             targets=VariantCaller.VARIANT_CALL_TARGET,outdir=args_dict["outdir"], primers=args_dict["primers"],
             primer_fa=args_dict["primer_fasta"], primer_nm_allowance=args_dict["primer_nm_allowance"],
             consensus_dedup=args_dict["consensus_deduplicate"], umi_regex=args_dict["umi_regex"],
-            contig_del_thresh=args_dict["contig_del_thresh"], min_bq=args_dict["min_bq"],
+            contig_del_thresh=args_dict["contig_del_threshold"], min_bq=args_dict["min_bq"],
             max_nm=args_dict["max_nm"], min_supporting_qnames=args_dict["min_supporting"],
             max_mnp_window=args_dict["max_mnp_window"], include_n=not args_dict["include_n"],
             nthreads=args_dict["nthreads"], ntrimmed=args_dict["ntrimmed"], trim_bq=args_dict["trim_bq"],
