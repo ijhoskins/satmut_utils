@@ -178,10 +178,10 @@ def parse_commandline_params(args):
                              help='Flag to turn off adapter and 3\' base quality trimming. Useful for simulated data that '
                                   'has already had adapters and bases trimmed.')
 
-    parser.add_argument("-ms", "--mutagenesis_signature", type=str, default=VariantCaller.VARIANT_CALL_MUT_SIG,
-                        help='Mutagenesis signature. One of NNN, NNK, or NNS.')
+    parser_call.add_argument("-ms", "--mutagenesis_signature", type=str, default=VariantCaller.VARIANT_CALL_MUT_SIG,
+                             help='Mutagenesis signature. One of NNN, NNK, or NNS.')
 
-    parsed_args = vars(parser.parse_args(args))
+    parsed_args = parser.parse_args(args)
     return parsed_args
 
 
