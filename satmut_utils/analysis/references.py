@@ -105,15 +105,25 @@ def extract_gff_reference(reference_dir, ensembl_id, outdir="."):
 
     default_trx_gff_bedtool = pybedtools.BedTool(os.path.join(reference_dir, GENCODE_TRX_GFF))
 
+    last_gene_id = None
+    id_observed = False
+
     with open(output_gff, "w") as out_gff_fh:
         for interval in default_trx_gff_bedtool:
 
-            if interval[MapperBase.GFF_FEATURE_FIELD] in save_features and \
-                    ensembl_id == interval.attrs[ffu.GFF_ATTR_GENE_ID] or \
-                (ffu.GFF_ATTR_TRANSCRIPT_ID in interval.attrs and
-                 ensembl_id == interval.attrs[ffu.GFF_ATTR_TRANSCRIPT_ID]):
+            curr_gene_id = interval.attrs[ffu.GFF_ATTR_GENE_ID]
 
+            # Once we have collected all records for the ID, break the loop
+            if last_gene_id is not None and id_observed and curr_gene_id != last_gene_id:
+                break
+
+            if interval[MapperBase.GFF_FEATURE_FIELD] in save_features and \
+                    ensembl_id == curr_gene_id or (ffu.GFF_ATTR_TRANSCRIPT_ID in interval.attrs and
+                                                   ensembl_id == interval.attrs[ffu.GFF_ATTR_TRANSCRIPT_ID]):
+                id_observed = True
                 out_gff_fh.write(str(interval))
+
+            last_gene_id = curr_gene_id
 
     return output_gff
 
