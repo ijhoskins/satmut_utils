@@ -325,6 +325,8 @@ class VariantCaller(object):
                 haplotypes[call_tuple] |= mm_pos_set
                 position_blacklist |= mm_pos_set
 
+        return haplotypes, position_blacklist
+
     def _call_haplotypes(self, filt_r_mms, max_mnp_window=VARIANT_CALL_MAX_MNP_WINDOW):
         """Calls haplotypes.
 
@@ -463,8 +465,8 @@ class VariantCaller(object):
         
         # Extract the per-bp stats for the supporting positions
         mms_len = len(supporting_positions)
-        refs = np.array(shape=mms_len, dtype=np.str)
-        alts = np.array(shape=mms_len, dtype=np.str)
+        refs = np.empty(shape=mms_len, dtype=np.str)
+        alts = np.empty(shape=mms_len, dtype=np.str)
         positions = np.zeros(shape=mms_len, dtype=np.int32)
         r1_read_positions = np.zeros(shape=mms_len, dtype=np.int32)
         r2_read_positions = np.zeros(shape=mms_len, dtype=np.int32)
