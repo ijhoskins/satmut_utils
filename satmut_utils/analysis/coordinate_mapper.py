@@ -34,7 +34,8 @@ EXON_COORDS_TUPLE = collections.namedtuple("EXON_COORDS_TUPLE", "exon_id, contig
 MUT_INFO_TUPLE = collections.namedtuple(
     "MUT_INFO_TUPLE", "location, wt_codons, mut_codons, wt_aas, mut_aas, aa_changes, aa_positions, matches_mut_sig")
 
-tempfile.tempdir = os.getenv("/tmp")
+DEFAULT_TEMPDIR = os.getenv("SCRATCH", "/tmp")
+tempfile.tempdir = DEFAULT_TEMPDIR
 _logger = logging.getLogger(__name__)
 
 

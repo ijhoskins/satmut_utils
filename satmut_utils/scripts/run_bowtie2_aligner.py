@@ -6,7 +6,7 @@ import logging
 import os
 import sys
 
-from analysis.aligners import BowtieConfig, Bowtie2
+from analysis.aligners import BowtieConfig, Bowtie2, DEFAULT_TEMPDIR
 from core_utils.string_utils import none_or_str
 
 
@@ -78,8 +78,7 @@ def workflow(f1, ref, f2=None, outdir=".", outbam=None, local=True, nthreads=Bow
     # Need to change dir to scratch in case temp BAMs are created, as bowtie2 does not have an option for setting
     # the temp directory, and we can't pollute home due to disk quotas
     call_dir = os.getcwd()
-    temp_dir = os.getenv("/tmp")
-    os.chdir(temp_dir)
+    os.chdir(DEFAULT_TEMPDIR)
 
     bc = BowtieConfig(ref, local, nthreads)
     bt = Bowtie2(config=bc, f1=f1, f2=f2, output_dir=outdir, output_bam=outbam)

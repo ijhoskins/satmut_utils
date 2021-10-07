@@ -19,7 +19,8 @@ __maintainer__ = "Ian Hoskins"
 __email__ = "ianjameshoskins@utexas.edu"
 __status__ = "Development"
 
-tempfile.tempdir = os.getenv("SCRATCH", "/tmp")
+DEFAULT_TEMPDIR = os.getenv("SCRATCH", "/tmp")
+tempfile.tempdir = DEFAULT_TEMPDIR
 
 _logger = logging.getLogger(__name__)
 

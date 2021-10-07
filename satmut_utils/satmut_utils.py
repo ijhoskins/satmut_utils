@@ -41,7 +41,8 @@ __formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(mess
 __fhandler.setFormatter(__formatter)
 __logger.addHandler(__fhandler)
 
-tempfile.tempdir = os.getenv("SCRATCH", "/tmp")
+DEFAULT_TEMPDIR = os.getenv("SCRATCH", "/tmp")
+tempfile.tempdir = DEFAULT_TEMPDIR
 
 SIM_WORKFLOW = "sim"
 CALL_WORKFLOW = "call"
@@ -367,7 +368,7 @@ def call_workflow(fastq1, fastq2, r1_fiveprime_adapters, r1_threeprime_adapters,
     # Initialize the VariantCaller and prepare the alignments
     vc = VariantCaller(
         am=vc_in_bam, targets=targets, ref=ref_fa, trx_gff=gff, gff_ref=gff_ref, primers=primers,
-        output_dir=outdir,  nthreads=nthreads, exclude_n=not include_n, mut_sig=mut_sig)
+        output_dir=outdir, nthreads=nthreads, exclude_n=not include_n, mut_sig=mut_sig)
 
     # Run variant calling
     output_vcf, output_bed = vc.workflow(min_bq, max_nm, min_supporting_qnames, max_mnp_window)
