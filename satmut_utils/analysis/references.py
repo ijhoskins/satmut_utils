@@ -109,7 +109,9 @@ def extract_gff_reference(reference_dir, ensembl_id, outdir="."):
         for interval in default_trx_gff_bedtool:
 
             if interval[MapperBase.GFF_FEATURE_FIELD] in save_features and \
-                    ensembl_id in {interval.attrs[ffu.GFF_ATTR_GENE_ID], interval.attrs[ffu.GFF_ATTR_TRANSCRIPT_ID]}:
+                    ensembl_id == interval.attrs[ffu.GFF_ATTR_GENE_ID] or \
+                (ffu.GFF_ATTR_TRANSCRIPT_ID in interval.attrs and
+                 ensembl_id == interval.attrs[ffu.GFF_ATTR_TRANSCRIPT_ID]):
 
                 out_gff_fh.write(str(interval))
 
