@@ -155,9 +155,10 @@ class FastqPreprocessor(object):
 
         r2_tp_args = ["-A {} ".format(e) for e in self.r2_threeprime_adapters]
         r2_fp_args = ["-G {} ".format(e) for e in self.r2_fiveprime_adapters]
+        fq_args = ["-o", self.trimmed_f1, "-p", self.trimmed_f2, self.f1, self.f2]
 
         _logger.info("Trimming adapters from R1 and R2")
-        trim_call = common_call_args + r1_tp_args + r1_fp_args + r2_tp_args + r2_fp_args
+        trim_call = common_call_args + r1_tp_args + r1_fp_args + r2_tp_args + r2_fp_args + fq_args
         subprocess.call(trim_call)
 
     def workflow(self):
