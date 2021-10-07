@@ -2,7 +2,6 @@
 """Runs satmut_utils."""
 
 import argparse
-import datetime
 import logging
 import os
 import sys
@@ -129,7 +128,7 @@ def parse_commandline_params(args):
                                   'For RACE-like (e.g. AMP) data, a small number of R2s may share the same R1 UMI-position '
                                   'but align to different coordinates, and will be merged, possibly with large gaps.')
 
-    parser_call.add_argument("-f", "--primer_fa", type=none_or_str,
+    parser_call.add_argument("-f", "--primer_fasta", type=none_or_str,
                              help='If -cd, this may optionally be set to append originating primers to read names.'
                                   'Useful for RACE-like (e.g. AMP) libraries to prohibit R2 merging. That is, without '
                                   'this flag, tiled R2s sharing the same R1 will be merged into '
@@ -239,7 +238,6 @@ def get_call_references(reference_dir, ensembl_id, ref, transcript_gff, gff_refe
 
 def sim_workflow(am, vcf, ensembl_id=ri.ReadEditor.DEFAULT_ENSEMBL_ID, reference_dir=ri.ReadEditor.DEFAULT_REFERENCE_DIR,
                  ref=ri.ReadEditor.DEFAULT_REF, primers=ri.ReadEditor.DEFAULT_PRIMERS, outdir=ri.ReadEditor.DEFAULT_OUTDIR,
-                 output_prefix=ri.ReadEditor.DEFAULT_PREFIX, single_end=ri.ReadEditor.DEFAULT_SINGLE_END,
                  filter_edited=ri.ReadEditor.DEFAULT_FILTER, random_seed=ri.ReadEditor.DEFAULT_SEED):
     """Runs the satmut_utils sim workflow.
 
@@ -250,8 +248,6 @@ def sim_workflow(am, vcf, ensembl_id=ri.ReadEditor.DEFAULT_ENSEMBL_ID, reference
     :param str ref: indexed reference FASTA
     :param str | None primers: feature file of primer locations for read masking and primer detection
     :param str outdir: Optional output directory to store generated FASTQs and BAM
-    :param str | None output_prefix: Optional output prefix for the FASTQ(s) and BAM; if None, use same prefix as BAM.
-    :param bool single_end: does the input SAM/BAM contain single end reads? Default False, paired end reads.
     :param bool filter_edited: filter the edited BAM for those reads/read pairs that were edited? Default True.
     :param int random_seed: seed for random qname sampling
     :return tuple: (str | None, str, str | None) paths of the edited BAM, R1 FASTQ, R2 FASTQ
@@ -263,14 +259,12 @@ def sim_workflow(am, vcf, ensembl_id=ri.ReadEditor.DEFAULT_ENSEMBL_ID, reference
     ref_fa = get_sim_reference(
         reference_dir=reference_dir, ensembl_id=ensembl_id, ref=ref, outdir=os.path.join(outdir, "references"))
 
-    out_prefix = output_prefix
-    if output_prefix is None:
-        out_prefix = fu.remove_extension(os.path.basename(am))
+    out_prefix = fu.remove_extension(os.path.basename(am))
 
     # Run the editing workflow
     output_bam, zipped_r1_fastq, zipped_r2_fastq = ri.ReadEditor.workflow(
         am=am, vcf=vcf, ref=ref_fa, primers=primers, output_dir=outdir, output_prefix=out_prefix,
-        single_end=single_end, filter_edited=filter_edited, random_seed=random_seed)
+        filter_edited=filter_edited, random_seed=random_seed)
 
     return output_bam, zipped_r1_fastq, zipped_r2_fastq
 
@@ -385,7 +379,32 @@ def main():
     """Runs the workflow when called from command line."""
 
     parsed_args = parse_commandline_params(sys.argv[1:])
-    parsed_args.func(parsed_args)
+    args_dict = vars(parsed_args)
+
+    if parsed_args.subcommand == SIM_WORKFLOW:
+
+        _, _, _ = sim_workflow(
+            am=args_dict["alignments"], vcf=args_dict["vcf"], ensembl_id=args_dict["ensembl_id"],
+            reference_dir=args_dict["reference_dir"], ref=args_dict["reference"], primers=args_dict["primers"],
+            outdir=args_dict["outdir"], filter_edited=args_dict["filter_edited"], random_seed=args_dict["random_seed"])
+
+    elif parsed_args.subcommand == CALL_WORKFLOW:
+
+        _, _ = call_workflow(
+            fastq1=args_dict["fastq1"], fastq2=args_dict["fastq2"],
+            r1_fiveprime_adapters=args_dict["r1_fiveprime_adapters"],
+            r1_threeprime_adapters=args_dict["r1_threeprime_adapters"],
+            ensembl_id=args_dict["ensembl_id"], reference_dir=args_dict["reference_dir"], ref=args_dict["reference"],
+            transcript_gff=args_dict["transcript_gff"], gff_reference=args_dict["gff_reference"],
+            targets=VariantCaller.VARIANT_CALL_TARGET,outdir=args_dict["outdir"], primers=args_dict["primers"],
+            primer_fa=args_dict["primer_fasta"], primer_nm_allowance=args_dict["primer_nm_allowance"],
+            consensus_dedup=args_dict["consensus_deduplicate"], umi_regex=args_dict["umi_regex"],
+            contig_del_thresh=args_dict["contig_del_thresh"], min_bq=args_dict["min_bq"],
+            max_nm=args_dict["max_nm"], min_supporting_qnames=args_dict["min_supporting"],
+            max_mnp_window=args_dict["max_mnp_window"], include_n=not args_dict["include_n"],
+            nthreads=args_dict["nthreads"], ntrimmed=args_dict["ntrimmed"], trim_bq=args_dict["trim_bq"],
+            omit_trim=args_dict["omit_trim"], mut_sig=args_dict["mutagenesis_signature"])
+
 
 if __name__ == "__main__":
     __logger.info("Started %s" % sys.argv[0])
