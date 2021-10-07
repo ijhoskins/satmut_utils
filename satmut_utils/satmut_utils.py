@@ -55,7 +55,7 @@ def parse_commandline_params(args):
     # Common satmut_utils options
     parser = argparse.ArgumentParser(description="%s arguments" % __file__)
 
-    parser.add_argument("-ei", "-ensembl_id", type=str,
+    parser.add_argument("-ei", "--ensembl_id", type=str,
                         help='Ensembl gene (ENSG) or transcript (ENST) ID to use for a reference.')
 
     parser.add_argument("-rd", "--reference_dir", type=str, default="./references",
