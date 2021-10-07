@@ -23,7 +23,7 @@ For convenience, a miniconda installer script is provided for Linux distribution
 https://docs.conda.io/en/latest/miniconda.html
 
 3. Create the conda environment:
-```conda env create -f satmut_utils_env.yaml```
+```cd satmut_utils && conda env create -f satmut_utils_env.yaml```
 
 
 ## Reference files

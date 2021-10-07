@@ -174,7 +174,7 @@ def parse_commandline_params(args):
     parser_call.add_argument("-q", "--trim_bq", type=int, default=FastqPreprocessor.TRIM_QUALITY,
                              help='Base quality for 3\' trimming. Default %i.' % FastqPreprocessor.TRIM_QUALITY)
 
-    parser_call.add_argument("-nt", "--no_trim", action="store_true",
+    parser_call.add_argument("-ot", "--omit_trim", action="store_true",
                              help='Flag to turn off adapter and 3\' base quality trimming. Useful for simulated data that '
                                   'has already had adapters and bases trimmed.')
 
@@ -294,7 +294,7 @@ def call_workflow(f1, f2, r1_fiveprime_adapters, r1_threeprime_adapters,
                   max_mnp_window=VariantCaller.VARIANT_CALL_MAX_MNP_WINDOW,
                   include_n=not VariantCaller.VARIANT_CALL_EXCLUDE_N,
                   nthreads=FastqPreprocessor.NCORES, ntrimmed=FastqPreprocessor.NTRIMMED,
-                  trim_bq=FastqPreprocessor.TRIM_QUALITY, no_trim=FastqPreprocessor.TRIM_FLAG,
+                  trim_bq=FastqPreprocessor.TRIM_QUALITY, omit_trim=FastqPreprocessor.TRIM_FLAG,
                   mut_sig=VariantCaller.VARIANT_CALL_MUT_SIG):
     r"""Runs the satmut_utils call workflow.
 
@@ -324,7 +324,7 @@ def call_workflow(f1, f2, r1_fiveprime_adapters, r1_threeprime_adapters,
     :param int nthreads: Number of threads to use for SAM/BAM operations. Default 0 (autodetect).
     :param int ntrimmed: Max number of adapters to trim from each read
     :param int trim_bq: quality score for cutadapt quality trimming at the 3' end. Default 15.
-    :param bool no_trim: flag to turn off adapter and 3' base quality trimming. Default False.
+    :param bool omit_trim: flag to turn off adapter and 3' base quality trimming. Default False.
     :param str mut_sig: mutagenesis signature- one of {NNN, NNK, NNS}. Default NNK.
     :return tuple: (VCF, BED) filepaths
     """
@@ -350,7 +350,7 @@ def call_workflow(f1, f2, r1_fiveprime_adapters, r1_threeprime_adapters,
     # Run the FASTQ preprocessing workflow which includes adapter trimming and 3' BQ trimming
     fqp = FastqPreprocessor(
         f1=fqp_r1, f2=fqp_r2, r1_fiveprime_adapters=r1_fiveprime_adapters, r1_threeprime_adapters=r1_threeprime_adapters,
-        outdir=outdir, ncores=nthreads, trim_bq=trim_bq, ntrimmed=ntrimmed, no_trim=no_trim, validate=True)
+        outdir=outdir, ncores=nthreads, trim_bq=trim_bq, ntrimmed=ntrimmed, no_trim=omit_trim, validate=True)
 
     # Run local alignment; handle the ncores/nthreads option for cutadapt versus bowtie2 options
     bowtie2_nthreads = 1 if nthreads == 0 else nthreads
