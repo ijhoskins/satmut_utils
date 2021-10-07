@@ -78,7 +78,7 @@ def parse_commandline_params(args):
                         help='Optional output directory. Default current working directiory.')
 
     # Subcommands
-    subparsers = parser.add_subparsers(help='sub-command help', required=True, title='subcommands')
+    subparsers = parser.add_subparsers(title='subcommands', help='sub-command help', dest="subcommand", required=True)
 
     # sim subcommand
     parser_sim = subparsers.add_parser(SIM_WORKFLOW, help='%s help' % SIM_WORKFLOW)
