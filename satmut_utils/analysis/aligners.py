@@ -118,7 +118,6 @@ class Bowtie2(object):
         :return tuple: return codes of each process in the pipeline
         """
 
-        # TODO: figure out how to set tempdir for temp bams
         with open(self.output_bam, "wb") as out_file, \
                 open(os.path.join(os.path.dirname(os.path.abspath(self.output_bam)),
                                   "Bowtie2.stderr.log"), "a") as bowtie2_stderr:
@@ -133,7 +132,7 @@ class Bowtie2(object):
 
             # Add the configuration parameters
             for f in self.config.args:
-                call.extend(["-" + f])
+                call.extend(["-" + str(f)])
 
             for k, i in self.alignment_kwargs.items():
                 call.extend(["--{} {}".format(k, i)])
@@ -153,7 +152,7 @@ class Bowtie2(object):
 
             align_p = subprocess.Popen(call, stdout=subprocess.PIPE, stderr=bowtie2_stderr)
 
-            tobam_p = subprocess.Popen(["samtools", "view", "-bu", "-"],
+            tobam_p = subprocess.Popen(["samtools", "view", "-u", "-"],
                                        stdin=align_p.stdout, stdout=subprocess.PIPE, stderr=bowtie2_stderr)
             sort_p = subprocess.Popen(["samtools", "sort", "-"],
                                       stdin=tobam_p.stdout, stdout=out_file, stderr=bowtie2_stderr)

@@ -77,6 +77,9 @@ def parse_commandline_params(args):
     parser.add_argument("-o", "--outdir", type=str, default=".",
                         help='Optional output directory. Default current working directiory.')
 
+    # Enforce that ensembl_id and reference are mutually exclusive
+    group = parser.add_mutually_exclusive_group()
+
     # Subcommands
     subparsers = parser.add_subparsers(title='subcommands', help='sub-command help', dest="subcommand", required=True)
 
@@ -345,8 +348,8 @@ def call_workflow(fastq1, fastq2, r1_fiveprime_adapters, r1_threeprime_adapters,
 
     # Run local alignment; handle the ncores/nthreads option for cutadapt versus bowtie2 options
     bowtie2_nthreads = 1 if nthreads == 0 else nthreads
-    bta = baw(f1=fqp.trimmed_f1, ref=ref, f2=fqp.trimmed_f2, outdir=outdir, outbam=None,
-              local=True, nthreads=bowtie2_nthreads)
+    bta = baw(f1=fqp.trimmed_f1, ref=ref_fa, f2=fqp.trimmed_f2, outdir=outdir, outbam=None, local=True,
+              nthreads=bowtie2_nthreads)
 
     # Run deduplication which may be done in at least two ways (standard and consensus)
     preproc_in_bam = bta.output_bam
