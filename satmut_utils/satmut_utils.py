@@ -181,8 +181,7 @@ def parse_commandline_params(args):
     parser.add_argument("-ms", "--mutagenesis_signature", type=str, default=VariantCaller.VARIANT_CALL_MUT_SIG,
                         help='Mutagenesis signature. One of NNN, NNK, or NNS.')
 
-    # vars(parser.parse_args(args))
-    parsed_args = parser.parse_args(args)
+    parsed_args = vars(parser.parse_args(args))
     return parsed_args
 
 
