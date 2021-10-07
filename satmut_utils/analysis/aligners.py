@@ -112,6 +112,8 @@ class Bowtie2(object):
         _logger.info("Aligning and writing to %s" % self.output_bam)
         _ = self._align()
 
+        su.index_bam(self.output_bam)
+
     def _align(self):
         """Aligns reads.
 
