@@ -55,10 +55,10 @@ def parse_commandline_params(args):
     # Common satmut_utils options
     parser = argparse.ArgumentParser(description="%s arguments" % __file__)
 
-    parser.add_argument("-ei", "--ensembl_id", type=str,
+    parser.add_argument("-i", "--ensembl_id", type=str,
                         help='Ensembl gene (ENSG) or transcript (ENST) ID to use for a reference.')
 
-    parser.add_argument("-rd", "--reference_dir", type=str, default="./references",
+    parser.add_argument("-x", "--reference_dir", type=str, default="./references",
                         help='Directory containing curated reference files.')
 
     parser.add_argument("-r", "--reference", type=str, help='Reference FASTA for alignment.')
@@ -88,14 +88,7 @@ def parse_commandline_params(args):
                         help='VCF file specifying variants to edit. Should have an AF INFO field specifying a '
                              'fraction/proportion of fragments to edit into.')
 
-    parser_sim.add_argument("-o", "--output_prefix", type=none_or_str,
-                        default=".".join([datetime.datetime.now().strftime("%d%b%Y.%I.%M%p"), "ReadEditor"]),
-                        help='Output prefix for FASTQs and BAM.')
-
-    parser_sim.add_argument("-s", "--single_end", action="store_true",
-                            help='Flag indicating the input is single-end data.')
-
-    parser_sim.add_argument("-rs", "--random_seed", type=int, default=9, help='Seed for random read sampling.')
+    parser_sim.add_argument("-s", "--random_seed", type=int, default=9, help='Seed for random read sampling.')
 
     parser_sim.add_argument("-n", "--no_realignment", action="store_true",
                         help='Flag indicating to not realign the edited FASTQs. Cuts runtime.')
@@ -107,42 +100,42 @@ def parse_commandline_params(args):
     parser_call = subparsers.add_parser('call', help='call help')
     parser_call.set_defaults(func=call_workflow)
 
-    parser_call.add_argument("-f1", "--fastq1", required=True, type=str, help='R1 FASTQ.')
+    parser_call.add_argument("-1", "--fastq1", required=True, type=str, help='R1 FASTQ.')
 
-    parser_call.add_argument("-f2", "--fastq2", required=True, type=str, help='R2 FASTQ.')
+    parser_call.add_argument("-2", "--fastq2", required=True, type=str, help='R2 FASTQ.')
 
-    parser_call.add_argument("-a5", "--r1_fiveprime_adapters", required=True, type=str,
+    parser_call.add_argument("-5", "--r1_fiveprime_adapters", required=True, type=str,
                              help='Comma-delimited R1 5\' adapters.')
 
-    parser_call.add_argument("-a3", "--r1_threeprime_adapters", required=True, type=str,
+    parser_call.add_argument("-3", "--r1_threeprime_adapters", required=True, type=str,
                              help='Comma-delimited R1 3\' adapters.')
 
     parser_call.add_argument("-t", "--targets", type=str,
                              help='Optional target BED file. Only variants intersecting the targets will be reported.')
 
-    parser_call.add_argument("-gr", "--gff_reference", type=str, help='Reference FASTA for the GFF.')
+    parser_call.add_argument("-k", "--gff_reference", type=str, help='Reference FASTA for the GFF.')
 
-    parser_call.add_argument("-cd", "--consensus_deduplicate", action="store_true",
+    parser_call.add_argument("-d", "--consensus_deduplicate", action="store_true",
                              help='Flag indicating consensus reads should be generated during deduplication.')
 
-    parser_call.add_argument("-ur", "--umi_regex", type=str, default=AMP_UMI_REGEX,
+    parser_call.add_argument("-u", "--umi_regex", type=str, default=AMP_UMI_REGEX,
                              help='UMI regular expression to be passed to umi_tools extract command.')
 
-    parser_call.add_argument("-cdt", "--contig_del_threshold", type=int, default=ConsensusDeduplicator.CONTIG_DEL_THRESH,
+    parser_call.add_argument("-c", "--contig_del_threshold", type=int, default=ConsensusDeduplicator.CONTIG_DEL_THRESH,
                              help='If -cd (consensus deduplicate), convert deletions to N that are larger than the threshold. '
                                   'For RACE-like (e.g. AMP) data, a small number of R2s may share the same R1 UMI-position '
                                   'but align to different coordinates, and will be merged, possibly with large gaps.')
 
-    parser_call.add_argument("-pf", "--primer_fa", type=none_or_str,
+    parser_call.add_argument("-f", "--primer_fa", type=none_or_str,
                              help='If -cd, this may optionally be set to append originating primers to read names.'
                                   'Useful for RACE-like (e.g. AMP) libraries to prohibit R2 merging. That is, without '
                                   'this flag, tiled R2s sharing the same R1 will be merged into '
                                   'contigs during consensus deduplication (-cd).')
 
-    parser_call.add_argument("-pn", "--primer_nm_allowance", type=int, default=UMIExtractor.PRIMER_NM_ALLOW,
+    parser_call.add_argument("-a", "--primer_nm_allowance", type=int, default=UMIExtractor.PRIMER_NM_ALLOW,
                              help='If -pf, match primers in R2 with up to this many edit operations.')
 
-    parser_call.add_argument("-b", "--min_bq", type=int, default=VariantCaller.VARIANT_CALL_MIN_BQ,
+    parser_call.add_argument("-q", "--min_bq", type=int, default=VariantCaller.VARIANT_CALL_MIN_BQ,
                              help='Min base quality to consider a read for variant calling. Default %i.' %
                                   VariantCaller.VARIANT_CALL_MIN_BQ)
 
@@ -150,20 +143,20 @@ def parse_commandline_params(args):
                              help='Max edit distance to consider a read for variant calling. Default %i.' %
                                   VariantCaller.VARIANT_CALL_MAX_NM)
 
-    parser_call.add_argument("-s", "--min_supporting", type=int, default=VariantCaller.VARIANT_CALL_MIN_DP,
+    parser_call.add_argument("-m", "--min_supporting", type=int, default=VariantCaller.VARIANT_CALL_MIN_DP,
                              help='Min R1-R2 concordant counts for establishing candidate variants. Default %i.' %
                                   VariantCaller.VARIANT_CALL_MIN_DP)
 
     parser_call.add_argument("-w", "--max_mnp_window", type=int, default=VariantCaller.VARIANT_CALL_MAX_MNP_WINDOW,
-                             help='Max window to search for a MNP and merge phased SNPs. Must be >= 3. '
+                             help='Max window to search for a MNP and merge phased SNPs. Must be <= 3. '
                                   'Any phased SNP within this window will be merged into a MNP, and its component SNPs '
                                   'will not be called. Default %i.' % VariantCaller.VARIANT_CALL_MAX_MNP_WINDOW)
 
-    parser_call.add_argument("-x", "--include_n", action="store_true",
+    parser_call.add_argument("-z", "--include_n", action="store_true",
                              help='Flag indicating to also call ALTs equal to, or containing, the unknown base call %s. '
                                   'Potentially useful for training error models.' % UNKNOWN_BASE)
 
-    parser_call.add_argument("-nt", "--nthreads", type=int, default=FastqPreprocessor.NCORES,
+    parser_call.add_argument("-j", "--nthreads", type=int, default=FastqPreprocessor.NCORES,
                              help='Number of threads to use for bowtie2 alignment and BAM operations. '
                                   'Default %i, autodetect.' % FastqPreprocessor.NCORES)
 
@@ -171,14 +164,14 @@ def parse_commandline_params(args):
                              help='Max number of adapters to trim from each read. Default %i.'
                                   % FastqPreprocessor.NTRIMMED)
 
-    parser_call.add_argument("-q", "--trim_bq", type=int, default=FastqPreprocessor.TRIM_QUALITY,
+    parser_call.add_argument("-b", "--trim_bq", type=int, default=FastqPreprocessor.TRIM_QUALITY,
                              help='Base quality for 3\' trimming. Default %i.' % FastqPreprocessor.TRIM_QUALITY)
 
-    parser_call.add_argument("-ot", "--omit_trim", action="store_true",
+    parser_call.add_argument("-v", "--omit_trim", action="store_true",
                              help='Flag to turn off adapter and 3\' base quality trimming. Useful for simulated data that '
                                   'has already had adapters and bases trimmed.')
 
-    parser_call.add_argument("-ms", "--mutagenesis_signature", type=str, default=VariantCaller.VARIANT_CALL_MUT_SIG,
+    parser_call.add_argument("-s", "--mutagenesis_signature", type=str, default=VariantCaller.VARIANT_CALL_MUT_SIG,
                              help='Mutagenesis signature. One of NNN, NNK, or NNS.')
 
     parsed_args = parser.parse_args(args)
