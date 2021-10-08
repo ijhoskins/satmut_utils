@@ -1074,6 +1074,10 @@ class VariantCaller(object):
         # The headers are specific to the type because they include the contig names.
         reference_vcf_header = self._create_vcf_header()
 
+        # Quick fix to ignore internal htslib errors
+        # see https://github.com/pysam-developers/pysam/issues/939
+        verbosity_save = pysam.set_verbosity(0)
+
         with pysam.AlignmentFile(self.vc_preprocessor.r1_calling_bam, "rb", check_sq=False) as af1, \
                 pysam.AlignmentFile(self.vc_preprocessor.r2_calling_bam, "rb", check_sq=False) as af2, \
                 open(reference_bed, "w") as cov_fh, \
@@ -1101,6 +1105,7 @@ class VariantCaller(object):
         vu.table_from_vcf(reference_vcf)
 
         fu.safe_remove(tuple(temp_files))
+        pysam.set_verbosity(verbosity_save)
 
         _logger.info("Completed variant calling workflow.")
 

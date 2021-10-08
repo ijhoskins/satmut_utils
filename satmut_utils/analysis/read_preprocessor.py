@@ -139,8 +139,8 @@ class FastqPreprocessor(object):
 
         _logger.info("Running cutadapt.")
 
-        common_call_args = ["cutadapt", "--json", self.log_file, "-j", str(self.ncores), "-n", str(self.ntrimmed),
-                            "-q", str(self.trim_bq), "-m", str(self.MIN_LENGTH)]
+        common_call_args = ["cutadapt", "--quiet", "--json", self.log_file, "-j", str(self.ncores),
+                            "-n", str(self.ntrimmed), "-q", str(self.trim_bq), "-m", str(self.MIN_LENGTH)]
 
         # In Tile-seq experiments
         # R1s are tagged with P7 adapter, readthrough P5 RC; terminal F primer may have ATTB1 site at 5' end

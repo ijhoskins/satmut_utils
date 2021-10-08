@@ -81,8 +81,17 @@ class TestReferences(unittest.TestCase):
 
         with open(extracted_fa, "r") as observed_fa, \
                 open(self.cbs_ref, "r") as expected_fa:
-            observed = observed_fa.readlines()
-            expected = expected_fa.readlines()
+
+            observed = ""
+            expected = ""
+
+            # Compare the strings only as line width may not be static
+            # -n default changed from 50 to 60 between samtools versions?
+            for line in observed_fa:
+                observed += line.strip(fu.FILE_NEWLINE)
+
+            for line in expected_fa:
+                expected += line.strip(fu.FILE_NEWLINE)
 
         self.assertEqual(expected, observed)
 
