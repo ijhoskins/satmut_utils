@@ -64,10 +64,10 @@ def parse_commandline_params(args):
     group.add_argument("-i", "--ensembl_id", type=str,
                        help='Ensembl gene (ENSG) or transcript (ENST) ID to use for a reference.')
 
-    group.add_argument("-x", "--reference_dir", type=str, default="./references",
-                       help='Directory containing curated reference files.')
+    group.add_argument("-r", "--reference", type=str, help='Reference FASTA for alignment.')
 
-    parser.add_argument("-r", "--reference", type=str, help='Reference FASTA for alignment.')
+    parser.add_argument("-x", "--reference_dir", type=str, default="./references",
+                        help='Directory containing curated reference files.')
 
     parser.add_argument("-g", "--transcript_gff", type=str,
                         help='GFF file containing transcript metafeatures and exon features. The GFF must be from 5\' '
