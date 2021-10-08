@@ -415,6 +415,6 @@ def main():
 
 
 if __name__ == "__main__":
-    __logger.info("Started %s" % sys.argv[0])
+    _logger.info("Started %s" % sys.argv[0])
     main()
-    __logger.info("Completed %s" % sys.argv[0])
+    _logger.info("Completed %s" % sys.argv[0])
