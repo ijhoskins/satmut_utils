@@ -35,7 +35,7 @@ https://docs.conda.io/en/latest/miniconda.html
 ```conda activate satmut_utils```
 
 6. Navigate to the calling directory within the repository:
-```cd satmut_utils; python 
+```cd satmut_utils```
 
 
 ## Reference files
