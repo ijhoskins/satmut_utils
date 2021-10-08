@@ -4,22 +4,19 @@
 import argparse
 import logging
 import os
+import pysam
 import sys
 import tempfile
 
 from analysis.read_preprocessor import FastqPreprocessor, UMIExtractor, ReadGrouper, \
     ConsensusDeduplicatorPreprocessor, ConsensusDeduplicator, ReadMasker
-
 import analysis.read_editor as ri
-from analysis.references import get_ensembl_references
-from analysis.seq_utils import UNKNOWN_BASE
+from analysis.references import get_ensembl_references, index_reference
+from analysis.seq_utils import UNKNOWN_BASE, FASTA_INDEX_SUFFIX
 from analysis.variant_caller import VariantCaller
-
 import core_utils.file_utils as fu
 from core_utils.string_utils import none_or_str
-
 from definitions import AMP_UMI_REGEX, GRCH38_FASTA
-
 from scripts.run_bowtie2_aligner import workflow as baw
 
 
@@ -31,15 +28,15 @@ __maintainer__ = "Ian Hoskins"
 __email__ = "ianjameshoskins@utexas.edu"
 __status__ = "Development"
 
-__logger = logging.getLogger(__name__)
+_logger = logging.getLogger(__name__)
 
 # Consider putting the following in a logging config file
-__logger.setLevel(logging.DEBUG)
-__fhandler = logging.FileHandler("stderr.log")
-__fhandler.setLevel(logging.DEBUG)
-__formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-__fhandler.setFormatter(__formatter)
-__logger.addHandler(__fhandler)
+_logger.setLevel(logging.DEBUG)
+_fhandler = logging.FileHandler("stderr.log")
+_fhandler.setLevel(logging.DEBUG)
+_formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+_fhandler.setFormatter(_formatter)
+_logger.addHandler(_fhandler)
 
 DEFAULT_TEMPDIR = os.getenv("SCRATCH", "/tmp")
 tempfile.tempdir = DEFAULT_TEMPDIR
@@ -68,10 +65,6 @@ def parse_commandline_params(args):
 
     parser.add_argument("-x", "--reference_dir", type=str, default="./references",
                         help='Directory containing curated reference files.')
-
-    parser.add_argument("-g", "--transcript_gff", type=str,
-                        help='GFF file containing transcript metafeatures and exon features. The GFF must be from 5\' '
-                             'to 3\', regardless of strand, and contain transcript, exon, CDS, and stop_codon features.')
 
     parser.add_argument("-p", "--primers", type=none_or_str,
                         help='Optional primer feature file, e.g. BED, GFF, or GTF. Must have strand field. '
@@ -117,10 +110,14 @@ def parse_commandline_params(args):
     parser_call.add_argument("-3", "--r1_threeprime_adapters", required=True, type=str,
                              help='Comma-delimited R1 3\' adapters.')
 
-    parser_call.add_argument("-t", "--targets", type=str,
-                             help='Optional target BED file. Only variants intersecting the targets will be reported.')
+    parser_call.add_argument("-g", "--transcript_gff", type=str,
+                             help='GFF file containing transcript metafeatures and exon features. The GFF must be from 5\' '
+                                  'to 3\', regardless of strand, and contain transcript, exon, CDS, and stop_codon features.')
 
     parser_call.add_argument("-k", "--gff_reference", type=str, help='Reference FASTA for the GFF.')
+
+    parser_call.add_argument("-t", "--targets", type=str,
+                             help='Optional target BED file. Only variants intersecting the targets will be reported.')
 
     parser_call.add_argument("-d", "--consensus_deduplicate", action="store_true",
                              help='Flag indicating consensus reads should be generated during deduplication.')
@@ -199,12 +196,14 @@ def get_sim_reference(reference_dir, ensembl_id, ref, outdir=ri.ReadEditor.DEFAU
         os.mkdir(outdir)
 
     # Determine if the provided Ensembl ID is found in the curated APPRIS references
-    ref_fa = ref
     if ensembl_id is not None:
         if ref is not None:
             raise RuntimeError("Both an Ensembl ID and a reference FASTA were provided. Please choose one.")
 
         ref_fa, _ = get_ensembl_references(reference_dir=reference_dir, ensembl_id=ensembl_id, outdir=outdir)
+    else:
+        ref_fa = ref
+        index_reference(ref_fa)
 
     return ref_fa
 
@@ -226,17 +225,21 @@ def get_call_references(reference_dir, ensembl_id, ref, transcript_gff, gff_refe
     if not os.path.exists(outdir):
         os.mkdir(outdir)
 
-    ref_fa = ref
     gff = transcript_gff
     gff_ref = gff_reference
 
     # Determine if the provided Ensembl ID is found in the curated APPRIS references
     if ensembl_id is not None:
-        if ref is not None:
-            raise RuntimeError("Both an Ensembl ID and a reference FASTA were provided. Please choose one.")
-
         ref_fa, gff = get_ensembl_references(reference_dir=reference_dir, ensembl_id=ensembl_id, outdir=outdir)
         gff_ref = os.path.join(reference_dir, GRCH38_FASTA)
+    else:
+        ref_fa = ref
+        index_reference(ref_fa)
+
+        # Make sure the GFF reference has a samtools index file
+        if not os.path.exists(fu.add_extension(ref, FASTA_INDEX_SUFFIX)):
+            _logger.info("Indexing FASTA %s." % ref)
+            pysam.faidx(ref)
 
     return ref_fa, gff, gff_ref
 

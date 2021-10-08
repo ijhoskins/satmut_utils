@@ -17,13 +17,25 @@ Change to directory of your choice and clone the repository:
 
 ```git clone https://github.com/ijhoskins/satmut_utils.git```
 
-2. Install miniconda for managing environments and packages.
+
+2. Download curated reference files if using Ensembl identifiers.
+TBD
+```REF_DIR="/path_to_refs"```
+
+
+3. Install miniconda for managing environments and packages.
 
 For convenience, a miniconda installer script is provided for Linux distributions under the environment directory. Otherwise, see the following link for installation instructures for your particular hardware architecture.
 https://docs.conda.io/en/latest/miniconda.html
 
-3. Create the conda environment:
+4. Create the conda environment:
 ```cd satmut_utils && conda env create -f satmut_utils_env.yaml```
+
+5. Activate the environment
+```conda activate satmut_utils```
+
+6. Navigate to the calling directory within the repository:
+```cd satmut_utils; python 
 
 
 ## Reference files
@@ -50,30 +62,42 @@ python satmut_utils sim -h
 python satmut_utils call -h
 ```
 
+It is recommended that the user create a new running directory/folder for each job.
+```OUTPUT_DIR="/path_to_output_folder"```
+
+Common arguments to both sim and call subcommands are provided first, then the subcommand, and then subcommand-specific arguments.
+
+
 Run the sim workflow:
 
+IH TODO
 
 
-Run the call workflow by specifying an Ensembl transcript ID:
+Run the call workflow by specifying an Ensembl transcript ID and the directory containing curated reference files:
 ```
-python satmut_utils call -f1 R1.fq.gz -f2 R2.fq.gz -a5  TACACGACGCTCTTCCGATCT,CAAGTTTGTACAAAAAAGTTGGC -a3 AGATCGGAAGAGCACACGTCT,CCAACTTTCTTGTACAAAGTGGT -ei ENST00000398165.7
+python satmut_utils -i ENST00000398165.7 -x $REF_DIR call -1 R1.fq.gz -2 R2.fq.gz -5  TACACGACGCTCTTCCGATCT -3 AGATCGGAAGAGCACACGTCT
 ```
 
-Or by specifying an Ensembl gene ID:
+The Ensembl ID may also specify a gene:
 ```
-python satmut_utils call -f1 R1.fq.gz -f2 R2.fq.gz -a5  TACACGACGCTCTTCCGATCT,CAAGTTTGTACAAAAAAGTTGGC -a3 AGATCGGAAGAGCACACGTCT,CCAACTTTCTTGTACAAAGTGGT -ei ENSG00000160200.17
+python satmut_utils -i ENSG00000160200.17 -x $REF_DIR call -1 R1.fq.gz -2 R2.fq.gz -5  TACACGACGCTCTTCCGATCT -3 AGATCGGAAGAGCACACGTCT
+```
+
+If an Ensembl gene ID has more than one transcript isoform, satmut_utils will select the first transcript in the gencode.v29.annotation.gtf.
+
+IH TODO: select the only transcript available in the transcriptome GTF.
+
+If the Ensembl ID is not in the curated set of primary transcripts, the user must provide their own reference files:
+```
+python satmut_utils -r CBS.fa -g CBS.gtf -k GRCh38.fa call -1 R1.fq.gz -2 R2.fq.gz -5  TACACGACGCTCTTCCGATCT,CAAGTTTGTACAAAAAAGTTGGC -3 AGATCGGAAGAGCACACGTCT,CCAACTTTCTTGTACAAAGTGGT 
 ```
 
 Note that more than one 5' adapter and more than one 3' adapter are often needed to additionally trim vector sequences (e.g. attB sites) from reads of terminal PCR tiles that span the vector-CDS junctions.
 
-If the Ensembl ID is not in our curated set of primary transcripts from APPRIS, the user must provide their own reference files:
-```
-python satmut_utils call -f1 R1.fq.gz -f2 R2.fq.gz -a5  TACACGACGCTCTTCCGATCT,CAAGTTTGTACAAAAAAGTTGGC -a3 AGATCGGAAGAGCACACGTCT,CCAACTTTCTTGTACAAAGTGGT -r CBS.fa -g CBS.gtf -gr GRCh38.fa
-```
 
 Additional files may be passed, such as a primer and target BED file, or the output directory.
 ```
-python satmut_utils call -f1 R1.fq.gz -f2 R2.fq.gz -a5  TACACGACGCTCTTCCGATCT,CAAGTTTGTACAAAAAAGTTGGC -a3 AGATCGGAAGAGCACACGTCT,CCAACTTTCTTGTACAAAGTGGT -ei ENST00000398165.7 -t CBS_target.bed -p CBS_primers_coding.bed -o $OUTPUT_DIR
+python satmut_utils call -f1 R1.fq.gz -f2 R2.fq.gz -a5  TACACGACGCTCTTCCGATCT,CAAGTTTGTACAAAAAAGTTGGC -a3 AGATCGGAAGAGCACACGTCT,CCAACTTTCTTGTACAAAGTGGT -ei ENST00000398165.7 -t target.bed -p primers.bed -o $OUTPUT_DIR
 ```
 
 ## call outputs
@@ -87,11 +111,10 @@ A number of useful R functions exist in prototype.summarization_utils.r for pars
 
 ## Tests
 
-To run tests, execute the following from the satmut_utils directory:
+To run tests, execute the following from the satmut_utils repository:
 
-```
-nose2 -v
-```
+```nose2 -v```
+
 
 ## Accessory scripts
 

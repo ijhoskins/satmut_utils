@@ -33,8 +33,8 @@ class TestAligners(unittest.TestCase):
         fasta_lines = [">WT", cls.wt_seq, ">SNPs", cls.snp_seq, ">InDels", cls.indel_seq]
         fasta_string = fu.FILE_NEWLINE.join(fasta_lines) + fu.FILE_NEWLINE
 
-        cls.test_fasta = tempfile.NamedTemporaryFile("w+", suffix=".test.fa", delete=False).name
-        with open(cls.test_fasta) as test_fa_fh:
+        cls.test_fasta = tempfile.NamedTemporaryFile(suffix=".test.fa", delete=False).name
+        with open(cls.test_fasta, "w") as test_fa_fh:
             test_fa_fh.write(fasta_string)
 
         cls.test_bam = tempfile.NamedTemporaryFile(suffix=".test.bam", delete=False).name
