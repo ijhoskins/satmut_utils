@@ -14,6 +14,7 @@ import tempfile
 
 import analysis.coordinate_mapper as cm
 import analysis.read_preprocessor as rp
+from analysis.references import APPRIS_CONTIG_DELIM, APPRIS_TRX_INDEX
 import analysis.seq_utils as su
 
 from core_utils.feature_file_utils import intersect_features
@@ -916,10 +917,12 @@ class VariantCaller(object):
         :param pysam.VariantFile reference_candidates_fh: output VCF file handle to write candidate variants
         """
 
+        trx_id = vckt.contig.split(APPRIS_CONTIG_DELIM)[APPRIS_TRX_INDEX]
+
         # Determine the codon, AA change(s) and whether or not the variant matches the POPcode NNK signature
         var_location, var_wt_codons, var_mut_codons, var_wt_aas, var_mut_aas, var_aa_changes, var_aa_positions, \
         var_matches_mut_sig = self.amino_acid_mapper.get_codon_and_aa_changes(
-            trx_id=vckt.contig, pos=vckt.pos, ref=vckt.ref, alt=vckt.alt)
+            trx_id=trx_id, pos=vckt.pos, ref=vckt.ref, alt=vckt.alt)
 
         # Create aN INFO field for the VCF
         ri = {
