@@ -38,6 +38,8 @@ def ensembl_id_exists(reference_dir, ensembl_id):
     :raises InvalidEnsemblId: if the Ensembl ID does not start with ENST or ENSG
     """
 
+
+
     if re.search(MapperBase.ENSEMBL_TRX_PREFIX, ensembl_id):
         ids = {line.rstrip(fu.FILE_NEWLINE) for line in open(os.path.join(reference_dir, APPRIS_TRX_IDS), "r")}
     elif re.search(MapperBase.ENSEMBL_GENE_PREFIX, ensembl_id):

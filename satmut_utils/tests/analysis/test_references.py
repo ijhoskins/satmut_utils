@@ -25,7 +25,7 @@ class TestReferences(unittest.TestCase):
 
         cls.tempdir = tempfile.mkdtemp()
         cls.test_dir = os.path.dirname(__file__)
-        cls.test_data_dir = os.path.abspath(os.path.join(os.path.split(cls.test_dir)[0], "test_data"))
+        cls.test_data_dir = os.path.join(os.path.split(cls.test_dir)[0], "test_data")
 
         # This is a gzipped chr21
         cls.genome_ref_gz = os.path.join(cls.test_data_dir, cls.GENOME_REF)
@@ -50,34 +50,34 @@ class TestReferences(unittest.TestCase):
         """Tests that an InvalidEnsemblId exception is raised when an invalid ID is passed."""
 
         with self.assertRaises(InvalidEnsemblId):
-            ensembl_id_exists(reference_dir=self.test_dir, ensembl_id="NM_000071.3")
+            ensembl_id_exists(reference_dir=self.test_data_dir, ensembl_id="NM_000071.3")
 
     def test_ensembl_id_exists_true(self):
         """Tests that an Ensembl ID in the curated set is identified."""
 
         expected = True, None
-        observed = ensembl_id_exists(reference_dir=self.test_dir, ensembl_id="ENST00000398165.7")
+        observed = ensembl_id_exists(reference_dir=self.test_data_dir, ensembl_id="ENST00000398165.7")
         self.assertEqual(expected, observed)
 
     def test_ensembl_id_exists_false(self):
         """Tests that an Ensembl ID not in the curated set is not identified."""
 
         expected = False, None
-        observed = ensembl_id_exists(reference_dir=self.test_dir, ensembl_id="ENST1.1")
+        observed = ensembl_id_exists(reference_dir=self.test_data_dir, ensembl_id="ENST1.1")
         self.assertEqual(expected, observed)
 
     def test_ensembl_id_exists_false_with_alternative(self):
         """Tests that an Ensembl ID not in the curated set is not identified, but an alternative returned."""
 
         expected = False, "ENST00000398165.7"
-        observed = ensembl_id_exists(reference_dir=self.test_dir, ensembl_id="ENST00000398165.6")
+        observed = ensembl_id_exists(reference_dir=self.test_data_dir, ensembl_id="ENST00000398165.6")
         self.assertEqual(expected, observed)
 
     def test_extract_fasta_reference(self):
         """Tests that a FASTA with a single transcript is returned from an index FASTA."""
 
         extracted_fa = extract_fasta_reference(
-            reference_dir=self.tempdir, ensembl_id="ENST00000398165.7", outdir=self.tempdir)
+            reference_dir=self.test_data_dir, ensembl_id="ENST00000398165.7", outdir=self.tempdir)
 
         with open(extracted_fa, "r") as observed_fa, \
                 open(self.cbs_ref, "r") as expected_fa:
