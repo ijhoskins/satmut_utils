@@ -291,17 +291,16 @@ class VariantCaller(object):
         position_blacklist = set()
 
         filt_r_mms_len = len(filt_r_mms)
-        break_index = filt_r_mms_len - 1
+        break_index = filt_r_mms_len - 2
 
         # For the second to last mismatch, add a buffer MM_TUPLE with pos > the window so that i + 2 is valid
         filt_r_mms_ext = filt_r_mms + [
-            MM_TUPLE(contig=None, pos=filt_r_mms[-2].pos + max_mnp_window + 1,
-                     ref=None, alt=None, bq=None, read_pos=None)]
+            MM_TUPLE(contig=None, pos=filt_r_mms[-2].pos + max_mnp_window + 1, ref=None, alt=None, bq=None, read_pos=None)]
 
         for i, mm_tuple in enumerate(filt_r_mms_ext):
 
-            # If we are at the last mismatch, break to avoid IndexErrors
-            if i == break_index:
+            # If we are at the second to last mismatch, break to avoid IndexErrors
+            if i >= break_index and i > 0:
                 break
 
             if mm_tuple.pos in position_blacklist:
