@@ -142,7 +142,8 @@ class VariantCaller(object):
         self.prefix = os.path.join(self.vc_preprocessor.output_dir, fu.remove_extension(os.path.basename(self.am)))
 
         _logger.info("Loading transcript CDS annotations for AA change determination.")
-        self.amino_acid_mapper = cm.AminoAcidMapper(gff=self.transcript_gff, ref=self.gff_reference, mut_sig=mut_sig, outdir=output_dir)
+        self.amino_acid_mapper = cm.AminoAcidMapper(
+            gff=self.transcript_gff, ref=self.gff_reference, mut_sig=mut_sig, outdir=output_dir)
 
         # Get the list of unique contigs for constructing VCF headers
 
@@ -289,12 +290,13 @@ class VariantCaller(object):
         haplotypes = collections.defaultdict(set)
         position_blacklist = set()
 
+        filt_r_mms_len = len(filt_r_mms)
+        break_index = filt_r_mms_len - 1
+
         # For the second to last mismatch, add a buffer MM_TUPLE with pos > the window so that i + 2 is valid
         filt_r_mms_ext = filt_r_mms + [
             MM_TUPLE(contig=None, pos=filt_r_mms[-2].pos + max_mnp_window + 1,
                      ref=None, alt=None, bq=None, read_pos=None)]
-
-        break_index = len(filt_r_mms) - 1
 
         for i, mm_tuple in enumerate(filt_r_mms_ext):
 
@@ -306,6 +308,13 @@ class VariantCaller(object):
                 continue
 
             if filt_r_mms[i + 1].pos - filt_r_mms[i].pos >= max_mnp_window:
+                continue
+
+            if filt_r_mms_len == 2:
+                # Make an isolated di-nt MNP call; need this first otherwise we get an IndexError on the next line
+                call_tuple, mm_pos_set = self._generate_call_tuple(filt_r_mms)
+                haplotypes[call_tuple] |= mm_pos_set
+                position_blacklist |= mm_pos_set
                 continue
 
             # Here we know that the next mismatch is within the window, but we don't know if its position is +1 or +2

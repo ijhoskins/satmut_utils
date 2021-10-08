@@ -54,6 +54,7 @@ class FastqPreprocessor(object):
     TRIM_EXT = "trimmed.fq"
     TRIM_FLAG = False
     ADAPTER_DELIM = ","
+    LOG_SUFFIX = ".cutadapt.json"
 
     def __init__(self, f1, f2, r1_fiveprime_adapters, r1_threeprime_adapters,
                  outdir=".", ncores=NCORES, trim_bq=TRIM_QUALITY, ntrimmed=NTRIMMED,
@@ -91,6 +92,8 @@ class FastqPreprocessor(object):
 
         if not os.path.exists(outdir):
             os.mkdir(outdir)
+
+        self.log_file = os.path.join(outdir, os.path.basename(os.path.commonpath((f1, f2,))) + self.LOG_SUFFIX)
 
         self.trimmed_f1 = os.path.join(outdir, fu.replace_extension(os.path.basename(f1), self.TRIM_EXT))
 
@@ -136,7 +139,7 @@ class FastqPreprocessor(object):
 
         _logger.info("Running cutadapt.")
 
-        common_call_args = ["cutadapt", "-j", str(self.ncores), "-n", str(self.ntrimmed),
+        common_call_args = ["cutadapt", "--json", self.log_file, "-j", str(self.ncores), "-n", str(self.ntrimmed),
                             "-q", str(self.trim_bq), "-m", str(self.MIN_LENGTH)]
 
         # In Tile-seq experiments

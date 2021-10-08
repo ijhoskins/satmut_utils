@@ -401,11 +401,11 @@ class TestUmiExtractor(unittest.TestCase):
 
                 # Test that the UMI has moved to the qname
                 if i == 0:
-                    test_1 = line == expected_1
+                    test_1 = line.strip(fu.FILE_NEWLINE) == expected_1
 
                 # Test that the UMI sequence and adjacent adapter sequence were trimmed
                 if i == 1:
-                    test_2 = line == expected_2
+                    test_2 = line.strip(fu.FILE_NEWLINE) == expected_2
                     break
 
         self.assertTrue(all((test_1, test_2)))
@@ -427,11 +427,11 @@ class TestUmiExtractor(unittest.TestCase):
 
                 # Test that the UMI has moved to the qname
                 if i == 0:
-                    test_1 = line == expected_1
+                    test_1 = line.strip(fu.FILE_NEWLINE) == expected_1
 
                 # Test that the UMI sequence and adjacent adapter sequence were trimmed
                 if i == 1:
-                    test_2 = line == expected_2
+                    test_2 = line.strip(fu.FILE_NEWLINE) == expected_2
                     break
 
         self.assertTrue(all((test_1, test_2)))
@@ -489,13 +489,13 @@ class TestUmiExtractor(unittest.TestCase):
 
                 # Test that the UMI has moved to the qname
                 if i == 0:
-                    test_1 = r1_line == expected_1
-                    test_2 = r2_line == expected_1
+                    test_1 = r1_line.strip(fu.FILE_NEWLINE) == expected_1
+                    test_2 = r2_line.strip(fu.FILE_NEWLINE) == expected_1
 
                 # Test that the UMI sequence and adjacent adapter sequence were trimmed
                 if i == 1:
-                    test_3 = r1_line == expected_1
-                    test_4 = r2_line == expected_1
+                    test_3 = r1_line.strip(fu.FILE_NEWLINE) == expected_1
+                    test_4 = r2_line.strip(fu.FILE_NEWLINE) == expected_1
                     break
 
         self.assertTrue(all((test_1, test_2, test_3, test_4)))
