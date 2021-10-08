@@ -142,7 +142,7 @@ class VariantCaller(object):
         self.prefix = os.path.join(self.vc_preprocessor.output_dir, fu.remove_extension(os.path.basename(self.am)))
 
         _logger.info("Loading transcript CDS annotations for AA change determination.")
-        self.amino_acid_mapper = cm.AminoAcidMapper(gff=self.transcript_gff, ref=self.gff_reference, mut_sig=mut_sig)
+        self.amino_acid_mapper = cm.AminoAcidMapper(gff=self.transcript_gff, ref=self.gff_reference, mut_sig=mut_sig, outdir=output_dir)
 
         # Get the list of unique contigs for constructing VCF headers
 

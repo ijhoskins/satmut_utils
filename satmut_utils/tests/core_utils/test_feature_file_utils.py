@@ -74,9 +74,11 @@ chr19	59066354	59066491	gi|571026644|ref|NM_014453.3|:1-137	0	-
     def test_store_coords(self):
         """Test that we can store coordinates from a feature file."""
 
+        # COORD_TUPLE = collections.namedtuple("coord_tuple", "contig, start, stop, name, strand, score, allowable_coords")
+
         observed = ffu.store_coords(self.test_bed_b)
         expected = collections.OrderedDict({"gi|571026644|ref|NM_014453.3|:1-137": ffu.COORD_TUPLE(
-            "chr19", 59066354, 59066491, "gi|571026644|ref|NM_014453.3|:1-137", Strand("-"), 0.0, set(range(59066488, 59066494 + 1)))
+            "chr19", 59066354, 59066491, "gi|571026644|ref|NM_014453.3|:1-137", Strand("-"), 0.0, frozenset(range(59066488, 59066494 + 1)))
                                            }.items())
 
         self.assertEqual(observed, expected)
@@ -86,7 +88,7 @@ chr19	59066354	59066491	gi|571026644|ref|NM_014453.3|:1-137	0	-
 
         observed = ffu.store_coords(self.test_bed_b, primer_allowable=True)
         expected = collections.OrderedDict({"gi|571026644|ref|NM_014453.3|:1-137": ffu.COORD_TUPLE(
-            "chr19", 59066354, 59066491, "gi|571026644|ref|NM_014453.3|:1-137", Strand("-"), 0.0, set(range(59066354, 59066494 + 1)))
+            "chr19", 59066354, 59066491, "gi|571026644|ref|NM_014453.3|:1-137", Strand("-"), 0.0, frozenset(range(59066354, 59066494 + 1)))
                                            }.items())
 
         self.assertEqual(observed, expected)
@@ -96,7 +98,7 @@ chr19	59066354	59066491	gi|571026644|ref|NM_014453.3|:1-137	0	-
 
         observed = ffu.store_coords(self.test_bed_b, use_name=False)
         expected = collections.OrderedDict({COORD_FORMAT.format("chr19", 59066354, 59066491): ffu.COORD_TUPLE(
-            "chr19", 59066354, 59066491, "gi|571026644|ref|NM_014453.3|:1-137", Strand("-"), 0.0, set(range(59066488, 59066494 + 1)))
+            "chr19", 59066354, 59066491, "gi|571026644|ref|NM_014453.3|:1-137", Strand("-"), 0.0, frozenset(range(59066488, 59066494 + 1)))
                                            }.items())
 
         self.assertEqual(observed, expected)

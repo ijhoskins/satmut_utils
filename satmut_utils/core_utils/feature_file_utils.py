@@ -193,13 +193,13 @@ def store_coords(feature_file, feature_slop=0, primer_allowable=False, use_name=
         # Note +1 on the 1-based stop coords includes the terminal base to be in the set (given python range behavior)
         if feature_strand is None:
             # If we don't know the strand of the primer, do not proceed
-            raise RuntimeError("Absent strand information for {}".format(FILE_DELIM.join(feature.fields)))
+            raise RuntimeError("Absent strand information for %s" % FILE_DELIM.join(feature.fields))
         elif feature_strand == su.Strand.PLUS:
-            allowable_coords = set(range(feature.start - feature_slop + 1, feature.start + downstream_offset + 1))
+            allowable_coords = frozenset(range(feature.start - feature_slop + 1, feature.start + downstream_offset + 1))
         elif feature_strand == su.Strand.MINUS:
-            allowable_coords = set(range(feature.stop - downstream_offset + 1, feature.stop + feature_slop + 1))
+            allowable_coords = frozenset(range(feature.stop - downstream_offset + 1, feature.stop + feature_slop + 1))
         else:
-            raise RuntimeError("Unrecognized strand for feature {}".format(FILE_DELIM.join(feature.fields)))
+            raise RuntimeError("Unrecognized strand for feature %s" % FILE_DELIM.join(feature.fields))
 
         feature_key = feature_name if use_name else feature_coords
 

@@ -177,7 +177,15 @@ class AminoAcidMapper(MapperBase):
         self.overwrite_pickle = overwrite_pickle
         self.filter_unexpected = filter_unexpected
         self.mut_sig = mut_sig
-        self.pkl_filepath = os.path.join(self.outdir, fu.replace_extension(os.path.basename(self.gff), "cds.pkl.gz"))
+
+        self.output_dir = outdir
+        if outdir is None:
+            self.output_dir = tempfile.mkdtemp(suffix=__class__.__name__)
+
+        if not os.path.exists(self.output_dir):
+            os.mkdir(self.output_dir)
+
+        self.pkl_filepath = os.path.join(self.output_dir, fu.replace_extension(os.path.basename(self.gff), "cds.pkl.gz"))
         pkl_exists = os.path.exists(self.pkl_filepath)
 
         if self.use_pickle and pkl_exists:

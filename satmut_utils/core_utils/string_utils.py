@@ -36,7 +36,7 @@ def make_unique_ids(n_ids, str_len=10, prefix="", letters=DEFAULT_RANDOMER_DIGIT
 
     uniq_ids = set()
     while len(uniq_ids) < n_ids:
-        uniq_ids.add(make_random_str(str_len, prefix, letters))
+        uniq_ids.add([make_random_str(str_len, prefix, letters)])
     uniq_ids = list(uniq_ids)
 
     return uniq_ids

@@ -25,7 +25,7 @@ class TestReferences(unittest.TestCase):
 
         cls.tempdir = tempfile.mkdtemp()
         cls.test_dir = os.path.dirname(__file__)
-        cls.test_data_dir = os.path.abspath(os.path.join(cls.test_dir, os.pardir, "test_data"))
+        cls.test_data_dir = os.path.abspath(os.path.join(os.path.split(cls.test_dir)[0], "test_data"))
 
         # This is a gzipped chr21
         cls.genome_ref_gz = os.path.join(cls.test_data_dir, cls.GENOME_REF)
