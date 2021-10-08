@@ -95,8 +95,6 @@ class ReadEditor(object):
     DEFAULT_PRIMERS = None
     DEFAULT_OUTDIR = "."
     DEFAULT_PREFIX = None
-    DEFAULT_PAIRED = True
-    DEFAULT_SINGLE_END = False
     DEFAULT_REALIGN = False
     DEFAULT_FILTER = True
     DEFAULT_SEED = 9
@@ -110,7 +108,7 @@ class ReadEditor(object):
     EDIT_BAM_SUFFIX = "edit.bam"
 
     def __init__(self, am, variants, ref, primers=DEFAULT_PRIMERS, output_dir=DEFAULT_OUTDIR,
-                 output_prefix=DEFAULT_PREFIX, is_paired=DEFAULT_PAIRED, random_seed=DEFAULT_SEED):
+                 output_prefix=DEFAULT_PREFIX, random_seed=DEFAULT_SEED):
         r"""Constructor for ReadEditor.
 
         :param str am: alignments to edit into.
@@ -122,7 +120,6 @@ class ReadEditor(object):
         Induce variants on select reads by using the RI tag, e.g. IR="R1"|"R2".
         :param str output_dir: Optional output directory to store generated FASTQs and BAM. Default current directory.
         :param str | None output_prefix: Optional output prefix for the FASTQ(s) and BAM
-        :param bool is_paired: does the BAM consist of paired reads? Default True.
         :param int random_seed: seed for random qname sampling
 
         Note: for variants with multiple alternate alleles in a record, the first alternate will be editd. One can \
@@ -137,7 +134,6 @@ class ReadEditor(object):
         self.ref = ref
         self.output_dir = output_dir
         self.output_prefix = output_prefix
-        self.paired = is_paired
         self.random_seed = random_seed
 
         _logger.info("Left-normalizing variants, splitting any multi-allelic records, and sorting.")
@@ -278,10 +274,7 @@ class ReadEditor(object):
                 if variant_config.ie is None and variant_config.ir is None:
                     # All reads are amenable, as long as both mates overlap the position (for paired data)
                     # we will check this latter criterion after we have collected all overlapping qnames
-                    if self.paired:
-                        amenable_qname_list.append(qname_alias)
-                    else:
-                        amenable_qnames.add(qname_alias)
+                    amenable_qname_list.append(qname_alias)
 
                 elif variant_config.ie is not None and variant_config.ir is not None and \
                         variant_config.ie == su.Strand(pileup_read.alignment.is_reverse) and \
@@ -301,7 +294,7 @@ class ReadEditor(object):
 
         # Here we check that for all normal variants (not strand- or read-specific), both mates overlap and match
         # the reference to be considered amenable to editing
-        if self.paired and variant_config.ie is None and variant_config.ir is None:
+        if variant_config.ie is None and variant_config.ir is None:
             amenable_qname_counter = collections.Counter(amenable_qname_list)
             amenable_qnames = {qname for (qname, qname_count) in amenable_qname_counter.items() if qname_count == 2}
 
@@ -464,13 +457,8 @@ class ReadEditor(object):
 
                 # If we have paired data, further ensure that both mates overlap the position as in variant calling
                 # we require that both reads support the call
-                if self.paired :
-                    amenable_qname_counter = collections.Counter(amenable_qnames)
-                    amenable_qnames = {qname for (qname, qname_count) in amenable_qname_counter.items() if
-                                       qname_count == 2}
-                else:
-                    amenable_qnames = set(amenable_qnames)
-
+                amenable_qname_counter = collections.Counter(amenable_qnames)
+                amenable_qnames = {qname for (qname, qname_count) in amenable_qname_counter.items() if qname_count == 2}
                 total_amenable_qnames = len(amenable_qnames)
 
                 if total_amenable_qnames == 0:
@@ -606,7 +594,7 @@ class ReadEditor(object):
         variant calling.
         """
 
-        r1_fastq, r2_fastq = su.bam_to_fastq(bam=self.output_bam, out_prefix=self.out_path, is_paired=self.paired)
+        r1_fastq, r2_fastq = su.bam_to_fastq(bam=self.output_bam, out_prefix=self.out_path)
         return r1_fastq, r2_fastq
 
     def _get_edited_read_pairs(self, filtered_bam=None):
@@ -644,8 +632,7 @@ class ReadEditor(object):
 
     @classmethod
     def workflow(cls, am, vcf, ref, primers=DEFAULT_PRIMERS, output_dir=DEFAULT_OUTDIR, output_prefix=DEFAULT_PREFIX,
-                 single_end=DEFAULT_SINGLE_END, realign=DEFAULT_REALIGN, filter_edited=DEFAULT_FILTER,
-                 random_seed=DEFAULT_SEED):
+                 realign=DEFAULT_REALIGN, filter_edited=DEFAULT_FILTER, random_seed=DEFAULT_SEED):
         r"""Runs the ReadEditor workflow.
 
         :param str am: SAM/BAM file to edit into
@@ -654,7 +641,6 @@ class ReadEditor(object):
         :param str | None primers: feature file of primer locations for read masking and primer detection
         :param str output_dir: Optional output directory to store generated FASTQs and BAM
         :param str | None output_prefix: Optional output prefix for the FASTQ(s) and BAM; if None, use same prefix as VCF
-        :param bool single_end: does the input SAM/BAM contain single end reads? Default False, paired end reads.
         :param bool realign: realign the edited FASTQs? Needed for variant calling/visualization of output. Default False.
         :param bool filter_edited: filter the edited BAM for those reads/read pairs that were edited? Default True.
         :param int random_seed: seed for random qname sampling. Default 9.
@@ -672,8 +658,7 @@ class ReadEditor(object):
             editor = cls.load_pickle(edit_pkl)
         else:
             editor = ReadEditor(am=am, variants=vcf, ref=ref, primers=primers,
-                                 output_dir=output_dir, output_prefix=output_prefix,
-                                 is_paired=not single_end, random_seed=random_seed)
+                                output_dir=output_dir, output_prefix=output_prefix, random_seed=random_seed)
 
             cls.generate_pickle(editor)
 
