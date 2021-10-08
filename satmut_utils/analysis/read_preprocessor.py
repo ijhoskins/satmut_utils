@@ -117,7 +117,7 @@ class FastqPreprocessor(object):
         """Runs FASTQC on input files to determine read quality."""
 
         # Add adapter list to be searched
-        fastqc_call = ["fastqc", "-o", self.outdir, self.f1]
+        fastqc_call = ["fastqc", "--quiet", "-o", self.outdir, self.f1]
 
         if self.ncores > 0:
             fastqc_call.extend(["-t", str(self.ncores)])

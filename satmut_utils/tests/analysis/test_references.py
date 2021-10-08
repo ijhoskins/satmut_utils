@@ -101,6 +101,7 @@ class TestReferences(unittest.TestCase):
         extracted_gff = extract_gff_reference(
             reference_dir=self.test_data_dir, ensembl_id="ENST00000398165.7", outdir=self.tempdir)
 
+        # Just compare the non-attr fields
         with open(extracted_gff, "r") as observed_gff, \
                 open(self.cbs_gff, "r") as expected_gff:
             observed = observed_gff.readlines()
