@@ -1,16 +1,13 @@
 #!/usr/bin/env/python
-""" Tests for core_utils.feature_file_utils
-"""
+""" Tests for core_utils.feature_file_utils."""
 
 import collections
 import pybedtools
 import tempfile
 import unittest
 
+from analysis.seq_utils import Strand, COORD_FORMAT
 import core_utils.feature_file_utils as ffu
-import core_utils.file_utils as fu
-
-from analysis.seq_utils import GENOMIC_GENOME_FILE, Strand, COORD_FORMAT
 from tests.analysis.test_seq_utils import TestSeqUtilsSetup, TEST_BED
 
 
@@ -47,46 +44,6 @@ class TestBedIntersect(TestSeqUtilsSetup, unittest.TestCase):
 
         intersect_bedtool = ffu.intersect_features(self.test_bed_a, self.test_bed_b, as_bedtool=True)
         self.assertTrue(pybedtools.BedTool == type(intersect_bedtool))
-
-
-class TestSlopFeatures(TestSeqUtilsSetup, unittest.TestCase):
-    """Tests for core_utils.feature_file_utils.slop_features."""
-
-    def test_slop_features(self):
-        """Test that features can be slopped in both directions."""
-
-        with tempfile.NamedTemporaryFile(suffix=".test.slop.bed", delete=False) as slop_bed:
-            output_fn = slop_bed.name
-            ffu.slop_features(self.test_bed_b, genome_file=GENOMIC_GENOME_FILE, bp_left=10, bp_right=5,
-                              by_strand=True, output=output_fn)
-
-        with open(output_fn, "r") as output_fh:
-            observed = output_fh.read()
-
-            slopped_test_bed_b_fields = self.test_bed_b_str.split(fu.FILE_DELIM)
-            slopped_test_bed_b_fields[1] = str(int(slopped_test_bed_b_fields[1]) - 5)
-            slopped_test_bed_b_fields[2] = str(int(slopped_test_bed_b_fields[2]) + 10)
-            expected = fu.FILE_DELIM.join(slopped_test_bed_b_fields)
-
-            self.assertEqual(observed, expected)
-
-    def test_slop_features_strand_unaware(self):
-        """Test that features can be slopped in both directions."""
-
-        with tempfile.NamedTemporaryFile(suffix=".test.slop.bed", delete=False) as slop_bed:
-            output_fn = slop_bed.name
-            ffu.slop_features(self.test_bed_b, genome_file=GENOMIC_GENOME_FILE, bp_left=10, bp_right=5,
-                              by_strand=False, output=output_fn)
-
-        with open(output_fn, "r") as output_fh:
-            observed = output_fh.read()
-
-            slopped_test_bed_b_fields = self.test_bed_b_str.split(fu.FILE_DELIM)
-            slopped_test_bed_b_fields[1] = str(int(slopped_test_bed_b_fields[1]) - 10)
-            slopped_test_bed_b_fields[2] = str(int(slopped_test_bed_b_fields[2]) + 5)
-            expected = fu.FILE_DELIM.join(slopped_test_bed_b_fields)
-
-            self.assertEqual(observed, expected)
 
 
 class TestFeatureFileUtils(TestSeqUtilsSetup, unittest.TestCase):

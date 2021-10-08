@@ -150,31 +150,6 @@ def get_genome_file(ref, output_file=None):
     return outfile
 
 
-def slop_features(feature_file, genome_file, bp_left=DEFAULT_BP_SLOP, bp_right=DEFAULT_BP_SLOP, by_strand=True,
-                  output_filename=None):
-    """Slop a feature file in one or both directions.
-
-    :param str feature_file: BED, GFF, or GTF
-    :param str genome_file: genome file giving lengths of the chromosomes/contigs; default hg19
-    :param int bp_left: number bases to slop to left; "left" defined by by_strand kwarg
-    :param int bp_right: number bases to slop to right; "right" defined by by_strand kwarg
-    :param bool by_strand: directionality is defined by strand- for (-) strand read, left is higher coordinate
-    :param str output_filename: Optional output file; if None, tempfile will be created
-    :return str: path of the output file
-    """
-
-    ff_bedtool = pybedtools.BedTool(feature_file)
-    ff_slop_bedtool = ff_bedtool.slop(g=genome_file, l=bp_left, r=bp_right, s=by_strand)
-
-    output_file = output_filename
-    if output_filename is None:
-        output_file = tempfile.NamedTemporaryFile(suffix=".slop.tmp", delete=False).name
-
-    ff_slop_bedtool.moveto(output_file)
-
-    return output_file
-
-
 class DuplicateFeatureException(Exception):
     """Exception for the existence of duplicate features (those with exact same coordinates)."""
     pass

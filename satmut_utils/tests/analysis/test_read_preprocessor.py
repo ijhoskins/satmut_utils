@@ -200,7 +200,7 @@ class TestFastqPreprocessor(unittest.TestCase):
         with open(fqp.trimmed_f1, "r") as r1_out_fh:
             for i, line in enumerate(r1_out_fh):
                 if i == 1:
-                    self.assertEqual(expected, line)
+                    self.assertEqual(expected, line.strip(fu.FILE_NEWLINE))
 
     def test_run_cutadapt_tileseq_r1_normal_pair(self):
         """Tests adapter trimming of Tile-seq R1 with adapter readthrough."""
@@ -215,7 +215,7 @@ class TestFastqPreprocessor(unittest.TestCase):
         with open(fqp.trimmed_f1, "r") as r1_out_fh:
             for i, line in enumerate(r1_out_fh):
                 if i == 5:
-                    self.assertEqual(expected, line)
+                    self.assertEqual(expected, line.strip(fu.FILE_NEWLINE))
 
     def test_run_cutadapt_tileseq_r1_abnormal_pair(self):
         r"""Tests adapter trimming of Tile-seq R1 with target priming off the 5' adapter, leading to abnormal
@@ -231,7 +231,7 @@ class TestFastqPreprocessor(unittest.TestCase):
         with open(fqp.trimmed_f1, "r") as r1_out_fh:
             for i, line in enumerate(r1_out_fh):
                 if i == 9:
-                    self.assertEqual(expected, line)
+                    self.assertEqual(expected, line.strip(fu.FILE_NEWLINE))
 
     def test_run_cutadapt_tileseq_r2_no_adapter(self):
         """Tests lack of adapter trimming of Tile-seq R2 without adapter readthrough."""
@@ -246,7 +246,7 @@ class TestFastqPreprocessor(unittest.TestCase):
         with open(fqp.trimmed_f2, "r") as r2_out_fh:
             for i, line in enumerate(r2_out_fh):
                 if i == 1:
-                    self.assertEqual(expected, line)
+                    self.assertEqual(expected, line.strip(fu.FILE_NEWLINE))
 
     def test_run_cutadapt_tileseq_r2_normal_pair(self):
         """Tests lack of adapter trimming of Tile-seq R1 without adapter readthrough."""
@@ -261,7 +261,7 @@ class TestFastqPreprocessor(unittest.TestCase):
         with open(fqp.trimmed_f2, "r") as r2_out_fh:
             for i, line in enumerate(r2_out_fh):
                 if i == 5:
-                    self.assertEqual(expected, line)
+                    self.assertEqual(expected, line.strip(fu.FILE_NEWLINE))
 
     def test_run_cutadapt_tileseq_r2_abnormal_pair(self):
         r"""Tests adapter trimming of Tile-seq R2 with target priming off the R1 5' adapter, leading to abnormal
@@ -277,7 +277,7 @@ class TestFastqPreprocessor(unittest.TestCase):
         with open(fqp.trimmed_f2, "r") as r2_out_fh:
             for i, line in enumerate(r2_out_fh):
                 if i == 9:
-                    self.assertEqual(expected, line)
+                    self.assertEqual(expected, line.strip(fu.FILE_NEWLINE))
 
     def test_run_cutadapt_tileseq_r1_umi(self):
         """Tests adapter trimming of Tile-seq UMI-containing R1 with adapter readthrough."""
@@ -292,7 +292,7 @@ class TestFastqPreprocessor(unittest.TestCase):
         with open(fqp.trimmed_f1, "r") as r1_out_fh:
             for i, line in enumerate(r1_out_fh):
                 if i == 1:
-                    self.assertEqual(expected, line)
+                    self.assertEqual(expected, line.strip(fu.FILE_NEWLINE))
 
     def test_run_cutadapt_tileseq_r2_umi(self):
         """Tests adapter trimming of Tile-seq R2 with adapter readthrough paired with UMI-containing R1."""
@@ -307,7 +307,7 @@ class TestFastqPreprocessor(unittest.TestCase):
         with open(fqp.trimmed_f2, "r") as r2_out_fh:
             for i, line in enumerate(r2_out_fh):
                 if i == 1:
-                    self.assertEqual(expected, line)
+                    self.assertEqual(expected, line.strip(fu.FILE_NEWLINE))
 
     def test_run_cutadapt_amp_r1_normal_pair(self):
         """Tests adapter trimming of AMP R1 containing 5' and 3' adapters."""
@@ -322,7 +322,7 @@ class TestFastqPreprocessor(unittest.TestCase):
         with open(fqp.trimmed_f1, "r") as r1_out_fh:
             for i, line in enumerate(r1_out_fh):
                 if i == 1:
-                    self.assertEqual(expected, line)
+                    self.assertEqual(expected, line.strip(fu.FILE_NEWLINE))
 
     def test_run_cutadapt_amp_r2_normal_pair(self):
         """Tests adapter trimming of AMP R2 containing 3' adapter."""
@@ -337,7 +337,7 @@ class TestFastqPreprocessor(unittest.TestCase):
         with open(fqp.trimmed_f2, "r") as r2_out_fh:
             for i, line in enumerate(r2_out_fh):
                 if i == 1:
-                    self.assertEqual(expected, line)
+                    self.assertEqual(expected, line.strip(fu.FILE_NEWLINE))
 
     def test_validate(self):
         """Test that fastqc output files are generated."""
@@ -405,7 +405,7 @@ class TestUmiExtractor(unittest.TestCase):
 
                 # Test that the UMI sequence and adjacent adapter sequence were trimmed
                 if i == 1:
-                    test_2 = line ==  expected_2
+                    test_2 = line == expected_2
                     break
 
         self.assertTrue(all((test_1, test_2)))

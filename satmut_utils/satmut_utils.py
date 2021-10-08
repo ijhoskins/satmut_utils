@@ -58,11 +58,14 @@ def parse_commandline_params(args):
     # Common satmut_utils options
     parser = argparse.ArgumentParser(description="%s arguments" % __file__)
 
-    parser.add_argument("-i", "--ensembl_id", type=str,
-                        help='Ensembl gene (ENSG) or transcript (ENST) ID to use for a reference.')
+    # Enforce that ensembl_id and reference are mutually exclusive and that at least one is provided
+    group = parser.add_mutually_exclusive_group(required=True)
 
-    parser.add_argument("-x", "--reference_dir", type=str, default="./references",
-                        help='Directory containing curated reference files.')
+    group.add_argument("-i", "--ensembl_id", type=str,
+                       help='Ensembl gene (ENSG) or transcript (ENST) ID to use for a reference.')
+
+    group.add_argument("-x", "--reference_dir", type=str, default="./references",
+                       help='Directory containing curated reference files.')
 
     parser.add_argument("-r", "--reference", type=str, help='Reference FASTA for alignment.')
 
@@ -77,8 +80,6 @@ def parse_commandline_params(args):
     parser.add_argument("-o", "--outdir", type=str, default=".",
                         help='Optional output directory. Default current working directiory.')
 
-    # Enforce that ensembl_id and reference are mutually exclusive
-    group = parser.add_mutually_exclusive_group()
 
     # Subcommands
     subparsers = parser.add_subparsers(title='subcommands', help='sub-command help', dest="subcommand", required=True)
