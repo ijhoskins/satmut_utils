@@ -312,7 +312,7 @@ class VariantCaller(object):
             if filt_r_mms[i + 2].pos - filt_r_mms[i].pos < max_mnp_window:
                 # Here we have a tri-nt MNP that spans 3 consecutive nts
                 mmts = [filt_r_mms[i], filt_r_mms[i + 1], filt_r_mms[i + 2]]
-                call_tuple, mm_pos_set = self._generate_call_tuple(*mmts)
+                call_tuple, mm_pos_set = self._generate_call_tuple(mmts)
                 haplotypes[call_tuple] |= mm_pos_set
                 position_blacklist |= mm_pos_set
                 continue
@@ -321,7 +321,7 @@ class VariantCaller(object):
             # if they are not consecutive call a di-nt MNP
             if (filt_r_mms[i + 2].pos - filt_r_mms[i + 1].pos) != 1:
                 mmts = [filt_r_mms[i], filt_r_mms[i + 1]]
-                call_tuple, mm_pos_set = self._generate_call_tuple(*mmts)
+                call_tuple, mm_pos_set = self._generate_call_tuple(mmts)
                 haplotypes[call_tuple] |= mm_pos_set
                 position_blacklist |= mm_pos_set
 
