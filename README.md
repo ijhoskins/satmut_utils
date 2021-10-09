@@ -18,15 +18,23 @@ Change to directory of your choice and clone the repository:
 ```git clone https://github.com/ijhoskins/satmut_utils.git```
 
 
-2. Download curated reference files if using Ensembl identifiers.
-TBD
+2. Download reference files if using Ensembl identifiers.
+
+Download a curated set of primary transcripts:
+git clone https://github.com/ijhoskins/satmut_utils_refs_.git
+
+Download the [human genome FASTA](https://genome-idx.s3.amazonaws.com/hisat/grch38_genome.tar.gz)
+
+Download the [Gencode v29 transcript annotations](https://www.gencodegenes.org/human/release_29.html)
+
+Place all these files into a single reference directory:
 ```REF_DIR="/path_to_refs"```
 
+Other genome reference files are available [here](http://daehwankimlab.github.io/hisat2/download/)
 
-3. Install miniconda for managing environments and packages.
 
-For convenience, a miniconda installer script is provided for Linux distributions under the environment directory. Otherwise, see the following link for installation instructures for your particular hardware architecture.
-https://docs.conda.io/en/latest/miniconda.html
+3. Install miniconda for managing environments and packages. See this [link](https://docs.conda.io/en/latest/miniconda.html) for installation on your particular hardware architecture.
+
 
 4. Create the conda environment:
 ```cd satmut_utils && conda env create -f satmut_utils_env.yaml```

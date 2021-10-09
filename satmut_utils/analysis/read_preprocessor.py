@@ -76,8 +76,11 @@ class FastqPreprocessor(object):
         self.f1 = f1
         self.f2 = f2
 
-        self.r1_fiveprime_adapters = tuple(r1_fiveprime_adapters.split(self.ADAPTER_DELIM))
-        self.r1_threeprime_adapters = tuple(r1_threeprime_adapters.split(self.ADAPTER_DELIM))
+        self.r1_fiveprime_adapters = tuple(
+            [e.strip(fu.FILE_SPACE) for e in r1_fiveprime_adapters.split(self.ADAPTER_DELIM)])
+        
+        self.r1_threeprime_adapters = tuple(
+            [e.strip(fu.FILE_SPACE) for e in r1_threeprime_adapters.split(self.ADAPTER_DELIM)])
 
         # No need to provide the R2 adapters as they are the reverse complements of the R1 adapters
         self.r2_fiveprime_adapters = tuple([su.reverse_complement(e) for e in self.r1_threeprime_adapters])

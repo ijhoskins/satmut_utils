@@ -10,6 +10,7 @@ import subprocess
 FILE_EXT_DELIM = "."
 FILE_DELIM = "\t"
 FILE_NEWLINE = "\n"
+FILE_SPACE = " "
 GZ_EXTENSION = "gz"
 
 
