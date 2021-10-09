@@ -1,29 +1,33 @@
 # satmut_utils:
 
-satmut_utils is a Python package for simulating and calling SNPs and MNPs in saturation mutagenesis datasets. The two main subcommands are:
+satmut_utils is a Python package for simulation of saturation mutagenesis data and variant calling in mutagenesis datasets. The two main subcommands are:
 1. sim
 2. call
 
-satmut_utils is designed to call variants in paired-end, targeted RNA-seq datasets. That is, alignments to a single transcript are expected. For germline and somatic variant calling in whole genomes or transcriptomes, other tools are recommended.
+satmut_utils commands are designed to simulate and call variants in paired-end, targeted RNA-seq datasets. That is, alignments to a single transcript are expected. For germline and somatic variant calling in whole genomes or transcriptomes, we recommend other tools.
 
 
 ## Setting up the running environment
 
-To get started, you must clone the satmut_utils repository and create a conda environment with the required dependencies. This process is outlined as follows:
+To get started, you must clone the satmut_utils repository, create a conda environment, and download or generate reference files. This process is as follows:
 
-1. Acquire the code base:
+1. Acquire the code base by cloning the satmut_utils repository:
 
-Clone the satmut_utils repository:
-
-```git clone https://github.com/ijhoskins/satmut_utils.git```
+```
+git clone https://github.com/ijhoskins/satmut_utils.git
+```
 
 2. Install miniconda for managing environments and packages. See this [link](https://docs.conda.io/en/latest/miniconda.html) for installation on your particular hardware architecture.
 
 3. Create the conda environment:
-```cd satmut_utils && conda env create -f satmut_utils_env.yaml```
+```
+cd satmut_utils && conda env create -f satmut_utils_env.yaml
+```
 
 4. Activate the environment
-```conda activate satmut_utils```
+```
+conda activate satmut_utils
+```
 
 5. Download reference files if using Ensembl identifiers.
 
@@ -41,12 +45,16 @@ gunzip $REF_DIR/*gz
 ```
 
 Download the [human genome FASTA](https://genome-idx.s3.amazonaws.com/hisat/grch38_genome.tar.gz) and move it to the reference directory. Then index it with samtools:
-```samtools faidx $REF_DIR/GRCh38.fa```
+```
+samtools faidx $REF_DIR/GRCh38.fa
+```
 
 Other genome reference files for other organisms are available [here](http://daehwankimlab.github.io/hisat2/download/)
 
 6. Navigate to the calling directory within the repository:
-```cd satmut_utils```
+```
+cd satmut_utils
+```
 
 
 ## Reference files
@@ -68,9 +76,9 @@ In typical saturation mutagenesis datasets, an intron-less coding sequence, ofte
 
 Parameter help:
 ```
-python satmut_utils -h
-python satmut_utils sim -h
-python satmut_utils call -h
+python satmut_utils.py -h
+python satmut_utils.py sim -h
+python satmut_utils.py call -h
 ```
 
 It is recommended that the user create a new output directory for each job.

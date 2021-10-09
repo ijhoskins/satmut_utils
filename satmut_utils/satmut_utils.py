@@ -117,10 +117,11 @@ def parse_commandline_params(args):
     parser_call.add_argument("-k", "--gff_reference", type=str, help='Reference FASTA for the GFF.')
 
     parser_call.add_argument("-t", "--targets", type=str,
-                             help='Optional target BED file. Only variants intersecting the targets will be reported.')
+                             help='Optional target BED file. Only variants intersecting the targets will be reported. '
+                                  'Contig names should match one of those in appris_human_v1_actual_regions_contigs.txt.')
 
     parser_call.add_argument("-d", "--consensus_deduplicate", action="store_true",
-                             help='Flag indicating consensus reads should be generated during deduplication.')
+                             help='For UMIs at the start of R1, flag to deduplicate and generated consensus reads.')
 
     parser_call.add_argument("-u", "--umi_regex", type=str, default=AMP_UMI_REGEX,
                              help='UMI regular expression to be passed to umi_tools extract command.')

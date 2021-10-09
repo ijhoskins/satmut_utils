@@ -78,7 +78,7 @@ class FastqPreprocessor(object):
 
         self.r1_fiveprime_adapters = tuple(
             [e.strip(fu.FILE_SPACE) for e in r1_fiveprime_adapters.split(self.ADAPTER_DELIM)])
-        
+
         self.r1_threeprime_adapters = tuple(
             [e.strip(fu.FILE_SPACE) for e in r1_threeprime_adapters.split(self.ADAPTER_DELIM)])
 
