@@ -11,36 +11,39 @@ satmut_utils is designed to call variants in paired-end, targeted RNA-seq datase
 
 To get started, you must clone the satmut_utils repository and create a conda environment with the required dependencies. This process is outlined as follows:
 
-1. Clone the repository:
+1. Acquire the code base:
 
-Change to directory of your choice and clone the repository:
+Clone the satmut_utils repository:
 
 ```git clone https://github.com/ijhoskins/satmut_utils.git```
 
+2. Install miniconda for managing environments and packages. See this [link](https://docs.conda.io/en/latest/miniconda.html) for installation on your particular hardware architecture.
 
-2. Download reference files if using Ensembl identifiers.
-
-Download a curated set of primary transcripts:
-git clone https://github.com/ijhoskins/satmut_utils_refs_.git
-
-Download the [human genome FASTA](https://genome-idx.s3.amazonaws.com/hisat/grch38_genome.tar.gz)
-
-Download the [Gencode v29 transcript annotations](https://www.gencodegenes.org/human/release_29.html)
-
-Place all these files into a single reference directory:
-```REF_DIR="/path_to_refs"```
-
-Other genome reference files are available [here](http://daehwankimlab.github.io/hisat2/download/)
-
-
-3. Install miniconda for managing environments and packages. See this [link](https://docs.conda.io/en/latest/miniconda.html) for installation on your particular hardware architecture.
-
-
-4. Create the conda environment:
+3. Create the conda environment:
 ```cd satmut_utils && conda env create -f satmut_utils_env.yaml```
 
-5. Activate the environment
+4. Activate the environment
 ```conda activate satmut_utils```
+
+5. Download reference files if using Ensembl identifiers.
+
+Create a reference directory:
+```
+REF_DIR="/path_to_refs"
+mkdir $REF_DIR
+```
+
+Download a curated set of primary transcripts and unzip the files:
+```
+git clone https://github.com/ijhoskins/satmut_utils_refs.git
+cp satmut_utils_refs/* $REF_DIR
+gunzip $REF_DIR/*gz
+```
+
+Download the [human genome FASTA](https://genome-idx.s3.amazonaws.com/hisat/grch38_genome.tar.gz) and move it to the reference directory. Then index it with samtools:
+```samtools faidx $REF_DIR/GRCh38.fa```
+
+Other genome reference files for other organisms are available [here](http://daehwankimlab.github.io/hisat2/download/)
 
 6. Navigate to the calling directory within the repository:
 ```cd satmut_utils```
