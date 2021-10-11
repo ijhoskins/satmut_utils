@@ -48,6 +48,7 @@ class FastqPreprocessor(object):
     """Class for pre-processing FASTQs prior to alignment."""
 
     TRIM_QUALITY = 15
+    OVERLAP_LEN = 8
     NCORES = 0
     NTRIMMED = 2
     MIN_LENGTH = 16
@@ -58,7 +59,7 @@ class FastqPreprocessor(object):
 
     def __init__(self, f1, f2, r1_fiveprime_adapters, r1_threeprime_adapters,
                  outdir=".", ncores=NCORES, trim_bq=TRIM_QUALITY, ntrimmed=NTRIMMED,
-                 no_trim=TRIM_FLAG, validate=True):
+                 overlap_len=OVERLAP_LEN, no_trim=TRIM_FLAG, validate=True):
         """Constructor for FastqPreprocessor.
 
         :param str f1: path of the R1 FASTQ
@@ -69,6 +70,7 @@ class FastqPreprocessor(object):
         :param int ncores: Number of CPU cores to use in trimming. Default 0, autodetect.
         :param int trim_bq: quality score for quality trimming at the 3' end. Default 15.
         :param int ntrimmed: Max number of adapters to trim from each read. Default 2.
+        :param int overlap_len: number of bases to match in read to trim. Default 8.
         :param bool no_trim: flag to turn off adapter and 3' base quality trimming. Default False.
         :param bool validate: Validate FASTQs with FastQC? Default True.
         """
@@ -90,6 +92,7 @@ class FastqPreprocessor(object):
         self.ncores = ncores
         self.trim_bq = trim_bq
         self.ntrimmed = ntrimmed
+        self.overlap_len = overlap_len
         self.no_trim = no_trim
         self.validate = validate
 
@@ -143,7 +146,8 @@ class FastqPreprocessor(object):
         _logger.info("Running cutadapt.")
 
         common_call_args = ["cutadapt", "--quiet", "--json", self.log_file, "-j", str(self.ncores),
-                            "-n", str(self.ntrimmed), "-q", str(self.trim_bq), "-m", str(self.MIN_LENGTH)]
+                            "-n", str(self.ntrimmed), "-q", str(self.trim_bq), "-m", str(self.MIN_LENGTH),
+                            "-O", str(self.overlap_len)]
 
         # In Tile-seq experiments
         # R1s are tagged with P7 adapter, readthrough P5 RC; terminal F primer may have ATTB1 site at 5' end

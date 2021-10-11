@@ -69,7 +69,7 @@ class TestBowtie2(TestAligners):
         """Test proper passing of kwargs."""
 
         # Pass the --skip flag to align the last two reads
-        bowtie_config = al.BowtieConfig(self.ref, local=True, nthreads=1, skip=1)
+        bowtie_config = al.BowtieConfig(self.ref, True, 1, "f", skip=1)
         _ = al.Bowtie2(config=bowtie_config, f1=self.test_fasta, output_bam=self.test_bam)
 
         with pysam.AlignmentFile(self.test_bam, mode="rb") as test_af:
@@ -80,6 +80,9 @@ class TestBowtie2(TestAligners):
 
     def test_alignment(self):
         """Test proper alignment of various types of reads."""
+
+        bowtie_config = al.BowtieConfig(self.ref, True, 1, "f")
+        _ = al.Bowtie2(config=bowtie_config, f1=self.test_fasta, output_bam=self.test_bam)
 
         with pysam.AlignmentFile(self.test_bam, "rb") as test_af:
             for align_seg in test_af.fetch():

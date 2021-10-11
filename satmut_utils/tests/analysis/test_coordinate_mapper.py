@@ -174,15 +174,15 @@ class TestAminoAcidMapper(unittest.TestCase):
         self.assertEqual(expected, observed)
 
     def test_get_mut_info_mut_sig(self):
-        """Tests that mutation info is properly generate for a WT and mutant CDS."""
+        """Tests that mutation info is properly generate for a WT and mutant CDS with mut_sig mismatch."""
 
         # NNK means A and C are not expected in the wobble position, but only if it does not match the REF
-        expected = cm.MUT_INFO_TUPLE(location="CDS", wt_codons="ATG,AAA", mut_codons="AGG,AGG",
-                                     wt_aas="M,K", mut_aas="R,R", aa_changes="p.M1R,p.K2R",
+        expected = cm.MUT_INFO_TUPLE(location="CDS", wt_codons="ATG,AAA", mut_codons="AGG,AGC",
+                                     wt_aas="M,K", mut_aas="R,S", aa_changes="p.M1R,p.K2S",
                                      aa_positions="1,2", matches_mut_sig="True,False")
 
         wt_cds_seq = "ATGAAA"
-        mut_cds_seq = "AGGAGG"
+        mut_cds_seq = "AGGAGC"
 
         observed = self.appris_aa_mapper._get_mut_info(wt_cds_seq, mut_cds_seq)
 

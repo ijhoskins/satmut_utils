@@ -184,7 +184,7 @@ class TestFastqPreprocessor(unittest.TestCase):
 
         fu.safe_remove((cls.tempdir, cls.tileseq_r1_fastq, cls.tileseq_r2_fastq,
                         cls.tileseq_r1_umi_fastq, cls.tileseq_r2_umi_fastq,
-                        cls.amp_r1_fastq, cls.amp_r2_fastq))
+                        cls.amp_r1_fastq, cls.amp_r2_fastq), force_remove=True)
 
     def test_run_cutadapt_tileseq_r1_no_adapter(self):
         """Tests lack of adapter trimming of Tile-seq R1 without adapter readthrough."""
@@ -205,7 +205,7 @@ class TestFastqPreprocessor(unittest.TestCase):
     def test_run_cutadapt_tileseq_r1_normal_pair(self):
         """Tests adapter trimming of Tile-seq R1 with adapter readthrough."""
 
-        expected = "CCAATTCTCACATCCTAGACCAACACGACGCTCTTCCGATCTCCAATTCTCACATCCTAGACCATCACGGGCATTGC"
+        expected = "CCAATTCTCACATCCTAGACCATCACGGGCATTGC"
 
         fqp = rp.FastqPreprocessor(f1=self.tileseq_r1_fastq, f2=self.tileseq_r2_fastq,
                                    r1_fiveprime_adapters=",".join((NEB_ADAPTER_P7, PEZY3_ATTB1_P7)),
@@ -382,7 +382,8 @@ class TestUmiExtractor(unittest.TestCase):
     def tearDownClass(cls):
         """Tear down for TestUmiExtractor."""
 
-        fu.safe_remove((cls.tempdir, cls.tileseq_r1_fastq, cls.tileseq_r2_fastq, cls.amp_r1_fastq, cls.amp_r2_fastq))
+        fu.safe_remove((cls.tempdir, cls.tileseq_r1_fastq, cls.tileseq_r2_fastq, cls.amp_r1_fastq, cls.amp_r2_fastq),
+                       force_remove=True)
 
     def test_umitools_extract_tileseq(self):
         """Tests proper extraction of UMIs from Tile-seq data."""
@@ -521,7 +522,7 @@ class TestConsensusDeduplicatorPreprocessor(unittest.TestCase):
     def tearDownClass(cls):
         """Tear down for TestConsensusDeduplicator."""
 
-        fu.safe_remove((cls.tempdir,))
+        fu.safe_remove((cls.tempdir,), force_remove=True)
 
     def test_update_tags(self):
         """Tests that we properly update the tags in a grouped BAM with only R1 marked with group tag."""
@@ -609,7 +610,7 @@ class TestConsensusDeduplicator(unittest.TestCase):
     def tearDownClass(cls):
         """Tear down for TestConsensusDeduplicator."""
 
-        fu.safe_remove((cls.tempdir,))
+        fu.safe_remove((cls.tempdir,), force_remove=True)
 
     def test_extract_umi_network(self):
         """Tests the ability to extract the UMI group from BAM tag."""
@@ -881,7 +882,7 @@ class TestReadMasker(unittest.TestCase):
     def tearDownClass(cls):
         """Tear down for TestReadMasker."""
 
-        fu.safe_remove((cls.tempdir, cls.prepoc_bam, cls.primer_bed))
+        fu.safe_remove((cls.tempdir, cls.prepoc_bam, cls.primer_bed,), force_remove=True)
 
     def test_get_mask_base_indices_tileseq_r1(self):
         """Test that we return the read indices to mask for a Tile-seq R1 starting and ending at a primer start."""

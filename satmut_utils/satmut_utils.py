@@ -170,6 +170,10 @@ def parse_commandline_params(args):
                              help='Max number of adapters to trim from each read. Default %i.'
                                   % FastqPreprocessor.NTRIMMED)
 
+    parser_call.add_argument("-l", "--overlap_length", type=int, default=FastqPreprocessor.OVERLAP_LEN,
+                             help='Number of read bases overlapping the adapter sequence to consider for trimming. '
+                                  'Default %i.' % FastqPreprocessor.OVERLAP_LEN)
+
     parser_call.add_argument("-b", "--trim_bq", type=int, default=FastqPreprocessor.TRIM_QUALITY,
                              help='Base quality for 3\' trimming. Default %i.' % FastqPreprocessor.TRIM_QUALITY)
 
@@ -293,8 +297,8 @@ def call_workflow(fastq1, fastq2, r1_fiveprime_adapters, r1_threeprime_adapters,
                   max_mnp_window=VariantCaller.VARIANT_CALL_MAX_MNP_WINDOW,
                   include_n=not VariantCaller.VARIANT_CALL_EXCLUDE_N,
                   nthreads=FastqPreprocessor.NCORES, ntrimmed=FastqPreprocessor.NTRIMMED,
-                  trim_bq=FastqPreprocessor.TRIM_QUALITY, omit_trim=FastqPreprocessor.TRIM_FLAG,
-                  mut_sig=VariantCaller.VARIANT_CALL_MUT_SIG):
+                  overlap_len=FastqPreprocessor.OVERLAP_LEN, trim_bq=FastqPreprocessor.TRIM_QUALITY,
+                  omit_trim=FastqPreprocessor.TRIM_FLAG, mut_sig=VariantCaller.VARIANT_CALL_MUT_SIG):
     r"""Runs the satmut_utils call workflow.
 
     :param str fastq1: path of the R1 FASTQ
@@ -322,6 +326,7 @@ def call_workflow(fastq1, fastq2, r1_fiveprime_adapters, r1_threeprime_adapters,
     :param bool include_n: include variant calls to an "N"
     :param int nthreads: Number of threads to use for SAM/BAM operations. Default 0 (autodetect).
     :param int ntrimmed: Max number of adapters to trim from each read
+    :param int overlap_len: number of bases to match in read to trim. Default 8.
     :param int trim_bq: quality score for cutadapt quality trimming at the 3' end. Default 15.
     :param bool omit_trim: flag to turn off adapter and 3' base quality trimming. Default False.
     :param str mut_sig: mutagenesis signature- one of {NNN, NNK, NNS}. Default NNK.
@@ -350,7 +355,8 @@ def call_workflow(fastq1, fastq2, r1_fiveprime_adapters, r1_threeprime_adapters,
     # Run the FASTQ preprocessing workflow which includes adapter trimming and 3' BQ trimming
     fqp = FastqPreprocessor(
         f1=fqp_r1, f2=fqp_r2, r1_fiveprime_adapters=r1_fiveprime_adapters, r1_threeprime_adapters=r1_threeprime_adapters,
-        outdir=outdir, ncores=nthreads, trim_bq=trim_bq, ntrimmed=ntrimmed, no_trim=omit_trim, validate=True)
+        outdir=outdir, ncores=nthreads, trim_bq=trim_bq, ntrimmed=ntrimmed, overlap_len=overlap_len, no_trim=omit_trim,
+        validate=True)
 
     # Run local alignment; handle the ncores/nthreads option for cutadapt versus bowtie2 options
     bowtie2_nthreads = 1 if nthreads == 0 else nthreads
@@ -412,8 +418,8 @@ def main():
             contig_del_thresh=args_dict["contig_del_threshold"], min_bq=args_dict["min_bq"],
             max_nm=args_dict["max_nm"], min_supporting_qnames=args_dict["min_supporting"],
             max_mnp_window=args_dict["max_mnp_window"], include_n=not args_dict["include_n"],
-            nthreads=args_dict["nthreads"], ntrimmed=args_dict["ntrimmed"], trim_bq=args_dict["trim_bq"],
-            omit_trim=args_dict["omit_trim"], mut_sig=args_dict["mutagenesis_signature"])
+            nthreads=args_dict["nthreads"], ntrimmed=args_dict["ntrimmed"], overlap_len=parsed_args["overlap_length"],
+            trim_bq=args_dict["trim_bq"], omit_trim=args_dict["omit_trim"], mut_sig=args_dict["mutagenesis_signature"])
 
 
 if __name__ == "__main__":
