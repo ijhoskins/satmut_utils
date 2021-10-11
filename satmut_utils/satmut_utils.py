@@ -59,7 +59,8 @@ def parse_commandline_params(args):
     group = parser.add_mutually_exclusive_group(required=True)
 
     group.add_argument("-i", "--ensembl_id", type=str,
-                       help='Ensembl gene (ENSG) or transcript (ENST) ID to use for a reference.')
+                       help='Ensembl gene (ENSG) or transcript (ENST) ID to use to select a transcript reference. '
+                            'Include minor version number, e.g. ENST00000398165.7')
 
     group.add_argument("-r", "--reference", type=str, help='Reference FASTA for alignment.')
 
@@ -67,8 +68,8 @@ def parse_commandline_params(args):
                         help='Directory containing curated reference files.')
 
     parser.add_argument("-p", "--primers", type=none_or_str,
-                        help='Optional primer feature file, e.g. BED, GFF, or GTF. Must have strand field. '
-                             'Recommended for removing synthetic error from alignments with base quality masking.')
+                        help='Optional primer feature file, e.g. BED, GFF, GTF. Must have the strand field. '
+                             'Recommended for removing synthetic errors from alignments with base quality masking.')
 
     parser.add_argument("-o", "--outdir", type=str, default=".",
                         help='Optional output directory. Default current working directiory.')
@@ -85,8 +86,8 @@ def parse_commandline_params(args):
                             help='SAM/BAM file containing alignments to edit.')
 
     parser_sim.add_argument("-v", "--vcf",  required=True, type=str,
-                        help='VCF file specifying variants to edit. Should have an AF INFO field specifying a '
-                             'fraction/proportion of fragments to edit into.')
+                        help='VCF file specifying variants to edit. Should have an AF INFO field for each variant, '
+                             'specifying the fraction of fragments to edit into.')
 
     parser_sim.add_argument("-s", "--random_seed", type=int, default=9, help='Seed for random read sampling.')
 

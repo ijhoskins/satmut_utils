@@ -59,8 +59,9 @@ class TestBowtie2(TestAligners):
         # To count reads we have to index
         su.index_bam(self.test_bam)
 
-        with pysam.AlignmentFile("rb", self.test_bam) as test_af:
+        with pysam.AlignmentFile(self.test_bam, mode="rb") as test_af:
             mapped_count = test_af.mapped
+            test_af.reset()
 
         self.assertEqual(mapped_count, 3)
 
@@ -71,15 +72,17 @@ class TestBowtie2(TestAligners):
         bowtie_config = al.BowtieConfig(self.ref, local=True, nthreads=1, skip=1)
         _ = al.Bowtie2(config=bowtie_config, f1=self.test_fasta, output_bam=self.test_bam)
 
-        observed_qnames = {align_seg.query_name for align_seg in pysam.AlignmentFile(self.test_bam, "rb").fetch()}
+        with pysam.AlignmentFile(self.test_bam, mode="rb") as test_af:
+            observed_qnames = {align_seg.query_name for align_seg in test_af.fetch()}
+            test_af.reset()
 
         self.assertTrue("WT" not in observed_qnames)
 
     def test_alignment(self):
         """Test proper alignment of various types of reads."""
 
-        with pysam.AlignmentFile(self.test_bam, "rb") as af:
-            for align_seg in af.fetch():
+        with pysam.AlignmentFile(self.test_bam, "rb") as test_af:
+            for align_seg in test_af.fetch():
                 if align_seg.query_name == "WT":
                     # This read should match the reference exactly
                     matches_ref = align_seg.cigarstring == "105M"
@@ -88,5 +91,7 @@ class TestBowtie2(TestAligners):
                 if align_seg.query_name == "InDels":
                     has_ins = "I" in align_seg.cigarstring
                     has_dels = "D" in align_seg.cigarstring
+
+            test_af.reset()
 
         self.assertTrue(matches_ref and has_snps and (has_ins or has_dels))

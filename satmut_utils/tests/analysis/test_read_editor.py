@@ -136,3 +136,57 @@ class TestReadEditor(unittest.TestCase):
         """Tear down for TestReadEditor."""
 
         fu.safe_remove((cls.tempdir, cls.temp_ref_fa), force_remove=True)
+
+    def test_get_variant_configs(self):
+        """Test that variant configurations are extracted from the input VCF."""
+
+        pass
+
+    def test_seq_matches_ref(self):
+        """Tests proper identification of mismatches within the REF span."""
+
+        pass
+
+    def test_get_amenable_qnames(self):
+        """Tests for selection of error-free reads for editing."""
+
+        pass
+
+    def test_get_edit_qnames(self):
+        """Tests editable read names are returned."""
+        pass
+
+    def test_iterate_over_pileup_reads(self):
+        """Tests that edit configs are appended to the edit dictionary."""
+
+        pass
+
+    def test_get_edit_configs(self):
+        """Tests for update of the edit dictionary with several variant configs."""
+
+        pass
+
+    def test_unmask_quals(self):
+        """Tests for proper unmasking of qualities prior to write of reads."""
+
+        pass
+
+    def test_sort_key(self):
+        """Tests proper indicies are returned for SNPs, MNPs, and InDels."""
+
+        pass
+
+    def test_edit(self):
+        """Tests editing of a read object."""
+
+        pass
+
+    def test_iterate_over_reads(self):
+        """Tests that multiple reads are edited."""
+        pass
+
+    def test_get_edited_read_pairs(self):
+        """Tests filtering of edited reads."""
+        pass
+
+    

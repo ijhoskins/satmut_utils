@@ -487,7 +487,7 @@ class ReadEditor(object):
     def _sort_key(edit_config_tuple):
         """Custom sort key for variants.
 
-        :param read_editr.INDUCE_CONFIG_TUPLE edit_config_tuple: config for a variant
+        :param read_editr.EDIT_CONFIG_TUPLE edit_config_tuple: config for a variant
         :return int: sort order for elements
         """
 
@@ -506,7 +506,7 @@ class ReadEditor(object):
         """Induces a single variant in the read object.
 
         :param pysam.AlignedSegment align_seg: read object
-        :param read_editor.INDUCE_CONFIG_TUPLE variant: editing config for a single variant
+        :param read_editor.EDIT_CONFIG_TUPLE variant: editing config for a single variant
         """
 
         editor_obj = Editor.read_factory(
@@ -598,10 +598,10 @@ class ReadEditor(object):
         return r1_fastq, r2_fastq
 
     def _get_edited_read_pairs(self, filtered_bam=None):
-        """Filters the editd BAM for read pairs that were edited.
+        """Filters the edited BAM for read pairs that were edited.
 
         :param str | None filtered_bam: output BAM filename to write to; if None, will write to configured output path
-        :return str: BAM file containing editd reads.
+        :return str: BAM file containing edited reads.
         """
 
         filt_bam = filtered_bam
@@ -648,7 +648,7 @@ class ReadEditor(object):
 
         Note: the edited BAM should not be used for variant calling as its CIGAR and MD tags have not been updated.
         I prefer re-alignment rather than CIGAR and MD tag update for simplicity. However alignment incurs a cost so
-        in the future I hope to implement BAM tag updates with samtools.
+        in the future implement BAM tag updates with samtools.
         """
 
         # First see if we have pickled the editor instance, which can take awhile to generate
@@ -665,10 +665,8 @@ class ReadEditor(object):
         _logger.info("Editing variants.")
         editor._iterate_over_reads()
 
-        _logger.info("Writing FASTQs.")
+        _logger.info("Writing and gzipping FASTQs.")
         r1_fastq, r2_fastq = editor._write_fastqs()
-
-        _logger.info("Gzipping FASTQs.")
         zipped_r1_fastq = fu.gzip_file(r1_fastq)
         zipped_r2_fastq = None
         if r2_fastq is not None:

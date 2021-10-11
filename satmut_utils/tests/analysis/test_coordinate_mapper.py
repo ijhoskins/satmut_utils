@@ -82,7 +82,7 @@ class TestAminoAcidMapper(unittest.TestCase):
                     continue
                 cls.appris_cbs_trx_seq += line.rstrip(fu.FILE_NEWLINE)
 
-        cls.appris_cbs_cds_seq = cls.appris_cbs_trx_seq[260:1913]
+        cls.appris_cbs_cds_seq = cls.appris_cbs_trx_seq[260:1916]
 
         cls.appris_pknox1_trx_seq = ""
         with open(cls.pknox1_ref, "r") as ref_fa:
@@ -91,7 +91,7 @@ class TestAminoAcidMapper(unittest.TestCase):
                     continue
                 cls.appris_pknox1_trx_seq += line.rstrip(fu.FILE_NEWLINE)
 
-        cls.appris_pknox1_cds_seq = cls.appris_pknox1_trx_seq[211:1519]
+        cls.appris_pknox1_cds_seq = cls.appris_pknox1_trx_seq[211:1522]
 
     @classmethod
     def tearDownClass(cls):
@@ -125,7 +125,8 @@ class TestAminoAcidMapper(unittest.TestCase):
     def test_get_cds_info_appris_positive(self):
         """Tests that CDS info for a transcript on positive strand is extracted from the genome."""
 
-        expected_val = [(59073, 211, 1519, self.appris_pknox1_trx_seq, self.appris_pknox1_cds_seq)]
+        # Include the stop codon in the CDS coordinates
+        expected_val = [(5003, 211, 1522, self.appris_pknox1_trx_seq, self.appris_pknox1_cds_seq)]
 
         observed = self.appris_aa_mapper._get_cds_info()
 
@@ -134,7 +135,7 @@ class TestAminoAcidMapper(unittest.TestCase):
     def test_get_cds_info_appris_negative(self):
         """Tests that CDS info for a transcript on negative strand is extracted from the genome."""
 
-        expected_val = [(22755, 260, 1913, self.appris_cbs_trx_seq, self.appris_cbs_cds_seq)]
+        expected_val = [(2605, 260, 1916, self.appris_cbs_trx_seq, self.appris_cbs_cds_seq)]
 
         observed = self.appris_aa_mapper._get_cds_info()
 
@@ -149,9 +150,9 @@ class TestAminoAcidMapper(unittest.TestCase):
             aa_positions=[], matches_mut_sig=[True, False])
 
         expected = cm.MUT_INFO_TUPLE(
-            location="CDS", wt_codons=["ATG,AAA"], mut_codons=["AGG,AGA"],
-            wt_aas=["M,K"], mut_aas=["R,R"], aa_changes=["p.M1R,p.K2R"],
-            aa_positions=["1,2"], matches_mut_sig="True,False")
+            location="CDS", wt_codons="ATG,AAA", mut_codons="AGG,AGA",
+            wt_aas="M,K", mut_aas="R,R", aa_changes="p.M1R,p.K2R",
+            aa_positions="1,2", matches_mut_sig="True,False")
 
         observed = self.appris_aa_mapper._concat_multi_mut_info(input_mut_info)
 
@@ -161,9 +162,9 @@ class TestAminoAcidMapper(unittest.TestCase):
         """Tests that mutation info is properly generate for a WT and mutant CDS."""
 
         # NNK means A and C are not expected in the wobble position
-        expected = cm.MUT_INFO_TUPLE(location="CDS", wt_codons=["ATG,AAA"], mut_codons=["AGG,AGA"],
-                                     wt_aas=["M,K"], mut_aas=["R,R"], aa_changes=["p.M1R,p.K2R"],
-                                     aa_positions=["1,2"], matches_mut_sig="True,False")
+        expected = cm.MUT_INFO_TUPLE(location="CDS", wt_codons="ATG,AAA", mut_codons="AGG,AGA",
+                                     wt_aas="M,K", mut_aas="R,R", aa_changes="p.M1R,p.K2R",
+                                     aa_positions="1,2", matches_mut_sig="True,False")
 
         wt_cds_seq = "ATGAAA"
         mut_cds_seq = "AGGAGA"

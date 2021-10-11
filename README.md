@@ -109,6 +109,10 @@ Use a random seed to select different reads for editing:
 python satmut_utils.py -i ENST00000398165.7 -x $REF_DIR -o $OUTPUT_DIR -p primers.bed sim -a negative_control.bam -v sim_variants.vcf -s 99
 ```
 
+## sim outputs
+
+The sim workflow outputs paired FASTQs and a truth VCF containing expected variants and their frequencies. Optionally, edited reads may be filtered and realigned for further investigation.
+
 
 Run the call workflow:
 
