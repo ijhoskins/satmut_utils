@@ -1,11 +1,10 @@
 # satmut_utils:
 
-satmut_utils is a Python package for simulation of saturation mutagenesis data and variant calling in mutagenesis datasets. The two main subcommands are:
+satmut_utils is a Python package for simulation and variant calling of saturation mutagenesis data. The two main subcommands are:
 1. sim
 2. call
 
-satmut_utils commands are designed to simulate and call variants in paired-end, targeted RNA-seq datasets. That is, alignments to a single transcript are expected. For germline and somatic variant calling in whole genomes or transcriptomes, we recommend other tools.
-
+satmut_utils commands are designed to simulate and call variants in paired-end, targeted RNA-seq datasets. That is, alignments to a single transcript are expected. 
 
 ## Setting up the running environment
 
@@ -17,7 +16,7 @@ To get started, you must clone the satmut_utils repository, create a conda envir
 git clone https://github.com/ijhoskins/satmut_utils.git
 ```
 
-2. Install miniconda for managing environments and packages. See this [link](https://docs.conda.io/en/latest/miniconda.html) for installation on your particular hardware architecture.
+2. Install miniconda for managing environments and packages. See this [link](https://docs.conda.io/en/latest/miniconda.html) for installation.
 
 3. Create the conda environment:
 ```
