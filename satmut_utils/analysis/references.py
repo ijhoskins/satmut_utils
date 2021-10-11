@@ -145,7 +145,7 @@ def extract_gff_reference(reference_dir, ensembl_id, outdir="."):
                     ensembl_id == curr_gene_id or (ffu.GFF_ATTR_TRANSCRIPT_ID in interval.attrs and
                                                    ensembl_id == interval.attrs[ffu.GFF_ATTR_TRANSCRIPT_ID]):
                 id_observed = True
-                out_gff_fh.write(str(interval))
+                out_gff_fh.write(print(interval))
 
             last_gene_id = curr_gene_id
 
