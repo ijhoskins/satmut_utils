@@ -316,7 +316,7 @@ class UMIExtractor(object):
         # because multiple separate R2 start sites may have the same UMI/position through R1.
         if self.prepend_primer:
             _logger.info("Finding originating primers for read pairs.")
-            r1_fq, r2_fq = self._append_primer_name
+            r1_fq, r2_fq = self._append_primer_name()
 
         _logger.info("Extracting UMIs for %s." % self.common_basename)
         self._umitools_extract(r1_fastq=r1_fq, r2_fastq=r2_fq)
