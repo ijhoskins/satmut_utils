@@ -126,7 +126,7 @@ class TestAminoAcidMapper(unittest.TestCase):
         """Tests that CDS info for a transcript on positive strand is extracted from the genome."""
 
         # Include the stop codon in the CDS coordinates
-        expected_val = [(5003, 211, 1522, self.appris_pknox1_trx_seq, self.appris_pknox1_cds_seq)]
+        expected_val = (5003, 211, 1522, self.appris_pknox1_trx_seq, self.appris_pknox1_cds_seq)
 
         observed = self.appris_aa_mapper._get_cds_info()
 
@@ -135,7 +135,7 @@ class TestAminoAcidMapper(unittest.TestCase):
     def test_get_cds_info_appris_negative(self):
         """Tests that CDS info for a transcript on negative strand is extracted from the genome."""
 
-        expected_val = [(2605, 260, 1916, self.appris_cbs_trx_seq, self.appris_cbs_cds_seq)]
+        expected_val = (2605, 260, 1916, self.appris_cbs_trx_seq, self.appris_cbs_cds_seq)
 
         observed = self.appris_aa_mapper._get_cds_info()
 
@@ -161,13 +161,28 @@ class TestAminoAcidMapper(unittest.TestCase):
     def test_get_mut_info(self):
         """Tests that mutation info is properly generate for a WT and mutant CDS."""
 
-        # NNK means A and C are not expected in the wobble position
+        # NNK means A and C are not expected in the wobble position, but only if it does not match the REF
         expected = cm.MUT_INFO_TUPLE(location="CDS", wt_codons="ATG,AAA", mut_codons="AGG,AGA",
+                                     wt_aas="M,K", mut_aas="R,R", aa_changes="p.M1R,p.K2R",
+                                     aa_positions="1,2", matches_mut_sig="True,True")
+
+        wt_cds_seq = "ATGAAA"
+        mut_cds_seq = "AGGAGA"
+
+        observed = self.appris_aa_mapper._get_mut_info(wt_cds_seq, mut_cds_seq)
+
+        self.assertEqual(expected, observed)
+
+    def test_get_mut_info_mut_sig(self):
+        """Tests that mutation info is properly generate for a WT and mutant CDS."""
+
+        # NNK means A and C are not expected in the wobble position, but only if it does not match the REF
+        expected = cm.MUT_INFO_TUPLE(location="CDS", wt_codons="ATG,AAA", mut_codons="AGG,AGG",
                                      wt_aas="M,K", mut_aas="R,R", aa_changes="p.M1R,p.K2R",
                                      aa_positions="1,2", matches_mut_sig="True,False")
 
         wt_cds_seq = "ATGAAA"
-        mut_cds_seq = "AGGAGA"
+        mut_cds_seq = "AGGAGG"
 
         observed = self.appris_aa_mapper._get_mut_info(wt_cds_seq, mut_cds_seq)
 
@@ -209,7 +224,7 @@ class TestAminoAcidMapper(unittest.TestCase):
     def test_get_codon_and_aa_changes_threeprime_untranslated(self):
         """Tests no protein annotations are returned for a variant in the 3' UTR."""
 
-        expected = cm.MUT_INFO_TUPLE(location=cm.AminoAcidMapper.FIVEPRIME_UTR, **cm.AminoAcidMapper.DEFAULT_KWARGS)
+        expected = cm.MUT_INFO_TUPLE(location=cm.AminoAcidMapper.THREEPRIME_UTR, **cm.AminoAcidMapper.DEFAULT_KWARGS)
         observed = self.appris_aa_mapper.get_codon_and_aa_changes(trx_id="ENST00000398165.7", pos=1917, ref="A", alt="G")
         self.assertEqual(expected, observed)
 
