@@ -208,11 +208,13 @@ class TestSamtools(TestSeqUtilsSetup, unittest.TestCase):
         res = su.sam_view(self.test_sam_name, None, "SAM", 0, "H")
 
         with open(res, "r") as out_sam:
-            observed = out_sam.read()
+            # Remove the newly added program header
+            observed = out_sam.readlines()[0:4]
+            observed = "".join(observed)
 
         # Do not copy the last header line which will have a new line added by samtools
         expected = fu.FILE_NEWLINE.join([
-            line for line in TEST_SAM.splitlines()[0:4] if line.startswith(su.SAM_HEADER_CHAR)]) + fu.FILE_NEWLINE
+            line for line in TEST_SAM.splitlines() if line.startswith(su.SAM_HEADER_CHAR)]) + fu.FILE_NEWLINE
 
         self.assertEqual(expected, observed)
 
@@ -232,10 +234,8 @@ class TestSamtools(TestSeqUtilsSetup, unittest.TestCase):
                 else:
                     body_lines.append(sam_line)
 
-            shuffled_body_lines = random.sample(body_lines, len(body_lines))
-            reassembled_lines = header_lines + shuffled_body_lines
-
-            test_unsorted_sam.write(fu.FILE_NEWLINE.join(reassembled_lines) + fu.FILE_NEWLINE)
+            unsorted_lines = header_lines + body_lines.reverse()
+            test_unsorted_sam.write(fu.FILE_NEWLINE.join(unsorted_lines) + fu.FILE_NEWLINE)
             out_sam = test_unsorted_sam.name
 
         # Convert to BAM
@@ -245,11 +245,15 @@ class TestSamtools(TestSeqUtilsSetup, unittest.TestCase):
         res = su.sort_bam(out_bam, output_format="SAM")
 
         with open(res, "r") as outsam:
-            # Remove the newly added program header
-            observed = outsam.readlines().pop(4)
-            observed = "".join(observed)
+            for i, line in enumerate(outsam):
+                if i == 5:
+                    start_pos = int(line.split(fu.FILE_DELIM)[3])
+                if i == 14:
+                    end_pos = int(line.split(fu.FILE_DELIM)[3])
 
-        self.assertEqual(observed, TEST_SAM)
+        fu.safe_remove((out_sam, out_bam, res), force_remove=True)
+
+        self.assertTrue(start_pos < end_pos)
 
     def test_index_bam(self):
         """Test we can create an index file on a sorted BAM."""
@@ -257,12 +261,14 @@ class TestSamtools(TestSeqUtilsSetup, unittest.TestCase):
         res = su.sam_view(self.test_sam_name)
         su.index_bam(res)
         self.assertTrue(os.path.exists(fu.add_extension(res, su.BAM_INDEX_SUFFIX)))
+        fu.safe_remove((res,))
 
     def test_sort_and_index(self):
         """Test for proper creation and indexing of a coordinate-sorted BAM."""
 
         res = su.sort_and_index(self.test_sam_name)
         self.assertTrue(res.endswith(su.BAM_SUFFIX) and os.path.exists(fu.add_extension(res, su.BAM_INDEX_SUFFIX)))
+        fu.safe_remove((res,))
 
 
 class TestFastaToFastq(TestSeqUtilsSetup, unittest.TestCase):
