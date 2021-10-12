@@ -61,7 +61,7 @@ class TestSeqUtilsSetup(object):
 
     @classmethod
     def setUpClass(cls):
-        """Setup for TestSeqUtils."""
+        """Setup for TestSeqUtilsSetup."""
 
         cls.tempdir = tempfile.mkdtemp()
         cls.test_dir = os.path.dirname(__file__)
@@ -101,7 +101,10 @@ class TestSeqUtilsSetup(object):
 
     @classmethod
     def tearDownClass(cls):
-        fu.safe_remove((cls.tempdir,), force_remove=True)
+        """Tear down for TestSeqUtilsSetup."""
+
+        fu.safe_remove((cls.tempdir, cls.test_fasta, cls.test_bed_a, cls.test_bed_b, cls.test_sam,
+                        cls.CRCH38_chr21, cls.CRCH38_chr21 + su.FASTA_INDEX_SUFFIX), force_remove=True)
 
 
 # Note multiple inheritance may not work with more than one non-unittest.TestCase superclass:
@@ -142,24 +145,18 @@ class TestSeqUtils(TestSeqUtilsSetup, unittest.TestCase):
         has_indels = False
 
         with tempfile.NamedTemporaryFile("w", suffix=".test.fa") as test_fasta, \
-                tempfile.NamedTemporaryFile("w+b", suffix=".test.bam") as test_bam:
+                tempfile.NamedTemporaryFile("w+b", suffix=".test.bam", delete=False) as test_bam:
 
             test_fasta.write(fu.FILE_NEWLINE.join(fasta_lines) + fu.FILE_NEWLINE)
             fu.flush_files((test_fasta,))
+            test_bam_name = test_bam.name
             
-            al.Bowtie2(f1=test_fasta.name, output_bam=test_bam.name,
-                       config=al.BowtieConfig(self.CRCH38_chr21, False, 0, "f"))
+        al.Bowtie2(f1=test_fasta.name, output_bam=test_bam_name, config=al.BowtieConfig(self.CRCH38_chr21, False, 0, "f"))
 
-            fu.flush_files((test_bam,))
-
-            with pysam.AlignmentFile(test_bam.name, "rb") as af:
-                for align_seg in af.fetch():
-
-                    if align_seg.is_unmapped:
-                        continue
-
-                    if align_seg.query_name == "InDels":
-                        has_indels = "I" in align_seg.cigarstring or "D" in align_seg.cigarstring
+        with pysam.AlignmentFile(test_bam.name, "rb") as af:
+            for align_seg in af.fetch():
+                if align_seg.query_name == "InDels":
+                    has_indels = "I" in align_seg.cigarstring or "D" in align_seg.cigarstring
 
         self.assertTrue(has_indels)
 
@@ -197,12 +194,12 @@ class TestSamtools(TestSeqUtilsSetup, unittest.TestCase):
         res = su.sam_view(self.test_sam_name, output_format="SAM")
 
         with open(res, "r") as out_sam:
-            obs = out_sam.read()
+            observed = out_sam.read()
 
-        exp = fu.FILE_NEWLINE.join(
+        expected = fu.FILE_NEWLINE.join(
             [line for line in TEST_SAM.splitlines() if not line.startswith(su.SAM_HEADER_CHAR)]) + fu.FILE_NEWLINE
 
-        self.assertEqual(obs, exp)
+        self.assertEqual(expected, observed)
 
     def test_sam_view_with_flag(self):
         """Tests the pysam.view call with a flag."""
@@ -211,12 +208,13 @@ class TestSamtools(TestSeqUtilsSetup, unittest.TestCase):
         res = su.sam_view(self.test_sam_name, None, "SAM", 0, "H")
 
         with open(res, "r") as out_sam:
-            obs = out_sam.read()
+            observed = out_sam.read()
 
-        exp = fu.FILE_NEWLINE.join(
-            [line for line in TEST_SAM.splitlines() if line.startswith(su.SAM_HEADER_CHAR)]) + fu.FILE_NEWLINE
+        # Do not copy the last header line which will have a new line added by samtools
+        expected = fu.FILE_NEWLINE.join([
+            line for line in TEST_SAM.splitlines()[0:4] if line.startswith(su.SAM_HEADER_CHAR)]) + fu.FILE_NEWLINE
 
-        self.assertEqual(obs, exp)
+        self.assertEqual(expected, observed)
 
     def test_sort_bam(self):
         """Test that we properly sort a BAM."""
@@ -247,9 +245,11 @@ class TestSamtools(TestSeqUtilsSetup, unittest.TestCase):
         res = su.sort_bam(out_bam, output_format="SAM")
 
         with open(res, "r") as outsam:
-            obs = outsam.read()
+            # Remove the newly added program header
+            observed = outsam.readlines().pop(4)
+            observed = "".join(observed)
 
-        self.assertEqual(obs, TEST_SAM)
+        self.assertEqual(observed, TEST_SAM)
 
     def test_index_bam(self):
         """Test we can create an index file on a sorted BAM."""
