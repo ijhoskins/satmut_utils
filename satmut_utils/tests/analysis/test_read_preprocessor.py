@@ -575,6 +575,8 @@ class TestConsensusDeduplicator(unittest.TestCase):
         # Create simpler mock data for certain methods
         # Select reads for various method testing
         with pysam.AlignmentFile(cls.prepoc_bam, "rb", check_sq=False) as test_af:
+            cls.test_header = test_af.header
+
             for i, read in enumerate(test_af.fetch(until_eof=True)):
                 if i == 0:
                     cls.test_align_seg_mismatches = read
@@ -611,14 +613,10 @@ class TestConsensusDeduplicator(unittest.TestCase):
         """Tests that we properly initialize positions for a dedup contig."""
 
         # 0-based start compared to SAM 1-based start
-        expected_keys = [rp.MATE_STRAND_POS_TUPLE(
+        expected = [rp.MATE_STRAND_POS_TUPLE(
             mate=su.ReadMate("R1"), strand=su.Strand("-"), pos=i, ref="CBS_pEZY3") for i in range(2289, 2289+105)]
 
-        expected_values = [np.zeros(shape=10, dtype=np.int32)] * len(expected_keys)
-
-        expected = collections.OrderedDict(zip(expected_keys, expected_values))
-
-        observed = collections.OrderedDict()
+        consensus_dict = collections.OrderedDict()
 
         test_mate_strand = rp.MATE_STRAND_POS_TUPLE(
             mate=su.ReadMate(self.test_align_seg_mismatches.is_read1),
@@ -626,18 +624,21 @@ class TestConsensusDeduplicator(unittest.TestCase):
             pos=None, ref=self.test_align_seg_mismatches.reference_name)
 
         self.cd._init_positions(align_seg=self.test_align_seg_mismatches,
-                                mate_strand=test_mate_strand, consensus_dict=observed)
+                                mate_strand=test_mate_strand, consensus_dict=consensus_dict)
+
+        # Just check the keys as checking empty arrays gives a ValueError from unittest
+        observed = list(consensus_dict.keys())
 
         self.assertEqual(expected, observed)
 
     def test_construct_cigar(self):
         """Tests construction of the CIGAR string with matches and a deletion."""
 
-        # Returns a pysam cigartuple
-        # 64M1D66M
-
-        quals = copy.copy(self.test_align_seg_del.query_alignment_qualities)
+        # Generate a consensus_quals list with None at the del position
+        quals = list(self.test_align_seg_del.query_alignment_qualities)
         quals.insert(64, None)
+
+        # Returns a pysam cigartuple
         observed = rp.ConsensusDeduplicator._construct_cigar(quals)
         expected = [(0, 64), (2, 1), (0, 66)]
         self.assertEqual(expected, observed)
@@ -671,10 +672,22 @@ class TestConsensusDeduplicator(unittest.TestCase):
         """Tests that we add read information to the consensus dictionary."""
 
         # Test that we add bases to the consensus dict and the pos dict contains the start position
-        # 64 match, 1 del, 66 match; sum is 131 ref positions
-        expected_1 = collections.OrderedDict(zip(list(range(2407, 2407+131)),
-                                                 list(self.test_align_seg_del.query_sequence)))
-        expected_2 = {2407}
+        # 64 match, 1 del, 66 match; sum is 131 ref positions in the consensus dict
+
+        dict_keys = [rp.MATE_STRAND_POS_TUPLE(
+            mate=su.ReadMate("R1"), strand=su.Strand("+"), pos=i, ref="CBS_pEZY3") for i in range(2397, 2397 + 131)]
+
+        dict_values = [np.zeros(shape=10, dtype=np.int32)] * 130
+
+        for i, base in enumerate(self.test_align_seg_del.query_sequence):
+            idx = self.cd._index_from_base(base)
+            dict_values[i][idx] += 1
+
+        # Finally insert the del base into the consensus dict
+        dict_values.insert(64, np.zeros(shape=10, dtype=np.int32))
+
+        expected_1 = collections.OrderedDict(zip(dict_keys, dict_values))
+        expected_2 = {2397}
 
         consensus_dict = collections.OrderedDict()
         pos_set = set()
@@ -704,8 +717,8 @@ class TestConsensusDeduplicator(unittest.TestCase):
         r"""Tests that a consensus base at a position is called as the reference base with two supporting bases and \
          only one matching the reference base."""
 
-        # The two BQs are 39 and 40, with int() taking the floor of the mean
-        expected = ("A", 39)
+        # The read with the base matching the reference has BQ 40
+        expected = ("A", 40)
 
         consensus_dict = collections.OrderedDict()
         pos_set = set()
@@ -763,7 +776,7 @@ class TestConsensusDeduplicator(unittest.TestCase):
 
         # Write the consensus read
         with tempfile.NamedTemporaryFile(suffix=".consensus.bam") as consensus_bam, \
-                pysam.AlignmentFile(consensus_bam, "wb") as consensus_af:
+                pysam.AlignmentFile(consensus_bam, mode="wb", header=self.test_header) as consensus_af:
 
             self.cd._write_consensus(consensus_af, consensus_dict, pos_set, "10000001_R1")
             fu.flush_files((consensus_bam,))
@@ -793,7 +806,7 @@ class TestConsensusDeduplicator(unittest.TestCase):
 
         # Write the consensus read
         with tempfile.NamedTemporaryFile(suffix=".consensus.bam") as consensus_bam, \
-                pysam.AlignmentFile(consensus_bam, "wb") as consensus_af:
+                pysam.AlignmentFile(consensus_bam, mode="wb", header=self.test_header) as consensus_af:
 
             self.cd._write_consensus(consensus_af, consensus_dict, pos_set, "10015877_R1")
             fu.flush_files((consensus_bam,))

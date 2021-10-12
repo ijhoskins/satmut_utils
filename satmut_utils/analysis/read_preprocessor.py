@@ -839,7 +839,7 @@ class ConsensusDeduplicator(object):
     def _construct_cigar(consensus_quals):
         """Generates a cigartuples list for read creation.
 
-        :param list consensus_quals: BQs for the consensus, with
+        :param list consensus_quals: BQs for the consensus, with None for del positions
         :return list: list for assignment to pysam.AlignedSegment.cigartuples attribute
         """
 
