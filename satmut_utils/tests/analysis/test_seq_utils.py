@@ -66,18 +66,18 @@ class TestSeqUtilsSetup(object):
         cls.tempdir = tempfile.mkdtemp()
         cls.test_dir = os.path.dirname(__file__)
         cls.test_data_dir = os.path.abspath(os.path.join(cls.test_dir, "..", "test_data"))
-
         cls.appris_ref_gz = os.path.join(cls.test_data_dir, cls.APPRIS_REF)
+        cls.appris_ref = os.path.join(cls.tempdir, fu.remove_extension(cls.appris_ref_gz))
 
-        with gzip.open(cls.appris_ref_gz) as appris_ref_in, \
-                tempfile.NamedTemporaryFile(suffix=".fa", delete=False) as appris_ref_out:
+        with gzip.open(cls.appris_ref_gz) as appris_ref_in, open(cls.appris_ref, "w") as appris_ref_out:
 
             for line in appris_ref_in:
                 appris_ref_out.write(line)
 
-            cls.CRCH38_chr21 = appris_ref_out.name
+            cls.GRCH38_chr21 = appris_ref_out.name
 
-        pysam.faidx(cls.CRCH38_chr21)
+        pysam.faidx(cls.GRCH38_chr21)
+        al.BowtieConfig(ref=cls.GRCH38_chr21).build_fm_index()
 
         cls.seq = "ATCGATTACG"
 
@@ -103,8 +103,7 @@ class TestSeqUtilsSetup(object):
     def tearDownClass(cls):
         """Tear down for TestSeqUtilsSetup."""
 
-        fu.safe_remove((cls.tempdir, cls.test_fasta, cls.test_bed_a, cls.test_bed_b, cls.test_sam,
-                        cls.CRCH38_chr21, cls.CRCH38_chr21 + su.FASTA_INDEX_SUFFIX), force_remove=True)
+        fu.safe_remove((cls.tempdir, cls.test_fasta, cls.test_bed_a, cls.test_bed_b, cls.test_sam,), force_remove=True)
 
 
 # Note multiple inheritance may not work with more than one non-unittest.TestCase superclass:
@@ -137,33 +136,30 @@ class TestSeqUtils(TestSeqUtilsSetup, unittest.TestCase):
         """Test for introduction of InDels in a read."""
 
         random.seed(9)
-
         wt_seq = "GGAGAAGGGCTTCGACCAGGCGCCCGTGGTGGATGAGGCGGGGGTAATCCTGGGAATGGTGACGCTTGGGAACATGCTCTCGTCCCTGCTTGCCGGGAAGGTGCA"
         indel_seq = su.introduce_indels(wt_seq, 0.03)
         fasta_lines = [">WT", wt_seq, ">InDels", indel_seq]
 
         has_indels = False
 
-        with tempfile.NamedTemporaryFile("w", suffix=".test.fa") as test_fasta, \
-                tempfile.NamedTemporaryFile("w+b", suffix=".test.bam", delete=False) as test_bam:
-
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".test.fa", delete=False) as test_fasta:
             test_fasta.write(fu.FILE_NEWLINE.join(fasta_lines) + fu.FILE_NEWLINE)
             fu.flush_files((test_fasta,))
-            test_bam_name = test_bam.name
-            
-        al.Bowtie2(f1=test_fasta.name, output_bam=test_bam_name, config=al.BowtieConfig(self.CRCH38_chr21, False, 0, "f"))
+            ba = al.Bowtie2(
+                f1=test_fasta.name, output_dir=self.tempdir, config=al.BowtieConfig(self.GRCH38_chr21, False, 0, "f"))
 
-        with pysam.AlignmentFile(test_bam.name, "rb") as af:
+        with pysam.AlignmentFile(ba.output_bam, "rb") as af:
             for align_seg in af.fetch():
                 if align_seg.query_name == "InDels":
                     has_indels = "I" in align_seg.cigarstring or "D" in align_seg.cigarstring
 
+        fu.safe_remove((ba.output_bam, fu.add_extension(ba.output_bam, su.BAM_INDEX_SUFFIX),))
         self.assertTrue(has_indels)
 
     def test_extract_seq(self):
         """Test that we properly extract sequences from the genome."""
 
-        observed = su.extract_seq("21", 43053185, 43053195, self.CRCH38_chr21).upper()
+        observed = su.extract_seq("21", 43053185, 43053195, self.GRCH38_chr21).upper()
         expected = "CCACAATTGTG"
         self.assertEqual(observed, expected)
 
