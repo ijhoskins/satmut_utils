@@ -364,19 +364,19 @@ class TestUmiExtractor(unittest.TestCase):
         cls.tileseq_r2_fastq = tempfile.NamedTemporaryFile(suffix=".tileseq.umi.R2.fastq", delete=False).name
         cls.amp_r1_fastq = tempfile.NamedTemporaryFile(suffix=".amp.umi.R1.fastq", delete=False).name
         cls.amp_r2_fastq = tempfile.NamedTemporaryFile(suffix=".amp.umi.R2.fastq", delete=False).name
-        cls.tileseq_umi_1r_fasta = tempfile.NamedTemporaryFile(suffix=".tileseq.umi.1R.fasta", delete=False).name
+        cls.tileseq_primer_1r_fasta = tempfile.NamedTemporaryFile(suffix=".tileseq.primer.1R.fasta", delete=False).name
 
         with open(cls.tileseq_r1_fastq, "w") as tileseq_r1_fh, \
                 open(cls.tileseq_r2_fastq, "w") as tileseq_r2_fh, \
                 open(cls.amp_r1_fastq, "w") as amp_r1_fh, \
                 open(cls.amp_r2_fastq, "w") as amp_r2_fh, \
-                open(cls.tileseq_umi_1r_fasta, "w") as tileseq_umi_1r_fh:
+                open(cls.tileseq_primer_1r_fasta, "w") as tileseq_umi_1r_fh:
 
             tileseq_r1_fh.write(TEST_R1_UMI_TILESEQ_FASTQ)
             tileseq_r2_fh.write(TEST_R2_UMI_TILESEQ_FASTQ)
             amp_r1_fh.write(TEST_R1_UMI_AMP_FASTQ)
             amp_r2_fh.write(TEST_R2_UMI_AMP_FASTQ)
-            tileseq_umi_1r_fh.write(TEST_R2_UMI_TILESEQ_FASTQ)
+            tileseq_umi_1r_fh.write(TILESEQ_CBS_1R_FASTA)
 
     @classmethod
     def tearDownClass(cls):
@@ -441,7 +441,7 @@ class TestUmiExtractor(unittest.TestCase):
         """Test that we can find the primer in the R2 with perfect match."""
 
         umi_extractor = rp.UMIExtractor(r1_fastq=self.tileseq_r1_fastq, r2_fastq=self.tileseq_r2_fastq,
-                                        umi_regex=TILESEQ_UMI_REGEX, primer_fasta=self.tileseq_umi_1r_fasta,
+                                        umi_regex=TILESEQ_UMI_REGEX, primer_fasta=self.tileseq_primer_1r_fasta,
                                         outdir=self.tempdir)
 
         expected = "CAGGGGCTCCTTGGCT"
@@ -453,7 +453,7 @@ class TestUmiExtractor(unittest.TestCase):
         """Test that we can find the primer in the R2 with edit distance of 2."""
 
         umi_extractor = rp.UMIExtractor(r1_fastq=self.tileseq_r1_fastq, r2_fastq=self.tileseq_r2_fastq,
-                                        umi_regex=TILESEQ_UMI_REGEX, primer_fasta=self.tileseq_umi_1r_fasta,
+                                        umi_regex=TILESEQ_UMI_REGEX, primer_fasta=self.tileseq_primer_1r_fasta,
                                         outdir=self.tempdir)
 
         expected = "CAGGGGCTCCTTGGCT"
@@ -465,7 +465,7 @@ class TestUmiExtractor(unittest.TestCase):
         """Test that we do not find a nonexistent primer in the R2."""
 
         umi_extractor = rp.UMIExtractor(r1_fastq=self.tileseq_r1_fastq, r2_fastq=self.tileseq_r2_fastq,
-                                        umi_regex=TILESEQ_UMI_REGEX, primer_fasta=self.tileseq_umi_1r_fasta,
+                                        umi_regex=TILESEQ_UMI_REGEX, primer_fasta=self.tileseq_primer_1r_fasta,
                                         outdir=self.tempdir)
 
         expected = "".join([rp.UMIExtractor.UNKNOWN_PRIMER_CHAR] * rp.UMIExtractor.PRIMER_SEQ_LEN)
@@ -480,7 +480,7 @@ class TestUmiExtractor(unittest.TestCase):
         expected_2 = "@A00738:253:HF5HHDSX2:2:1101:13964:1063.CAGGGGCTCCTTGGCT 2:N:0:TAATGCGC+AGGCTATA"
 
         umi_extractor = rp.UMIExtractor(r1_fastq=self.tileseq_r1_fastq, r2_fastq=self.tileseq_r2_fastq,
-                                        umi_regex=TILESEQ_UMI_REGEX, primer_fasta=self.tileseq_umi_1r_fasta,
+                                        umi_regex=TILESEQ_UMI_REGEX, primer_fasta=self.tileseq_primer_1r_fasta,
                                         outdir=self.tempdir)
 
         with open(umi_extractor.r1_out_fastq, "r") as r1_out_fh, \
