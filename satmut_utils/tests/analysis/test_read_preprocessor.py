@@ -2,6 +2,7 @@
 """Tests for analysis.read_preprocessor"""
 
 import collections
+import copy
 import numpy as np
 import pysam
 import re
@@ -633,9 +634,13 @@ class TestConsensusDeduplicator(unittest.TestCase):
         """Tests construction of the CIGAR string with matches and a deletion."""
 
         # Returns a pysam cigartuple
-        res = rp.ConsensusDeduplicator._construct_cigar(self.test_align_seg_del.query_alignment_qualities)
-        expect = [(0, 6), (2, 1), (0, 63)]
-        self.assertEqual(res, expect)
+        # 64M1D66M
+
+        quals = copy.copy(self.test_align_seg_del.query_alignment_qualities)
+        quals.insert(64, None)
+        observed = rp.ConsensusDeduplicator._construct_cigar(quals)
+        expected = [(0, 64), (2, 1), (0, 66)]
+        self.assertEqual(expected, observed)
 
     def test_construct_align_seg(self):
         """Tests generation of a consensus read object from scratch."""
@@ -650,24 +655,24 @@ class TestConsensusDeduplicator(unittest.TestCase):
     def test_get_missing_base_indices(self):
         """Tests that the proper indices are returned for missing bases."""
 
-        res = self.cd._get_missing_base_indices(self.consensus_quals)
-        expect = set(list(range(9,13)))
-        self.assertEqual(res, expect)
+        observed = self.cd._get_missing_base_indices(self.consensus_quals)
+        expected = set(range(9, 13))
+        self.assertEqual(expected, observed)
 
     def test_set_missing_bases(self):
         """Tests that the proper bases are set to N."""
 
-        res = self.cd._set_missing_bases(self.consensus_seq, self.consensus_quals)
-        expect = (["A", "A", "A", "T", "T", "", "G", "G", "G", "N", "N", "N", "N", "T", "A", "A"],
+        observed = self.cd._set_missing_bases(self.consensus_seq, self.consensus_quals)
+        expected = (["A", "A", "A", "T", "T", "", "G", "G", "G", "N", "N", "N", "N", "T", "A", "A"],
                   [0,0,0,40,40,None,40,40,40,su.DEFAULT_MAX_BQ,su.DEFAULT_MAX_BQ,su.DEFAULT_MAX_BQ,su.DEFAULT_MAX_BQ,40,0,0])
-        self.assertEqual(res, expect)
+        self.assertEqual(expected, observed)
 
     def test_update_consensus_dict(self):
         """Tests that we add read information to the consensus dictionary."""
 
         # Test that we add bases to the consensus dict and the pos dict contains the start position
         # 64 match, 1 del, 66 match; sum is 131 ref positions
-        expected_1 = collections.OrderedDict(zip(list(range(2407,2407+131)),
+        expected_1 = collections.OrderedDict(zip(list(range(2407, 2407+131)),
                                                  list(self.test_align_seg_del.query_sequence)))
         expected_2 = {2407}
 
@@ -690,7 +695,7 @@ class TestConsensusDeduplicator(unittest.TestCase):
         self.cd._update_consensus_dict(self.test_align_seg_del_dup, consensus_dict, pos_set)
 
         # We have a deletion in both reads at this index
-        consensus_key, consensus_array = list(consensus_dict.items())[65]
+        consensus_key, consensus_array = list(consensus_dict.items())[64]
         observed = self.cd._get_consensus(consensus_key, consensus_array)
 
         self.assertEqual(expected, observed)
@@ -708,7 +713,7 @@ class TestConsensusDeduplicator(unittest.TestCase):
         self.cd._update_consensus_dict(self.test_align_seg_del_dup, consensus_dict, pos_set)
 
         # Here we have a mismatch
-        consensus_key, consensus_array = list(consensus_dict.items())[60]
+        consensus_key, consensus_array = list(consensus_dict.items())[59]
         observed = self.cd._get_consensus(consensus_key, consensus_array)
 
         self.assertEqual(expected, observed)
@@ -758,12 +763,12 @@ class TestConsensusDeduplicator(unittest.TestCase):
 
         # Write the consensus read
         with tempfile.NamedTemporaryFile(suffix=".consensus.bam") as consensus_bam, \
-                pysam.AlignmentFile("wb", consensus_bam) as consensus_af:
+                pysam.AlignmentFile(consensus_bam, "wb") as consensus_af:
 
             self.cd._write_consensus(consensus_af, consensus_dict, pos_set, "10000001_R1")
             fu.flush_files((consensus_bam,))
 
-            with pysam.AlignmentFile("rb", consensus_bam) as res_af:
+            with pysam.AlignmentFile(consensus_bam, "rb") as res_af:
                 for align_seg in res_af.fetch():
                     observed_1 = align_seg.query_alignment_sequence
                     observed_2 = align_seg.query_alignment_start
@@ -788,12 +793,12 @@ class TestConsensusDeduplicator(unittest.TestCase):
 
         # Write the consensus read
         with tempfile.NamedTemporaryFile(suffix=".consensus.bam") as consensus_bam, \
-                pysam.AlignmentFile("wb", consensus_bam) as consensus_af:
+                pysam.AlignmentFile(consensus_bam, "wb") as consensus_af:
 
             self.cd._write_consensus(consensus_af, consensus_dict, pos_set, "10015877_R1")
             fu.flush_files((consensus_bam,))
 
-            with pysam.AlignmentFile("rb", consensus_bam) as res_af:
+            with pysam.AlignmentFile(consensus_bam, "rb") as res_af:
                 for align_seg in res_af.fetch():
                     observed_1 = align_seg.query_alignment_sequence
                     observed_2 = align_seg.query_alignment_start

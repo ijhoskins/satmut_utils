@@ -701,7 +701,7 @@ class ConsensusDeduplicator(object):
         # Finally iterate through this list and determine which contiguous stretches exceed the threshold
         for nit in unknown_index_tuples:
             if nit.len > self.contig_del_thresh:
-                unknown_indices.add(list(range(nit.start, nit.start + nit.len)))
+                unknown_indices |= set(range(nit.start, nit.start + nit.len))
 
         return unknown_indices
 
