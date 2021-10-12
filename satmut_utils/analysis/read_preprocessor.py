@@ -1084,6 +1084,7 @@ class ReadMasker(object):
     GROUPBY_PRIMER_CONTIG_FIELD = 1
     GROUPBY_PRIMER_START_FIELD = 2
     GROUPBY_PRIMER_STOP_FIELD = 3
+    GROUPBY_DELIM = ","
     DEFAULT_OUTDIR = "."
     DEFAULT_NTHREADS = 0
 
@@ -1141,11 +1142,12 @@ class ReadMasker(object):
 
         # Use groupby to collapse the intersecting primer coordinates for each read
         groupby_cmd = ["bedtools", "groupby", "-g", str(ffu.BED_INTERSECT_WB_B_BED_NAME_OFFSET + 1),
-                       "-c", ",".join(primer_coord_fields), "-o", "distinct"]
+                       "-c", ",".join(primer_coord_fields), "-o", "collapse"]
 
         # TODO: determine if the number of fields in the read name can vary, as this could affect the sort
         # Often if we encounter improperly paired R1s/R2s during iteration in the VariantCaller, it is because
         # this sort is not working properly.
+        # TODO: make this more robust
         sort_cmd = ["sort", "-t:", "-k1,1", "-k2,2", "-k3,3", "-k4,4n", "-k5,5n", "-k6,6n", "-k7,7n"]
 
         if self.consensus_dedup:
@@ -1178,7 +1180,8 @@ class ReadMasker(object):
 
         groupby_res_split = groupby_res.rstrip(fu.FILE_NEWLINE).split(fu.FILE_DELIM)
         intersecting_qname = groupby_res_split[self.GROUPBY_QNAME_FIELD].split(self.MATE_EXT_DELIM)[0]
-        intersecting_primer_contig = [groupby_res_split[self.GROUPBY_PRIMER_CONTIG_FIELD]]
+        # Split the contig again since we use groupby -o collapse instead of -o distinct
+        intersecting_primer_contig = [groupby_res_split[self.GROUPBY_PRIMER_CONTIG_FIELD].split(self.GROUPBY_DELIM)[0]]
         intersecting_primer_starts = groupby_res_split[self.GROUPBY_PRIMER_START_FIELD].split(ffu.BED_GROUPBY_DELIM)
         intersecting_primer_stops = groupby_res_split[self.GROUPBY_PRIMER_STOP_FIELD].split(ffu.BED_GROUPBY_DELIM)
 
@@ -1296,6 +1299,7 @@ class ReadMasker(object):
         :param str qname_sorted_bam: input qname-sorted BAM
         :param str intersected_bed: input intersected with primers and groupedby
         :param file masked_bam: temporary BAM to write masked alignments to
+        :raises RuntimeError: if the qname-sort between intersection results and alignments is not the same
         """
 
         # Iterate over the reads and mask the synthetic primer regions

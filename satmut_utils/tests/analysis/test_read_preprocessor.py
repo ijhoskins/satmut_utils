@@ -838,9 +838,9 @@ class TestReadMasker(unittest.TestCase):
 
         cls.tempdir = tempfile.mkdtemp()
         cls.test_dir = os.path.dirname(__file__)
-        cls.test_data_dir = os.path.join(cls.test_dir, "test_data")
+        cls.test_data_dir = os.path.join(os.path.split(cls.test_dir)[0], "test_data")
 
-        with tempfile.NamedTemporaryFile(mode="wb", suffix=".preprocess.sam") as preproc_sam:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".preprocess.sam") as preproc_sam:
             preproc_sam.write(PREPROC_TEST_SAM)
             fu.flush_files((preproc_sam,))
             cls.prepoc_bam = su.sam_view(preproc_sam.name, "b")
@@ -851,7 +851,7 @@ class TestReadMasker(unittest.TestCase):
 
         # Select reads for various method testing
         with pysam.AlignmentFile(cls.prepoc_bam, "rb") as test_af:
-            for i, read in enumerate(test_af.fetch()):
+            for i, read in enumerate(test_af.fetch(until_eof=True)):
                 if i == 0:
                     cls.test_align_seg_r1_reverse = read
                 if i == 2:
@@ -875,7 +875,7 @@ class TestReadMasker(unittest.TestCase):
     def test_get_mask_base_indices_tileseq_r1(self):
         """Test that we return the read indices to mask for a Tile-seq R1 starting and ending at a primer start."""
 
-        expected = {list(range(0, 20)) + list(range(91, 105))}
+        expected = set(list(range(0, 20)) + list(range(91, 105)))
 
         associated_primers = {"CBS_pEZY3:2289-2309", "CBS_pEZY3:2380-2394"}
         observed = self.rm_race._get_mask_base_indices(
@@ -886,7 +886,7 @@ class TestReadMasker(unittest.TestCase):
     def test_get_mask_base_indices_tileseq_r2(self):
         """Test that we return the read indices to mask for a Tile-seq R2 starting and ending at a primer start."""
 
-        expected = {list(range(0, 20)) + list(range(91, 105))}
+        expected = set(list(range(0, 20)) + list(range(91, 105)))
 
         associated_primers = {"CBS_pEZY3:2289-2309", "CBS_pEZY3:2380-2394"}
         observed = self.rm_race._get_mask_base_indices(
@@ -897,7 +897,7 @@ class TestReadMasker(unittest.TestCase):
     def test_get_mask_base_indices_race_r1_end(self):
         """Test that we return the read indices to mask for a RACE-like R1 ending at a primer."""
 
-        expected = {range(0, 20)}
+        expected = set(range(0, 20))
 
         associated_primers = {"CBS_pEZY3:2289-2309", "CBS_pEZY3:2380-2394"}
         observed = self.rm_race._get_mask_base_indices(
@@ -908,7 +908,7 @@ class TestReadMasker(unittest.TestCase):
     def test_get_mask_base_indices_race_r2_start(self):
         """Test that we return the read indices to mask for a RACE-like R2 starting at a primer."""
 
-        expected = {range(0, 20)}
+        expected = set(range(0, 20))
 
         associated_primers = {"CBS_pEZY3:2289-2309", "CBS_pEZY3:2380-2394"}
         observed = self.rm_race._get_mask_base_indices(
@@ -960,7 +960,7 @@ class TestReadMasker(unittest.TestCase):
         # 10000001_R1 and 10015877_R1 duplicates should not have been masked with the true set of primers
         expected = {"10000004_R1", "10000004_R2", "10015877_R2"}
 
-        with tempfile.NamedTemporaryFile(suffix=".primers2.bed", delete=False) as primer_bed2:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".primers2.bed", delete=False) as primer_bed2:
             primer_bed2.write(TEST_PRIMERS)
             primer_bed2_fn = primer_bed2.name
 
