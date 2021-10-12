@@ -371,6 +371,7 @@ def call_workflow(fastq1, fastq2, r1_fiveprime_adapters, r1_threeprime_adapters,
         cdp = ConsensusDeduplicatorPreprocessor(group_bam=rg.group_bam, outdir=outdir, nthreads=nthreads)
         cd = ConsensusDeduplicator(in_bam=cdp.preprocess_bam, ref=ref_fa, outdir=outdir, out_bam=None,
                                    nthreads=nthreads, contig_del_thresh=contig_del_thresh)
+        cd.workflow()
         preproc_in_bam = cd.out_bam
 
     # Optionally run primer masking

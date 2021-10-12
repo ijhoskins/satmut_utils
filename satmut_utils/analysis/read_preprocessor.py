@@ -570,7 +570,6 @@ class ConsensusDeduplicator(object):
         self.nthreads = nthreads
         self.contig_del_thresh = contig_del_thresh
 
-        # TODO: determine if we need to specify output files
         outbam = out_bam
         if out_bam is None:
             outbam = os.path.join(outdir, fu.replace_extension(os.path.basename(in_bam), self.DEDUP_BAM_SUFFIX))
@@ -579,8 +578,6 @@ class ConsensusDeduplicator(object):
 
         self.consensus_stderr = os.path.join(
             outdir, fu.replace_extension(outbam, "%s.stderr" % self.__class__.__name__))
-
-        self._workflow()
 
     def _extract_umi_network(self, align_seg):
         """Gets the UMI network/group tag from the read name.
@@ -1063,7 +1060,7 @@ class ConsensusDeduplicator(object):
         bt = baw(f1=r1_fastq, f2=r2_fastq, ref=self.ref, outdir=self.outdir, outbam=outbam, nthreads=self.nthreads)
         return bt.output_bam
 
-    def _workflow(self):
+    def workflow(self):
         """Runs the ConsensusDeduplicator workflow."""
 
         _logger.info("Started consensus read generation workflow for %s" % self.in_bam)
