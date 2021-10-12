@@ -561,13 +561,10 @@ class TestConsensusDeduplicator(unittest.TestCase):
 
         cls.tempdir = tempfile.mkdtemp()
         cls.test_dir = os.path.dirname(__file__)
-        cls.test_data_dir = os.path.join(cls.test_dir, "test_data")
+        cls.test_data_dir = os.path.join(os.path.split(cls.test_dir)[0], "test_data")
+        cls.ref = os.path.join(cls.test_data_dir, "CBS_pEZY3.fa")
 
-        cls.ref = os.path.join(cls.tempdir, "CBS_pEZY3.fa")
-        if not os.path.exists(fu.add_extension(cls.ref, su.FASTA_INDEX_SUFFIX)):
-            pysam.faidx(cls.ref)
-
-        with tempfile.NamedTemporaryFile(mode="wb", suffix=".preprocess.sam") as preproc_sam:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".preprocess.sam") as preproc_sam:
             preproc_sam.write(PREPROC_TEST_SAM)
             fu.flush_files((preproc_sam,))
             cls.prepoc_bam = su.sam_view(preproc_sam.name, "b")

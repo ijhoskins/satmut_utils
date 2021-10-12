@@ -1012,9 +1012,11 @@ class ConsensusDeduplicator(object):
                 pysam.AlignmentFile(self.in_bam, "rb") as in_af:
 
             # We are adding a tag so update the header
-            in_af.header.add_line(vu.VCF_INFO_HEADER_FORMAT.format(*(vu.VCF_ND_ID, 1, "Integer", "Number duplicates.")))
+            af_header = in_af.header.to_dict()
+            af_header[su.SAM_CO_HEADER] = "%s: Number PCR duplicates." % vu.VCF_ND_ID
+            new_header = pysam.AlignmentHeader.from_dict(af_header)
 
-            with pysam.AlignmentFile(dedup_bam, "wb", template=in_af) as out_af:
+            with pysam.AlignmentFile(dedup_bam, "wb", header=new_header) as out_af:
 
                 last_umi_network = "No_UMI"
 
