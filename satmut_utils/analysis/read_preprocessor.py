@@ -721,14 +721,14 @@ class ConsensusDeduplicator(object):
         consensus_seq_update = []
         consensus_quals_update = []
 
-        for i, e in enumerate(consensus_seq):
+        for i, (base, bq) in enumerate(zip(consensus_seq, consensus_quals)):
 
             if i in unknown_indices:
                 consensus_seq_update.append(su.UNKNOWN_BASE)
                 consensus_quals_update.append(su.DEFAULT_MAX_BQ)
             else:
-                consensus_seq_update.append(e)
-                consensus_quals_update.append(e)
+                consensus_seq_update.append(base)
+                consensus_quals_update.append(bq)
 
         return consensus_seq_update, consensus_quals_update
 
