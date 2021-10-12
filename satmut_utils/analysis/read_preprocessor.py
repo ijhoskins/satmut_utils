@@ -256,7 +256,7 @@ class UMIExtractor(object):
             if primer_re.search(exp_primer.upper()):
                 # We ought to return a sequence ID as this is more complex than primer names, which could differ
                 # by as few as 1 character
-                primer_id = primer_seq[:self.PRIMER_SEQ_LEN]
+                primer_id = primer_seq[-self.PRIMER_SEQ_LEN:]
                 return primer_id
         else:
             # It'd be nice to just append None, but umitools extract

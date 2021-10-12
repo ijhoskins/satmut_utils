@@ -96,7 +96,7 @@ NNNNNGTGAGCTCTTGGCCAAGTGACTCCTGGCGGTTCGCCCATAAGATCGGAAGAGCGTCGTGTAGGGAAAGAGTGTTA
 #####<<<C@?C@FG1<CGEHIIIIIIIHHIIHH?EE1FHHHHHHE@GHCHEEED?@HHHID/DDF?HIGHHIIHEC<F@F<FF1<C11111111111<1<</<111<1/<<D0<1<1CGHII//<</<CG0000=/<<<DDH/F/=//=/
 """
 
-GROUP_TEST_BAM = """@HD	VN:1.0	SO:queryname
+GROUP_TEST_SAM = """@HD	VN:1.0	SO:queryname
 @SQ	SN:CBS_pEZY3	LN:7108
 @RG	ID:CBS1_35_comb_R
 @PG	ID:bowtie2	PN:bowtie2	VN:2.4.2	CL:"/home/ihoskins/miniconda3/envs/CBS_variants/bin/bowtie2-align-s --wrapper basic-0 -p 5 --maxins 1000 --no-discordant --fr --mp 4 --rdg 6,4 --rfg 6,4 --local --rg-id CBS1_35_comb_R -x /home/ihoskins/reference_files/CBS_pEZY3.fa -1 /scratch/users/ihoskins/CBS_02APR2020/pEZY3_default_dedup/CBS1_35_comb_R1.umi.trimmed.fq -2 /scratch/users/ihoskins/CBS_02APR2020/pEZY3_default_dedup/CBS1_35_comb_R2.umi.trimmed.fq"
@@ -106,7 +106,7 @@ MG01HS02:1483:HG7MTBCX3:1:1101:1225:82159_TTTTTCTA	83	CBS_pEZY3	1302	44	130M	=	1
 MG01HS02:1483:HG7MTBCX3:1:1101:1225:82159_TTTTTCTA	163	CBS_pEZY3	1286	44	10S141M	=	1302	156	NNNNNNNGNNCNCTTGGCCAAGTGNGAGTNCTTCANCGCGGGCGGGAGCGTGAAGGACCGCATCAGCCTGCGGATGATTGAGGATGCTGAGCGCGACGGGACGCTGAAGCCCGGGGACACGATTATCGAGCCGACATCCGGGAACACCGGG	#######<##<#<<CEHIIIIIHG#<<EH#<<GHI#<<DHHIIIIHHHIICHIIIHIIHHHHHHIIIIHIIIIHHH1DHHHIHCH?HHEHHHICHHHHHIICHHHHHIIHIIIIIDEHHIIIIIIIFHHIIHHHIIGHIIIGHHHHH/DEH	AS:i:270	XN:i:0	XM:i:4	XO:i:0	XG:i:0	NM:i:4	MD:Z:1T12T4T5A115	YS:i:254	YT:Z:CP	RG:Z:CBS1_35_comb_R
 """
 
-PREPROC_TEST_BAM = """@HD	VN:1.0	SO:unknown
+PREPROC_TEST_SAM = """@HD	VN:1.0	SO:unknown
 @SQ	SN:CBS_pEZY3	LN:7108
 @RG	ID:CBS1_35_comb_R
 @PG	ID:bowtie2	PN:bowtie2	VN:2.4.2	CL:"/home/ihoskins/miniconda3/envs/CBS_variants/bin/bowtie2-align-s --wrapper basic-0 -p 5 --maxins 1000 --no-discordant --fr --mp 4 --rdg 6,4 --rfg 6,4 --local --rg-id CBS1_35_comb_R -x /home/ihoskins/reference_files/CBS_pEZY3.fa -1 /scratch/users/ihoskins/CBS_02APR2020/pEZY3_default_dedup/CBS1_35_comb_R1.umi.trimmed.fq -2 /scratch/users/ihoskins/CBS_02APR2020/pEZY3_default_dedup/CBS1_35_comb_R2.umi.trimmed.fq"
@@ -444,8 +444,8 @@ class TestUmiExtractor(unittest.TestCase):
                                         umi_regex=TILESEQ_UMI_REGEX, primer_fasta=self.tileseq_umi_1r_fasta,
                                         outdir=self.tempdir)
 
-        expected = TILESEQ_CBS_1R_FASTA[0:16]
-        observed = umi_extractor.get_orig_r2_primer(r2_seq=TEST_R2_UMI_TILESEQ_FASTQ)
+        expected = "CAGGGGCTCCTTGGCT"
+        observed = umi_extractor.get_orig_r2_primer(r2_seq=TEST_R2_UMI_TILESEQ_FASTQ.splitlines()[1])
 
         self.assertEqual(expected, observed)
 
@@ -456,8 +456,8 @@ class TestUmiExtractor(unittest.TestCase):
                                         umi_regex=TILESEQ_UMI_REGEX, primer_fasta=self.tileseq_umi_1r_fasta,
                                         outdir=self.tempdir)
 
-        expected = TILESEQ_CBS_1R_FASTA[0:16]
-        observed = umi_extractor.get_orig_r2_primer(r2_seq=TEST_R2_UMI_TILESEQ_PRIMER_ERROR_FASTQ)
+        expected = "CAGGGGCTCCTTGGCT"
+        observed = umi_extractor.get_orig_r2_primer(r2_seq=TEST_R2_UMI_TILESEQ_PRIMER_ERROR_FASTQ.splitlines()[1])
 
         self.assertEqual(expected, observed)
 
@@ -476,8 +476,8 @@ class TestUmiExtractor(unittest.TestCase):
     def test_append_primer_name(self):
         """Tests that primers are appended to R1 and R2 names."""
 
-        expected_1 = "@A00738:253:HF5HHDSX2:2:1101:13964:1063.CACAGGGGCTCCTTGG 1:N:0:TAATGCGC+AGGCTATA"
-        expected_2 = "@A00738:253:HF5HHDSX2:2:1101:13964:1063.CACAGGGGCTCCTTGG 2:N:0:TAATGCGC+AGGCTATA"
+        expected_1 = "@A00738:253:HF5HHDSX2:2:1101:13964:1063.CAGGGGCTCCTTGGCT 1:N:0:TAATGCGC+AGGCTATA"
+        expected_2 = "@A00738:253:HF5HHDSX2:2:1101:13964:1063.CAGGGGCTCCTTGGCT 2:N:0:TAATGCGC+AGGCTATA"
 
         umi_extractor = rp.UMIExtractor(r1_fastq=self.tileseq_r1_fastq, r2_fastq=self.tileseq_r2_fastq,
                                         umi_regex=TILESEQ_UMI_REGEX, primer_fasta=self.tileseq_umi_1r_fasta,
@@ -491,15 +491,11 @@ class TestUmiExtractor(unittest.TestCase):
                 # Test that the UMI has moved to the qname
                 if i == 0:
                     test_1 = r1_line.strip(fu.FILE_NEWLINE) == expected_1
-                    test_2 = r2_line.strip(fu.FILE_NEWLINE) == expected_1
+                    test_2 = r2_line.strip(fu.FILE_NEWLINE) == expected_2
 
-                # Test that the UMI sequence and adjacent adapter sequence were trimmed
-                if i == 1:
-                    test_3 = r1_line.strip(fu.FILE_NEWLINE) == expected_1
-                    test_4 = r2_line.strip(fu.FILE_NEWLINE) == expected_1
-                    break
+                break
 
-        self.assertTrue(all((test_1, test_2, test_3, test_4)))
+        self.assertTrue(all((test_1, test_2,)))
 
 # Skip testing ReadGrouper and ReadDeduplicator as these are wrappers of umi_tools
 
@@ -513,8 +509,8 @@ class TestConsensusDeduplicatorPreprocessor(unittest.TestCase):
 
         cls.tempdir = tempfile.mkdtemp()
 
-        with tempfile.NamedTemporaryFile(mode="wb", suffix=".group.sam") as group_sam:
-            group_sam.write(GROUP_TEST_BAM)
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".group.sam") as group_sam:
+            group_sam.write(GROUP_TEST_SAM)
             fu.flush_files((group_sam,))
             cls.grouped_bam = su.sam_view(group_sam.name, "b")
 
@@ -522,7 +518,7 @@ class TestConsensusDeduplicatorPreprocessor(unittest.TestCase):
     def tearDownClass(cls):
         """Tear down for TestConsensusDeduplicator."""
 
-        fu.safe_remove((cls.tempdir,), force_remove=True)
+        fu.safe_remove((cls.tempdir, cls.grouped_bam,), force_remove=True)
 
     def test_update_tags(self):
         """Tests that we properly update the tags in a grouped BAM with only R1 marked with group tag."""
@@ -577,7 +573,7 @@ class TestConsensusDeduplicator(unittest.TestCase):
             pysam.faidx(cls.ref)
 
         with tempfile.NamedTemporaryFile(mode="wb", suffix=".preprocess.sam") as preproc_sam:
-            preproc_sam.write(PREPROC_TEST_BAM)
+            preproc_sam.write(PREPROC_TEST_SAM)
             fu.flush_files((preproc_sam,))
             cls.prepoc_bam = su.sam_view(preproc_sam.name, "b")
 
@@ -853,7 +849,7 @@ class TestReadMasker(unittest.TestCase):
         cls.test_data_dir = os.path.join(cls.test_dir, "test_data")
 
         with tempfile.NamedTemporaryFile(mode="wb", suffix=".preprocess.sam") as preproc_sam:
-            preproc_sam.write(PREPROC_TEST_BAM)
+            preproc_sam.write(PREPROC_TEST_SAM)
             fu.flush_files((preproc_sam,))
             cls.prepoc_bam = su.sam_view(preproc_sam.name, "b")
 
