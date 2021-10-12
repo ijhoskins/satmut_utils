@@ -234,7 +234,8 @@ class TestSamtools(TestSeqUtilsSetup, unittest.TestCase):
                 else:
                     body_lines.append(sam_line)
 
-            unsorted_lines = header_lines + body_lines.reverse()
+            body_lines.reverse()
+            unsorted_lines = header_lines + body_lines
             test_unsorted_sam.write(fu.FILE_NEWLINE.join(unsorted_lines) + fu.FILE_NEWLINE)
             out_sam = test_unsorted_sam.name
 
@@ -246,13 +247,12 @@ class TestSamtools(TestSeqUtilsSetup, unittest.TestCase):
 
         with open(res, "r") as outsam:
             for i, line in enumerate(outsam):
-                if i == 5:
+                if i == 6:
                     start_pos = int(line.split(fu.FILE_DELIM)[3])
-                if i == 14:
+                if i == 15:
                     end_pos = int(line.split(fu.FILE_DELIM)[3])
 
         fu.safe_remove((out_sam, out_bam, res), force_remove=True)
-
         self.assertTrue(start_pos < end_pos)
 
     def test_index_bam(self):
