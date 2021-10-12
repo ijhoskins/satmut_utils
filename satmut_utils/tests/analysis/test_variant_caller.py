@@ -62,8 +62,8 @@ class TestVariantCaller(unittest.TestCase):
         cls.primer_bed = os.path.join(cls.test_data_dir, cls.PRIMERS)
         cls.target_bed = os.path.join(cls.test_data_dir, cls.TARGETS)
 
-        with tempfile.NamedTemporaryFile(mode="wb", suffix=".test.sam") as test_sam, \
-                tempfile.NamedTemporaryFile(mode="wb", suffix=".test.sam") as test_invalid_sam:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".test.sam") as test_sam, \
+                tempfile.NamedTemporaryFile(mode="w", suffix=".test.sam") as test_invalid_sam:
 
             test_sam.write(TEST_SAM)
             fu.flush_files((test_sam,))
