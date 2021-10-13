@@ -709,9 +709,9 @@ class TestConsensusDeduplicator(unittest.TestCase):
         expected = ("", None)
 
         consensus_dict = collections.OrderedDict()
-        pos_set = set()
-        self.cd._update_consensus_dict(self.test_align_seg_del, consensus_dict, pos_set)
-        self.cd._update_consensus_dict(self.test_align_seg_del_dup, consensus_dict, pos_set)
+        pos_list = []
+        self.cd._update_consensus_dict(self.test_align_seg_del, consensus_dict, pos_list)
+        self.cd._update_consensus_dict(self.test_align_seg_del_dup, consensus_dict, pos_list)
 
         # We have a deletion in both reads at this index
         consensus_key, consensus_array = list(consensus_dict.items())[64]
@@ -727,9 +727,9 @@ class TestConsensusDeduplicator(unittest.TestCase):
         expected = ("A", 40)
 
         consensus_dict = collections.OrderedDict()
-        pos_set = set()
-        self.cd._update_consensus_dict(self.test_align_seg_del, consensus_dict, pos_set)
-        self.cd._update_consensus_dict(self.test_align_seg_del_dup, consensus_dict, pos_set)
+        pos_list = []
+        self.cd._update_consensus_dict(self.test_align_seg_del, consensus_dict, pos_list)
+        self.cd._update_consensus_dict(self.test_align_seg_del_dup, consensus_dict, pos_list)
 
         # Here we have a mismatch
         consensus_key, consensus_array = list(consensus_dict.items())[59]
@@ -745,10 +745,10 @@ class TestConsensusDeduplicator(unittest.TestCase):
         expected = ("G", 40)
 
         consensus_dict = collections.OrderedDict()
-        pos_set = set()
-        self.cd._update_consensus_dict(self.test_align_seg_del, consensus_dict, pos_set)
-        self.cd._update_consensus_dict(self.test_align_seg_del_dup, consensus_dict, pos_set)
-        self.cd._update_consensus_dict(self.test_align_seg_del_dup_minority_call, consensus_dict, pos_set)
+        pos_list = []
+        self.cd._update_consensus_dict(self.test_align_seg_del, consensus_dict, pos_list)
+        self.cd._update_consensus_dict(self.test_align_seg_del_dup, consensus_dict, pos_list)
+        self.cd._update_consensus_dict(self.test_align_seg_del_dup_minority_call, consensus_dict, pos_list)
 
         # Here we have a mismatch
         consensus_key, consensus_array = list(consensus_dict.items())[91]
@@ -776,15 +776,15 @@ class TestConsensusDeduplicator(unittest.TestCase):
         expected_3 = 2
 
         consensus_dict = collections.OrderedDict()
-        pos_set = set()
-        self.cd._update_consensus_dict(self.test_align_seg_mismatches, consensus_dict, pos_set)
-        self.cd._update_consensus_dict(self.test_align_seg_clean, consensus_dict, pos_set)
+        pos_list = []
+        self.cd._update_consensus_dict(self.test_align_seg_mismatches, consensus_dict, pos_list)
+        self.cd._update_consensus_dict(self.test_align_seg_clean, consensus_dict, pos_list)
 
         # Write the consensus read
         with tempfile.NamedTemporaryFile(suffix=".consensus.bam", delete=False) as consensus_bam, \
                 pysam.AlignmentFile(consensus_bam, mode="wb", header=self.test_header) as consensus_af:
 
-            self.cd._write_consensus(consensus_af, consensus_dict, pos_set, "10000001_R1")
+            self.cd._write_consensus(consensus_af, consensus_dict, pos_list, "10000001_R1")
             consensus_bam_name = consensus_bam.name
 
         with pysam.AlignmentFile(consensus_bam_name, "rb") as res_af:
@@ -818,10 +818,12 @@ class TestConsensusDeduplicator(unittest.TestCase):
             consensus_bam_name = consensus_bam.name
 
         with pysam.AlignmentFile(consensus_bam_name, "rb") as res_af:
-            for align_seg in res_af.fetch():
+            for align_seg in res_af.fetch(until_eof=True):
                 observed_1 = align_seg.query_alignment_sequence
                 observed_2 = align_seg.query_alignment_start
                 observed_3 = align_seg.get_tag(self.cd.N_DUPLICATES_TAG)
+
+        fu.safe_remove((consensus_bam_name,))
 
         test_res = [expected_1 == observed_1, expected_2 == observed_2, expected_3 == observed_3]
 
@@ -845,8 +847,8 @@ class TestConsensusDeduplicator(unittest.TestCase):
 
         observed_1 = []
         observed_2 = []
-        with pysam.AlignmentFile("rb", consensus_bam) as consensus_af:
-            for align_seg in consensus_af.fetch():
+        with pysam.AlignmentFile(consensus_bam, "rb") as consensus_af:
+            for align_seg in consensus_af.fetch(until_eof=True):
                 observed_1.append(align_seg.query_alignment_sequence)
                 observed_2.append(align_seg.query_name)
 
