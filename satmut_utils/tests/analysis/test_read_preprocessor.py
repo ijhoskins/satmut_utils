@@ -510,7 +510,7 @@ class TestConsensusDeduplicatorPreprocessor(unittest.TestCase):
         with tempfile.NamedTemporaryFile(mode="w", suffix=".group.sam") as group_sam:
             group_sam.write(GROUP_TEST_SAM)
             fu.flush_files((group_sam,))
-            cls.grouped_bam = su.sam_view(group_sam.name, "b")
+            cls.grouped_bam = su.sam_view(group_sam.name, None, "BAM", 0, "b")
 
     @classmethod
     def tearDownClass(cls):
@@ -570,7 +570,7 @@ class TestConsensusDeduplicator(unittest.TestCase):
         with tempfile.NamedTemporaryFile(mode="w", suffix=".preprocess.sam") as preproc_sam:
             preproc_sam.write(PREPROC_TEST_SAM)
             fu.flush_files((preproc_sam,))
-            cls.prepoc_bam = su.sam_view(preproc_sam.name, "b")
+            cls.prepoc_bam = su.sam_view(preproc_sam.name, None, "BAM", 0, "b")
 
         cls.cd = rp.ConsensusDeduplicator(in_bam=cls.prepoc_bam, ref=cls.ref, outdir=cls.tempdir, contig_del_thresh=3)
 
@@ -873,7 +873,7 @@ class TestReadMasker(unittest.TestCase):
         with tempfile.NamedTemporaryFile(mode="w", suffix=".preprocess.sam") as preproc_sam:
             preproc_sam.write(PREPROC_TEST_SAM)
             fu.flush_files((preproc_sam,))
-            cls.preproc_bam = su.sam_view(preproc_sam.name, "b")
+            cls.preproc_bam = su.sam_view(preproc_sam.name, None, "BAM", 0, "b")
 
         with tempfile.NamedTemporaryFile(mode="w", suffix=".primers.bed", delete=False) as primer_bed:
             primer_bed.write(MASKING_TEST_PRIMERS)
@@ -900,7 +900,7 @@ class TestReadMasker(unittest.TestCase):
     def tearDownClass(cls):
         """Tear down for TestReadMasker."""
 
-        fu.safe_remove((cls.tempdir, cls.prepoc_bam, cls.primer_bed,), force_remove=True)
+        fu.safe_remove((cls.tempdir, cls.preproc_bam, cls.primer_bed,), force_remove=True)
 
     def test_get_mask_base_indices_tileseq_r1(self):
         """Test that we return the read indices to mask for a Tile-seq R1 starting and ending at a primer start."""

@@ -1079,7 +1079,7 @@ class ReadMasker(object):
     GROUPBY_PRIMER_CONTIG_FIELD = 1
     GROUPBY_PRIMER_START_FIELD = 2
     GROUPBY_PRIMER_STOP_FIELD = 3
-    GROUPBY_PRIMER_STRAND_FIELD = 6
+    GROUPBY_PRIMER_STRAND_FIELD = 4
     GROUPBY_DELIM = ","
     DEFAULT_OUTDIR = "."
     DEFAULT_NTHREADS = 0
@@ -1269,13 +1269,13 @@ class ReadMasker(object):
                                           (read_strand != primer_tuple.strand and read_strand == su.Strand.PLUS)):
 
                 # Mask from index of 3' end of primer to end of read (read length)
-                base_indices_to_mask += list(range(threeprime_read_index, align_seg.query_length + 1))
+                base_indices_to_mask += list(range(threeprime_read_index, align_seg.query_length))
 
             # For RACE-like (e.g. AMP) chemistry make sure the 5' end of a R1 is never masked
             if self.is_race_like and read_mate == su.ReadMate.R1 and read_strand != primer_tuple.strand:
 
                 if read_strand == su.Strand.PLUS and primer_fiveprime_coord == ref_pos_end:
-                    base_indices_to_mask += list(range(threeprime_read_index, align_seg.query_length + 1))
+                    base_indices_to_mask += list(range(threeprime_read_index, align_seg.query_length))
 
                 if read_strand == su.Strand.MINUS and primer_fiveprime_coord == ref_pos_start:
                     base_indices_to_mask += list(range(0, threeprime_read_index + 1))
@@ -1287,7 +1287,7 @@ class ReadMasker(object):
                     base_indices_to_mask += list(range(0, threeprime_read_index + 1))
 
                 if read_strand == su.Strand.MINUS and primer_fiveprime_coord == ref_pos_end:
-                    base_indices_to_mask += list(range(threeprime_read_index, align_seg.query_length + 1))
+                    base_indices_to_mask += list(range(threeprime_read_index, align_seg.query_length))
 
         return set(base_indices_to_mask)
 
