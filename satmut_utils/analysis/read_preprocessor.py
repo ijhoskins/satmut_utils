@@ -321,6 +321,9 @@ class UMIExtractor(object):
         _logger.info("Extracting UMIs for %s." % self.common_basename)
         self._umitools_extract(r1_fastq=r1_fq, r2_fastq=r2_fq)
 
+        if self.prepend_primer:
+            fu.safe_remove((r1_fq, r2_fq,))
+
         _logger.info("Completed UMI extraction workflow.")
 
 

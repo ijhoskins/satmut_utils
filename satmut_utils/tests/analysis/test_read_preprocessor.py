@@ -380,7 +380,8 @@ class TestUmiExtractor(unittest.TestCase):
     def tearDownClass(cls):
         """Tear down for TestUmiExtractor."""
 
-        fu.safe_remove((cls.tempdir, cls.tileseq_r1_fastq, cls.tileseq_r2_fastq, cls.amp_r1_fastq, cls.amp_r2_fastq),
+        fu.safe_remove((cls.tempdir, cls.tileseq_r1_fastq, cls.tileseq_r2_fastq, cls.amp_r1_fastq, cls.amp_r2_fastq,
+                        cls.tileseq_primer_1r_fasta),
                        force_remove=True)
 
     def test_umitools_extract_tileseq(self):
@@ -474,8 +475,8 @@ class TestUmiExtractor(unittest.TestCase):
     def test_append_primer_name(self):
         """Tests that primers are appended to R1 and R2 names."""
 
-        expected_1 = "@A00738:253:HF5HHDSX2:2:1101:13964:1063.CAGGGGCTCCTTGGCT 1:N:0:TAATGCGC+AGGCTATA"
-        expected_2 = "@A00738:253:HF5HHDSX2:2:1101:13964:1063.CAGGGGCTCCTTGGCT 2:N:0:TAATGCGC+AGGCTATA"
+        expected_1 = "@A00738:253:HF5HHDSX2:2:1101:13964:1063.CAGGGGCTCCTTGGCT_GCTCGGCG 1:N:0:TAATGCGC+AGGCTATA"
+        expected_2 = "@A00738:253:HF5HHDSX2:2:1101:13964:1063.CAGGGGCTCCTTGGCT_GCTCGGCG 2:N:0:TAATGCGC+AGGCTATA"
 
         umi_extractor = rp.UMIExtractor(r1_fastq=self.tileseq_r1_fastq, r2_fastq=self.tileseq_r2_fastq,
                                         umi_regex=TILESEQ_UMI_REGEX, primer_fasta=self.tileseq_primer_1r_fasta,
@@ -492,6 +493,7 @@ class TestUmiExtractor(unittest.TestCase):
                     test_2 = r2_line.strip(fu.FILE_NEWLINE) == expected_2
 
                 break
+
 
         self.assertTrue(all((test_1, test_2,)))
 
@@ -570,13 +572,13 @@ class TestConsensusDeduplicator(unittest.TestCase):
         with tempfile.NamedTemporaryFile(mode="w", suffix=".preprocess.sam") as preproc_sam:
             preproc_sam.write(PREPROC_TEST_SAM)
             fu.flush_files((preproc_sam,))
-            cls.prepoc_bam = su.sam_view(preproc_sam.name, None, "BAM", 0, "b")
+            cls.preproc_bam = su.sam_view(preproc_sam.name, None, "BAM", 0, "b")
 
-        cls.cd = rp.ConsensusDeduplicator(in_bam=cls.prepoc_bam, ref=cls.ref, outdir=cls.tempdir, contig_del_thresh=3)
+        cls.cd = rp.ConsensusDeduplicator(in_bam=cls.preproc_bam, ref=cls.ref, outdir=cls.tempdir, contig_del_thresh=3)
 
         # Create simpler mock data for certain methods
         # Select reads for various method testing
-        with pysam.AlignmentFile(cls.prepoc_bam, "rb", check_sq=False) as test_af:
+        with pysam.AlignmentFile(cls.preproc_bam, "rb", check_sq=False) as test_af:
             cls.test_header = test_af.header
 
             for i, read in enumerate(test_af.fetch(until_eof=True)):
@@ -896,11 +898,19 @@ class TestReadMasker(unittest.TestCase):
         cls.rm_race = rp.ReadMasker(
             in_bam=cls.preproc_bam, feature_file=cls.primer_bed, is_race_like=True, outdir=cls.tempdir)
 
+        #
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".primers2.bed", delete=False) as primer_bed2:
+            primer_bed2.write(TEST_PRIMERS)
+            cls.primer_bed2 = primer_bed2.name
+
+        cls.rm_normal = rp.ReadMasker(
+            in_bam=cls.preproc_bam, feature_file=cls.primer_bed2, is_race_like=True, outdir=cls.tempdir)
+
     @classmethod
     def tearDownClass(cls):
         """Tear down for TestReadMasker."""
 
-        fu.safe_remove((cls.tempdir, cls.preproc_bam, cls.primer_bed,), force_remove=True)
+        fu.safe_remove((cls.tempdir, cls.preproc_bam, cls.primer_bed, cls.primer_bed2,), force_remove=True)
 
     def test_get_mask_base_indices_tileseq_r1(self):
         """Test that we return the read indices to mask for a Tile-seq R1 starting and ending at a primer start."""
@@ -1010,20 +1020,13 @@ class TestReadMasker(unittest.TestCase):
         # 10000001_R1 and 10015877_R1 duplicates should not have been masked with the true set of primers
         expected = {"10000004_R1", "10000004_R2", "10015877_R2"}
 
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".primers2.bed", delete=False) as primer_bed2:
-            primer_bed2.write(TEST_PRIMERS)
-            primer_bed2_fn = primer_bed2.name
-
-        rm = rp.ReadMasker(in_bam=self.preproc_bam, feature_file=primer_bed2_fn, is_race_like=True, outdir=self.tempdir)
-        rm.workflow()
+        self.rm_normal.workflow()
 
         observed = set()
-        with pysam.AlignmentFile(rm.out_bam, "rb") as test_af:
+        with pysam.AlignmentFile(self.rm_normal.out_bam, "rb") as test_af:
             for align_seg in test_af.fetch(until_eof=True):
                 if 0 in set(align_seg.query_qualities):
                     observed.add(align_seg.get_tag(rp.UMITOOLS_UG_TAG))
-
-        fu.safe_remove((primer_bed2_fn,))
 
         self.assertEqual(0, len(expected - observed))
 
