@@ -1079,6 +1079,7 @@ class ReadMasker(object):
     GROUPBY_PRIMER_CONTIG_FIELD = 1
     GROUPBY_PRIMER_START_FIELD = 2
     GROUPBY_PRIMER_STOP_FIELD = 3
+    GROUPBY_PRIMER_STRAND_FIELD = 6
     GROUPBY_DELIM = ","
     DEFAULT_OUTDIR = "."
     DEFAULT_NTHREADS = 0
@@ -1111,6 +1112,9 @@ class ReadMasker(object):
         self.primer_stop_offset = ffu.BED_INTERSECT_WB_B_BED_STOP_OFFSET if self.feature_file_type == ffu.BED_FILETYPE \
             else ffu.BED_INTERSECT_WB_B_GFF_STOP_OFFSET
 
+        self.primer_strand_offset = ffu.BED_INTERSECT_WB_B_BED_STRAND_OFFSET if self.feature_file_type == ffu.BED_FILETYPE \
+            else ffu.BED_INTERSECT_WB_B_GFF_STRAND_OFFSET
+
         # Store primer coordinates
         self.primer_info = ffu.store_coords(
             feature_file=feature_file, feature_slop=0, primer_allowable=True, use_name=False)
@@ -1127,7 +1131,8 @@ class ReadMasker(object):
         # of fields from the read portion (-wa) of the results
         primer_coord_fields = [ffu.BED_INTERSECT_WB_READ_NFIELDS,
                                ffu.BED_INTERSECT_WB_READ_NFIELDS + self.primer_start_offset,
-                               ffu.BED_INTERSECT_WB_READ_NFIELDS + self.primer_stop_offset]
+                               ffu.BED_INTERSECT_WB_READ_NFIELDS + self.primer_stop_offset,
+                               ffu.BED_INTERSECT_WB_READ_NFIELDS + self.primer_strand_offset]
 
         # Need 1-based field numbers for bedtools groupby
         primer_coord_fields = [str(e + 1) for e in primer_coord_fields]
@@ -1176,13 +1181,14 @@ class ReadMasker(object):
         intersecting_primer_contig = [groupby_res_split[self.GROUPBY_PRIMER_CONTIG_FIELD].split(self.GROUPBY_DELIM)[0]]
         intersecting_primer_starts = groupby_res_split[self.GROUPBY_PRIMER_START_FIELD].split(ffu.BED_GROUPBY_DELIM)
         intersecting_primer_stops = groupby_res_split[self.GROUPBY_PRIMER_STOP_FIELD].split(ffu.BED_GROUPBY_DELIM)
+        intersecting_primer_strands = groupby_res_split[self.GROUPBY_PRIMER_STRAND_FIELD].split(ffu.BED_GROUPBY_DELIM)
 
         intersecting_primers = zip(intersecting_primer_contig * len(intersecting_primer_starts),
-                                   intersecting_primer_starts, intersecting_primer_stops)
+                                   intersecting_primer_starts, intersecting_primer_stops, intersecting_primer_strands)
 
         for intersecting_primer in intersecting_primers:
 
-            primer_coord_str = su.COORD_FORMAT.format(*intersecting_primer)
+            primer_coord_str = su.COORD_FORMAT_STRAND.format(*intersecting_primer)
             primer_tuple = self.primer_info[primer_coord_str]
 
             # For opposing primer amplicons, we should get no more than two matching primers.

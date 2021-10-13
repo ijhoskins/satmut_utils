@@ -873,14 +873,14 @@ class TestReadMasker(unittest.TestCase):
         with tempfile.NamedTemporaryFile(mode="w", suffix=".preprocess.sam") as preproc_sam:
             preproc_sam.write(PREPROC_TEST_SAM)
             fu.flush_files((preproc_sam,))
-            cls.prepoc_bam = su.sam_view(preproc_sam.name, "b")
+            cls.preproc_bam = su.sam_view(preproc_sam.name, "b")
 
         with tempfile.NamedTemporaryFile(mode="w", suffix=".primers.bed", delete=False) as primer_bed:
             primer_bed.write(MASKING_TEST_PRIMERS)
             cls.primer_bed = primer_bed.name
 
         # Select reads for various method testing
-        with pysam.AlignmentFile(cls.prepoc_bam, "rb") as test_af:
+        with pysam.AlignmentFile(cls.preproc_bam, "rb") as test_af:
             for i, read in enumerate(test_af.fetch(until_eof=True)):
                 if i == 0:
                     cls.test_align_seg_r1_reverse = read
@@ -891,10 +891,10 @@ class TestReadMasker(unittest.TestCase):
 
             test_af.reset()
 
-        cls.rm_tileseq = rp.ReadMasker(in_bam=cls.prepoc_bam, feature_file=cls.primer_bed, outdir=cls.tempdir)
+        cls.rm_tileseq = rp.ReadMasker(in_bam=cls.preproc_bam, feature_file=cls.primer_bed, outdir=cls.tempdir)
 
         cls.rm_race = rp.ReadMasker(
-            in_bam=cls.prepoc_bam, feature_file=cls.primer_bed, is_race_like=True, outdir=cls.tempdir)
+            in_bam=cls.preproc_bam, feature_file=cls.primer_bed, is_race_like=True, outdir=cls.tempdir)
 
     @classmethod
     def tearDownClass(cls):
@@ -1014,7 +1014,7 @@ class TestReadMasker(unittest.TestCase):
             primer_bed2.write(TEST_PRIMERS)
             primer_bed2_fn = primer_bed2.name
 
-        rm = rp.ReadMasker(in_bam=self.prepoc_bam, feature_file=primer_bed2_fn, is_race_like=True, outdir=self.tempdir)
+        rm = rp.ReadMasker(in_bam=self.preproc_bam, feature_file=primer_bed2_fn, is_race_like=True, outdir=self.tempdir)
         rm.workflow()
 
         observed = set()
