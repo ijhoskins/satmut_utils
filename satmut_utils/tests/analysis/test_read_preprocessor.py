@@ -674,8 +674,7 @@ class TestConsensusDeduplicator(unittest.TestCase):
         # Test that we add bases to the consensus dict and the pos dict contains the start position
         # 64 match, 1 del, 66 match; sum is 131 ref positions in the consensus dict
 
-        dict_keys = [rp.MATE_STRAND_POS_TUPLE(
-            mate=su.ReadMate("R1"), strand=su.Strand("+"), pos=i, ref="CBS_pEZY3") for i in range(2397, 2397 + 131)]
+        #dict_keys = [rp.MATE_STRAND_POS_TUPLE(mate=su.ReadMate("R1"), strand=su.Strand("+"), pos=i, ref="CBS_pEZY3") for i in range(2397, 2397 + 131)]
 
         dict_values = [np.zeros(shape=10, dtype=np.int32)] * 130
 
@@ -686,16 +685,23 @@ class TestConsensusDeduplicator(unittest.TestCase):
         # Finally insert the del base into the consensus dict
         dict_values.insert(64, np.zeros(shape=10, dtype=np.int32))
 
-        expected_1 = collections.OrderedDict(zip(dict_keys, dict_values))
-        expected_2 = {2397}
+        expected_1 = 1
+        expected_2 = 0
+        expected_3 = [2397]
 
         consensus_dict = collections.OrderedDict()
-        pos_set = set()
+        pos_list = []
 
         # Updates the dict and set by side effect
-        self.cd._update_consensus_dict(self.test_align_seg_del, consensus_dict, pos_set)
+        self.cd._update_consensus_dict(self.test_align_seg_del, consensus_dict, pos_list)
 
-        self.assertTrue(all((expected_1 == consensus_dict, expected_2 == pos_set)))
+        observed_1 = sum(consensus_dict[rp.MATE_STRAND_POS_TUPLE(
+            mate=su.ReadMate("R1"), strand=su.Strand("+"), pos=2397, ref="CBS_pEZY3")])
+
+        observed_2 = sum(consensus_dict[rp.MATE_STRAND_POS_TUPLE(
+            mate=su.ReadMate("R1"), strand=su.Strand("+"), pos=2461, ref="CBS_pEZY3")])
+
+        self.assertTrue(all((expected_1 == observed_1, expected_2 == observed_2, expected_3 == pos_list)))
 
     def test_get_consensus_del(self):
         """Tests that a consensus base at a position is properly generated."""
@@ -775,17 +781,17 @@ class TestConsensusDeduplicator(unittest.TestCase):
         self.cd._update_consensus_dict(self.test_align_seg_clean, consensus_dict, pos_set)
 
         # Write the consensus read
-        with tempfile.NamedTemporaryFile(suffix=".consensus.bam") as consensus_bam, \
+        with tempfile.NamedTemporaryFile(suffix=".consensus.bam", delete=False) as consensus_bam, \
                 pysam.AlignmentFile(consensus_bam, mode="wb", header=self.test_header) as consensus_af:
 
             self.cd._write_consensus(consensus_af, consensus_dict, pos_set, "10000001_R1")
-            fu.flush_files((consensus_bam,))
+            consensus_bam_name = consensus_bam.name
 
-            with pysam.AlignmentFile(consensus_bam, "rb") as res_af:
-                for align_seg in res_af.fetch():
-                    observed_1 = align_seg.query_alignment_sequence
-                    observed_2 = align_seg.query_alignment_start
-                    observed_3 = align_seg.get_tag(self.cd.N_DUPLICATES_TAG)
+        with pysam.AlignmentFile(consensus_bam_name, "rb") as res_af:
+            for align_seg in res_af.fetch(until_eof=True):
+                observed_1 = align_seg.query_alignment_sequence
+                observed_2 = align_seg.query_alignment_start
+                observed_3 = align_seg.get_tag(self.cd.N_DUPLICATES_TAG)
 
         self.assertTrue(all((expected_1 == observed_1, expected_2 == observed_2, expected_3 == observed_3)))
 
@@ -799,25 +805,27 @@ class TestConsensusDeduplicator(unittest.TestCase):
         expected_3 = 3
 
         consensus_dict = collections.OrderedDict()
-        pos_set = set()
-        self.cd._update_consensus_dict(self.test_align_seg_del, consensus_dict, pos_set)
-        self.cd._update_consensus_dict(self.test_align_seg_del_dup, consensus_dict, pos_set)
-        self.cd._update_consensus_dict(self.test_align_seg_del_dup_minority_call, consensus_dict, pos_set)
+        pos_list = []
+        self.cd._update_consensus_dict(self.test_align_seg_del, consensus_dict, pos_list)
+        self.cd._update_consensus_dict(self.test_align_seg_del_dup, consensus_dict, pos_list)
+        self.cd._update_consensus_dict(self.test_align_seg_del_dup_minority_call, consensus_dict, pos_list)
 
         # Write the consensus read
-        with tempfile.NamedTemporaryFile(suffix=".consensus.bam") as consensus_bam, \
+        with tempfile.NamedTemporaryFile(suffix=".consensus.bam", delete=False) as consensus_bam, \
                 pysam.AlignmentFile(consensus_bam, mode="wb", header=self.test_header) as consensus_af:
 
-            self.cd._write_consensus(consensus_af, consensus_dict, pos_set, "10015877_R1")
-            fu.flush_files((consensus_bam,))
+            self.cd._write_consensus(consensus_af, consensus_dict, pos_list, "10015877_R1")
+            consensus_bam_name = consensus_bam.name
 
-            with pysam.AlignmentFile(consensus_bam, "rb") as res_af:
-                for align_seg in res_af.fetch():
-                    observed_1 = align_seg.query_alignment_sequence
-                    observed_2 = align_seg.query_alignment_start
-                    observed_3 = align_seg.get_tag(self.cd.N_DUPLICATES_TAG)
+        with pysam.AlignmentFile(consensus_bam_name, "rb") as res_af:
+            for align_seg in res_af.fetch():
+                observed_1 = align_seg.query_alignment_sequence
+                observed_2 = align_seg.query_alignment_start
+                observed_3 = align_seg.get_tag(self.cd.N_DUPLICATES_TAG)
 
-        self.assertTrue(all((expected_1 == observed_1, expected_2 == observed_2, expected_3 == observed_3)))
+        test_res = [expected_1 == observed_1, expected_2 == observed_2, expected_3 == observed_3]
+
+        self.assertTrue(all(test_res))
 
     def test_generate_consensus_reads(self):
         """Tests that three fragments are properly deduplicated in succession."""

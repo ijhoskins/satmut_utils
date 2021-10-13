@@ -714,7 +714,6 @@ class ConsensusDeduplicator(object):
         """
 
         unknown_indices = self._get_missing_base_indices(consensus_quals)
-
         consensus_seq_update = []
         consensus_quals_update = []
 
@@ -729,12 +728,12 @@ class ConsensusDeduplicator(object):
 
         return consensus_seq_update, consensus_quals_update
 
-    def _update_consensus_dict(self, align_seg, consensus_dict, pos_set):
+    def _update_consensus_dict(self, align_seg, consensus_dict, pos_list):
         """Updates the consensus and position dictionaries.
 
         :param pysam.AlignedSegment align_seg: read object
         :param collections.OrderedDict consensus_dict: ordered dict keeping aligned bases for each read-strand-position
-        :param set pos_set: read start positions for duplicates
+        :param list pos_list: read start positions for duplicates
         """
 
         mate_strand = MATE_STRAND_POS_TUPLE(
@@ -742,7 +741,7 @@ class ConsensusDeduplicator(object):
             pos=None, ref=align_seg.reference_name)
 
         # Keep track of the aligned start positions of the duplicates
-        pos_set.add(align_seg.reference_start)
+        pos_list.append(align_seg.reference_start)
 
         # This is needed to deal with deletions in the first duplicate read,
         # whereas other duplicates may be full length. We need continuity in the dict keys.
@@ -751,7 +750,7 @@ class ConsensusDeduplicator(object):
         # Need to extract the aligned pairs manually as get_aligned_pairs has unexpected behavior based on
         # matches_only kwarg. See https://github.com/pysam-developers/pysam/issues/357
         read_ap = align_seg.get_aligned_pairs(with_seq=True)
-        for query_pos, ref_pos, ref_base in read_ap[align_seg.query_alignment_start:align_seg.query_alignment_end]:
+        for query_pos, ref_pos, ref_base in read_ap[align_seg.query_alignment_start:align_seg.query_alignment_end + 1]:
 
             # If we do not have an InDel to the reference, update the aligned base at each column
             # Consensus generation of deletions is handled after all duplicates aligned positions are queried
@@ -935,18 +934,17 @@ class ConsensusDeduplicator(object):
         :param list consensus_quals: consensus quals to append to
         """
 
-        if cbq is not None:
-            consensus_seq.append(cbase)
-
-        # Use the qualities to inform the deletion positions for CIGAR string re-generation
+        # Deletions will have "" elements, and BQs None, for deletion ops
+        # This will be used for CIGAR string re-generation
+        consensus_seq.append(cbase)
         consensus_quals.append(cbq)
 
-    def _write_consensus(self, out_af, consensus_dict, pos_set, read_umi_network):
+    def _write_consensus(self, out_af, consensus_dict, pos_list, read_umi_network):
         """Generates a consensus for each [mate x strand x UMI x position] combo.
 
         :param pysam.AlignmentFile out_af: output file to write consensus reads on the fly
         :param collections.OrderedDict consensus_dict: ordered dict keeping aligned bases for each read-strand-position
-        :param set pos_set: read start positions
+        :param pos_list pos_list: read start positions
         :param str read_umi_network: UMI network ID
         """
 
@@ -974,8 +972,8 @@ class ConsensusDeduplicator(object):
                 # If we have started on a new mate/strand, write the results of the last mate-strand
                 # and reset the consensus seq; this is needed for R2s following R1s with shared network/group ID
                 # Our aligned start position of the consensus is the min start of all duplicates
-                mate_strand_pos = min(pos_set)
-                n_duplicates = len(pos_set)
+                mate_strand_pos = min(pos_list)
+                n_duplicates = len(pos_list)
 
                 # Generate a new read object and write it
                 new_align_seg = self._construct_align_seg(
@@ -991,8 +989,8 @@ class ConsensusDeduplicator(object):
             last_mate_strand = curr_mate_strand
 
         # Write the second mate/strand in the dict once we've completed the loop
-        mate_strand_pos = min(pos_set)
-        n_duplicates = len(pos_set)
+        mate_strand_pos = min(pos_list)
+        n_duplicates = len(pos_list)
 
         new_align_seg = self._construct_align_seg(
             read_umi_network, last_mate_strand, mate_strand_pos, consensus_seq, consensus_quals, n_duplicates)
@@ -1020,7 +1018,7 @@ class ConsensusDeduplicator(object):
                 # TODO: convert this to an array
                 # TODO: implement heuristic to avoid updating for non-duplicated UMIs
                 consensus_dict = collections.OrderedDict()
-                pos_set = set()
+                pos_list = []
 
                 for i, align_seg in enumerate(in_af.fetch(until_eof=True)):
 
@@ -1028,20 +1026,20 @@ class ConsensusDeduplicator(object):
 
                     if i == 0 or read_umi_network == last_umi_network:
                         # Store the per-base information for each read in a dict
-                        self._update_consensus_dict(align_seg, consensus_dict, pos_set)
+                        self._update_consensus_dict(align_seg, consensus_dict, pos_list)
                     else:
                         # Generate the consensus for the last UMI network and write, then re-init dicts
-                        self._write_consensus(out_af, consensus_dict, pos_set, last_umi_network)
+                        self._write_consensus(out_af, consensus_dict, pos_list, last_umi_network)
 
                         # Regenerate the consensus dict and update with the current read
                         consensus_dict = collections.OrderedDict()
-                        pos_set = set()
-                        self._update_consensus_dict(align_seg, consensus_dict, pos_set)
+                        pos_list = []
+                        self._update_consensus_dict(align_seg, consensus_dict, pos_list)
 
                     last_umi_network = read_umi_network
 
                 # Write the last consensus read
-                self._write_consensus(out_af, consensus_dict, pos_set, read_umi_network)
+                self._write_consensus(out_af, consensus_dict, pos_list, read_umi_network)
 
                 return dedup_bam.name
 
