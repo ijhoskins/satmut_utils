@@ -6,7 +6,7 @@ import pybedtools
 import tempfile
 import unittest
 
-from analysis.seq_utils import Strand, COORD_FORMAT
+from analysis.seq_utils import Strand, COORD_FORMAT_STRAND
 import core_utils.feature_file_utils as ffu
 from tests.analysis.test_seq_utils import TestSeqUtilsSetup, TEST_BED
 
@@ -97,7 +97,7 @@ chr19	59066354	59066491	gi|571026644|ref|NM_014453.3|:1-137	0	-
         """Test that we can store coordinates from a feature file, keying by coordinate instead of name."""
 
         observed = ffu.store_coords(self.test_bed_b, use_name=False)
-        expected = collections.OrderedDict({COORD_FORMAT.format("chr19", 59066354, 59066491): ffu.COORD_TUPLE(
+        expected = collections.OrderedDict({COORD_FORMAT_STRAND.format("chr19", 59066354, 59066491, "-"): ffu.COORD_TUPLE(
             "chr19", 59066354, 59066491, "gi|571026644|ref|NM_014453.3|:1-137", Strand("-"), 0.0, frozenset(range(59066488, 59066494 + 1)))
                                            }.items())
 

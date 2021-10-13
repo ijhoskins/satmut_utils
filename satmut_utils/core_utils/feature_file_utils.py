@@ -175,7 +175,7 @@ def store_coords(feature_file, feature_slop=0, primer_allowable=False, use_name=
     for feature in ff_bedtool:
 
         # Always generate a name even if it is redundant
-        feature_coords = su.COORD_FORMAT.format(str(feature.chrom), feature.start, feature.stop)
+        feature_coords = su.COORD_FORMAT_STRAND.format(str(feature.chrom), feature.start, feature.stop, feature.strand)
 
         if feature_coords in observed_features:
             raise DuplicateFeatureException("Please provide a feature file with duplicate features removed.")

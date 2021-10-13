@@ -379,6 +379,7 @@ def call_workflow(fastq1, fastq2, r1_fiveprime_adapters, r1_threeprime_adapters,
     if primers is not None:
         rm = ReadMasker(
             in_bam=preproc_in_bam, feature_file=primers, consensus_dedup=consensus_dedup, outdir=outdir)
+        rm.workflow()
         vc_in_bam = rm.out_bam
 
     # Initialize the VariantCaller and prepare the alignments

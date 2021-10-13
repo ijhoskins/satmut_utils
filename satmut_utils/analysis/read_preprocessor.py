@@ -1115,9 +1115,6 @@ class ReadMasker(object):
         self.primer_info = ffu.store_coords(
             feature_file=feature_file, feature_slop=0, primer_allowable=True, use_name=False)
 
-        # Run the workflow
-        self.workflow()
-
     def _get_read_primer_intersection(self):
         """Applies a custom bedtools sort pipeline to get primers associated with each read.
 
@@ -1219,10 +1216,10 @@ class ReadMasker(object):
         # Convert BAM reference coordinates to 1-based for matching to all other 1-based coordinates
         # Need to keep the None values from any softclips for proper indexing into the read
         reference_positions = [p + 1 if isinstance(p, int) else p for p in align_seg.get_reference_positions(full_length=True)]
-        reference_positions_noclips = [p for p in align_seg.get_reference_positions(full_length=True) if p is not None]
+        reference_positions_noclips = [p for p in reference_positions if p is not None]
         reference_positions_set = set(reference_positions_noclips)
         ref_pos_start = reference_positions_noclips[0]
-        ref_pos_end = reference_positions_noclips[len(reference_positions_noclips) - 1]
+        ref_pos_end = reference_positions_noclips[-1]
 
         for ap in associated_primers:
 
@@ -1245,7 +1242,7 @@ class ReadMasker(object):
 
                 # In this case the whole read should be masked only if it is Tile-seq or if it is a RACE-like R2
                 if not self.is_race_like or (self.is_race_like and read_strand == su.ReadMate.R2):
-                    base_indices_to_mask = set(range(0, align_seg.query_length + 1))
+                    base_indices_to_mask = set(range(0, align_seg.query_length))
                     return base_indices_to_mask
 
             # For any other primers whose 3' ends are not in the reference, there is no need to check

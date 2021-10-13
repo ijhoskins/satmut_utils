@@ -141,7 +141,9 @@ CBS_pEZY3	2538	2559	CBSpEZY3_14R_GSP2	0	-
 
 MASKING_TEST_PRIMERS = TEST_PRIMERS + """CBS_pEZY3	2380	2394	CBSpEZY3_mockR_GSP2	0	-
 CBS_pEZY3	2289	2395	CBSpEZY3_containF_GSP2	0	+
+CBS_pEZY3	2289	2394	CBSpEZY3_flushF_GSP2	0	+
 CBS_pEZY3	2288	2394	CBSpEZY3_containR_GSP2	0	-
+CBS_pEZY3	2289	2394	CBSpEZY3_flushR_GSP2	0	-
 """
 
 
@@ -673,9 +675,6 @@ class TestConsensusDeduplicator(unittest.TestCase):
 
         # Test that we add bases to the consensus dict and the pos dict contains the start position
         # 64 match, 1 del, 66 match; sum is 131 ref positions in the consensus dict
-
-        #dict_keys = [rp.MATE_STRAND_POS_TUPLE(mate=su.ReadMate("R1"), strand=su.Strand("+"), pos=i, ref="CBS_pEZY3") for i in range(2397, 2397 + 131)]
-
         dict_values = [np.zeros(shape=10, dtype=np.int32)] * 130
 
         for i, base in enumerate(self.test_align_seg_del.query_sequence):
@@ -687,7 +686,7 @@ class TestConsensusDeduplicator(unittest.TestCase):
 
         expected_1 = 1
         expected_2 = 0
-        expected_3 = [2397]
+        expected_3 = [2396]
 
         consensus_dict = collections.OrderedDict()
         pos_list = []
@@ -695,13 +694,15 @@ class TestConsensusDeduplicator(unittest.TestCase):
         # Updates the dict and set by side effect
         self.cd._update_consensus_dict(self.test_align_seg_del, consensus_dict, pos_list)
 
+        # Sum the base counts (omit qualities which are [5:]
         observed_1 = sum(consensus_dict[rp.MATE_STRAND_POS_TUPLE(
-            mate=su.ReadMate("R1"), strand=su.Strand("+"), pos=2397, ref="CBS_pEZY3")])
+            mate=su.ReadMate("R1"), strand=su.Strand("+"), pos=2396, ref="CBS_pEZY3")][0:5])
 
         observed_2 = sum(consensus_dict[rp.MATE_STRAND_POS_TUPLE(
-            mate=su.ReadMate("R1"), strand=su.Strand("+"), pos=2461, ref="CBS_pEZY3")])
+            mate=su.ReadMate("R1"), strand=su.Strand("+"), pos=2460, ref="CBS_pEZY3")][0:5])
 
-        self.assertTrue(all((expected_1 == observed_1, expected_2 == observed_2, expected_3 == pos_list)))
+        test_res = [expected_1 == observed_1, expected_2 == observed_2, expected_3 == pos_list]
+        self.assertTrue(all(test_res))
 
     def test_get_consensus_del(self):
         """Tests that a consensus base at a position is properly generated."""
@@ -841,7 +842,7 @@ class TestConsensusDeduplicator(unittest.TestCase):
         # R2 duplicates start at 2408 and 2409; we expect the start for the consensus read to be 2408
         expected_1.append(self.test_align_seg_del_r2_a.query_alignment_sequence)
 
-        expected_2 = ["10000001_R1", "10000001_R2", "10000004_R1", "10000004_R2", "10015877_R1", "10015877_R2"]
+        expected_2 = ["10000001", "10000001", "10000004", "10000004", "10015877", "10015877"]
 
         consensus_bam = self.cd._generate_consensus_reads()
 
@@ -854,7 +855,8 @@ class TestConsensusDeduplicator(unittest.TestCase):
 
         fu.safe_remove((consensus_bam,))
 
-        self.assertTrue(all((expected_1 == observed_1, expected_2 == observed_2)))
+        test_res = [expected_1 == observed_1, expected_2 == observed_2]
+        self.assertTrue(all(test_res))
 
 
 class TestReadMasker(unittest.TestCase):
@@ -873,7 +875,7 @@ class TestReadMasker(unittest.TestCase):
             fu.flush_files((preproc_sam,))
             cls.prepoc_bam = su.sam_view(preproc_sam.name, "b")
 
-        with tempfile.NamedTemporaryFile(suffix=".primers.bed", delete=False) as primer_bed:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".primers.bed", delete=False) as primer_bed:
             primer_bed.write(MASKING_TEST_PRIMERS)
             cls.primer_bed = primer_bed.name
 
@@ -905,8 +907,8 @@ class TestReadMasker(unittest.TestCase):
 
         expected = set(list(range(0, 20)) + list(range(91, 105)))
 
-        associated_primers = {"CBS_pEZY3:2289-2309", "CBS_pEZY3:2380-2394"}
-        observed = self.rm_race._get_mask_base_indices(
+        associated_primers = {"CBS_pEZY3:2289-2309:+", "CBS_pEZY3:2380-2394:-"}
+        observed = self.rm_tileseq._get_mask_base_indices(
             align_seg=self.test_align_seg_r1_reverse, associated_primers=associated_primers)
 
         self.assertEqual(0, len(expected - observed))
@@ -916,8 +918,8 @@ class TestReadMasker(unittest.TestCase):
 
         expected = set(list(range(0, 20)) + list(range(91, 105)))
 
-        associated_primers = {"CBS_pEZY3:2289-2309", "CBS_pEZY3:2380-2394"}
-        observed = self.rm_race._get_mask_base_indices(
+        associated_primers = {"CBS_pEZY3:2289-2309:+", "CBS_pEZY3:2380-2394:-"}
+        observed = self.rm_tileseq._get_mask_base_indices(
             align_seg=self.test_align_seg_r2_positive, associated_primers=associated_primers)
 
         self.assertEqual(0, len(expected - observed))
@@ -927,7 +929,7 @@ class TestReadMasker(unittest.TestCase):
 
         expected = set(range(0, 20))
 
-        associated_primers = {"CBS_pEZY3:2289-2309", "CBS_pEZY3:2380-2394"}
+        associated_primers = {"CBS_pEZY3:2289-2309:+", "CBS_pEZY3:2380-2394:-"}
         observed = self.rm_race._get_mask_base_indices(
             align_seg=self.test_align_seg_r1_reverse, associated_primers=associated_primers)
 
@@ -938,7 +940,7 @@ class TestReadMasker(unittest.TestCase):
 
         expected = set(range(0, 20))
 
-        associated_primers = {"CBS_pEZY3:2289-2309", "CBS_pEZY3:2380-2394"}
+        associated_primers = {"CBS_pEZY3:2289-2309:+", "CBS_pEZY3:2380-2394:-"}
         observed = self.rm_race._get_mask_base_indices(
             align_seg=self.test_align_seg_r2_positive, associated_primers=associated_primers)
 
@@ -947,7 +949,7 @@ class TestReadMasker(unittest.TestCase):
     def test_get_mask_base_indices_race_r1_start(self):
         """Test that we return no indices for a RACE-like R1 starting at a primer start."""
 
-        associated_primers = {"CBS_pEZY3:2289-2309", "CBS_pEZY3:2380-2394"}
+        associated_primers = {"CBS_pEZY3:2380-2394:-"}
         observed = self.rm_race._get_mask_base_indices(
             align_seg=self.test_align_seg_r1_reverse, associated_primers=associated_primers)
 
@@ -956,7 +958,7 @@ class TestReadMasker(unittest.TestCase):
     def test_get_mask_base_indices_race_r2_end(self):
         """Test that we return no indices for a RACE-like R2 ending at a primer start."""
 
-        associated_primers = {"CBS_pEZY3:2289-2309", "CBS_pEZY3:2380-2394"}
+        associated_primers = {"CBS_pEZY3:2380-2394:-"}
         observed = self.rm_race._get_mask_base_indices(
             align_seg=self.test_align_seg_r2_positive, associated_primers=associated_primers)
 
@@ -965,7 +967,7 @@ class TestReadMasker(unittest.TestCase):
     def test_get_mask_base_indices_r1_contained(self):
         """Tests that a R1 completely contained in a primer is fully masked."""
 
-        associated_primers = {"CBS_pEZY3:2288-2394"}
+        associated_primers = {"CBS_pEZY3:2289-2395:+"}
 
         observed = self.rm_tileseq._get_mask_base_indices(
             align_seg=self.test_align_seg_r1_reverse, associated_primers=associated_primers)
@@ -975,7 +977,27 @@ class TestReadMasker(unittest.TestCase):
     def test_get_mask_base_indices_r2_contained(self):
         """Tests that a R2 completely contained in a primer is fully masked."""
 
-        associated_primers = {"CBS_pEZY3:2289-2395"}
+        associated_primers = {"CBS_pEZY3:2288-2394:-"}
+
+        observed = self.rm_tileseq._get_mask_base_indices(
+            align_seg=self.test_align_seg_r2_positive, associated_primers=associated_primers)
+
+        self.assertEqual(len(observed), self.test_align_seg_r2_positive.query_length)
+
+    def test_get_mask_base_indices_r1_flush(self):
+        """Tests that a R1 flush with a primer at both ends is fully masked."""
+
+        associated_primers = {"CBS_pEZY3:2289-2394:+"}
+
+        observed = self.rm_tileseq._get_mask_base_indices(
+            align_seg=self.test_align_seg_r1_reverse, associated_primers=associated_primers)
+
+        self.assertEqual(len(observed), self.test_align_seg_r1_reverse.query_length)
+
+    def test_get_mask_base_indices_r2_flush(self):
+        """Tests that a R2 flush with a primer at both ends is fully masked."""
+
+        associated_primers = {"CBS_pEZY3:2289-2394:-"}
 
         observed = self.rm_tileseq._get_mask_base_indices(
             align_seg=self.test_align_seg_r2_positive, associated_primers=associated_primers)
@@ -993,6 +1015,7 @@ class TestReadMasker(unittest.TestCase):
             primer_bed2_fn = primer_bed2.name
 
         rm = rp.ReadMasker(in_bam=self.prepoc_bam, feature_file=primer_bed2_fn, is_race_like=True, outdir=self.tempdir)
+        rm.workflow()
 
         observed = set()
         with pysam.AlignmentFile(rm.out_bam, "rb") as test_af:
