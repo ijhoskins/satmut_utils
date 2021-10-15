@@ -74,18 +74,21 @@ def intersect_features(ff1, ff2, outfile=None, as_bedtool=False, **kwargs):
 
     :param str ff1: first feature file, may be either VCF, BED, GFF, or BAM
     :param str ff2: second feature file, usually VCF, BED, GFF
-    :param str | None outfile: output file
+    :param str | None outfile: optional output file
     :param bool as_bedtool: return results as a bedtool object?
-    :return str: intersected features file
+    :return pybedtools.BedTool | str: if as_bedtool=True, a BedTool; otherwise the intersected result filename
     """
 
     out = outfile
     if outfile is None and not as_bedtool:
-        out = tempfile.NamedTemporaryFile(suffix=".intersect", delete=False).name
+        out = tempfile.NamedTemporaryFile(mode="w", suffix=".intersect", delete=False).name
 
     ff1_bt = pybedtools.BedTool(ff1)
     ff2_bt = pybedtools.BedTool(ff2)
-    intersect_bt = ff1_bt.intersect(ff2_bt, **kwargs)
+
+    # Always print the header as this can cause issues with opening the file downstream
+    # (e.g. pysam.VariantFile on a header-less VCF)
+    intersect_bt = ff1_bt.intersect(ff2_bt, header=True, **kwargs)
 
     if as_bedtool:
         return intersect_bt

@@ -1008,7 +1008,7 @@ class VariantCaller(object):
 
         # Create some temp vcfs to use in patch for removing pysam's obligatory END INFO tag addition,
         # which interferes with IGV visualization.
-        patch_reference = tempfile.NamedTemporaryFile(suffix=".patch.transcriptomic.vcf", delete=False).name
+        patch_reference = tempfile.NamedTemporaryFile(suffix=".patch.ref.vcf", delete=False).name
 
         # We want to write a VCF in both the reference and genomic space; the genomic space variant will have AAs
         # annotated whereas the reference will not. If variants are called using a genomic reference, the reference
@@ -1043,11 +1043,11 @@ class VariantCaller(object):
             vu.remove_end_info_tag(in_vcf=patch_reference, out_vcf=reference_vcf)
         else:
             patch_temp = vu.remove_end_info_tag(in_vcf=patch_reference)
-            intersect_features(ff1=patch_temp, ff2=self.targets, outfile=reference_vcf)
+            intersect_features(ff1=patch_temp, ff2=self.targets, outfile=reference_vcf, as_bedtool=False)
             temp_files.append(patch_temp)
 
         # Create a summary table for the VCF
-        vu.table_from_vcf(reference_vcf)
+        vu.table_from_vcf(vcf=reference_vcf)
 
         fu.safe_remove(tuple(temp_files))
         # pysam.set_verbosity(verbosity_save)
