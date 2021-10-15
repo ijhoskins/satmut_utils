@@ -193,68 +193,6 @@ class VariantCaller(object):
         ref_mm_pos = [i for i, e in enumerate(ref_pos) if e in mm_pos_set]
         return ref_nts, ref_mm_pos
 
-    def _get_haplotype_dict(self, filt_r_mms, max_mnp_window=VARIANT_CALL_MAX_MNP_WINDOW):
-        r"""Finds MNPs/haplotypes within a MNP window size.
-
-        :param list filt_r_mms: list of concordant R1 or R2 MM_TUPLEs
-        :param int max_mnp_window: max number of consecutive nucleotides to search for haplotypes. Default 3.
-        :return tuple: (collections.defaultdict, set) of ({collections.namedtuple: set} dict keyed by \
-        CALL_TUPLE and values the set of coordinate positions included in the haplotype, and the \
-        position_blacklist for mismatches involved in haplotypes)
-        """
-
-        # TODO: this logic could be faulty in certain cases, e.g. where an error is merged with a true MNP that spans
-        #  max_mnp_window distance away from the first error
-        # window distance  |----------|
-        # Read: -----------A---------TGG--->
-        # This would result in an MNP comprised of A and TG, to the exclusion of a TGG MNP call
-        haplotype_groups = [[]]
-        for i, mm_tuple in enumerate(filt_r_mms):
-
-            if i == 0:
-                haplotype_groups[0].append(mm_tuple)
-                continue
-
-            # Try to find a group for the mismatch
-            for j, haplo_group in enumerate(haplotype_groups):
-
-                hg_min_pos = min([mt.pos for mt in haplo_group])
-
-                if mm_tuple.pos - hg_min_pos < max_mnp_window:
-                    haplotype_groups[j].append(mm_tuple)
-                    break
-            else:
-                # If the mismatch could not be merged with an existing group create a new one
-                haplotype_groups.append([mm_tuple])
-
-        # Now to find our haplotypes we identify the groups with two or more mismatches
-        haplotypes = collections.defaultdict(set)
-        position_blacklist = set()
-
-        for final_group in haplotype_groups:
-
-            if len(final_group) > 1:
-
-                first_mt = final_group[0]
-                last_mt = final_group[-1]
-                mm_pos_set = {mt.pos for mt in final_group}
-
-                # Generate the REF field based on the span of the haplotype group
-                ref_nts, ref_mm_pos = self._get_haplotype_ref(first_mt.contig, first_mt.pos, last_mt.pos, mm_pos_set)
-
-                # Then generate the ALT field based on the mismatch positions
-                alt_nts = list(copy.deepcopy(ref_nts))
-
-                for mt, mm_pos in zip(final_group, ref_mm_pos):
-                    alt_nts[mm_pos] = mt.alt
-
-                haplotypes[CALL_TUPLE(
-                    first_mt.contig, first_mt.pos, ref_nts, "".join(alt_nts), None, None, None)] |= mm_pos_set
-
-                position_blacklist |= mm_pos_set
-
-        return haplotypes, position_blacklist
-
     def _generate_call_tuple(self, mmts):
         """Generates a CALL_TUPLE from MM_TUPLEs.
 
@@ -278,7 +216,7 @@ class VariantCaller(object):
 
         return call_tuple, mm_pos_set
 
-    def _get_haplotype_dict_improved(self, filt_r_mms, max_mnp_window=VARIANT_CALL_MAX_MNP_WINDOW):
+    def _get_haplotype_dict(self, filt_r_mms, max_mnp_window=VARIANT_CALL_MAX_MNP_WINDOW):
         r"""Finds MNPs/haplotypes within a MNP window size.
 
         :param list filt_r_mms: list of concordant R1 or R2 MM_TUPLEs
@@ -357,7 +295,7 @@ class VariantCaller(object):
             if max_pos - min_pos >= max_mnp_window:
                 return None
 
-        haplotypes, position_blacklist = self._get_haplotype_dict_improved(filt_r_mms, max_mnp_window)
+        haplotypes, position_blacklist = self._get_haplotype_dict(filt_r_mms, max_mnp_window)
         return haplotypes, position_blacklist
 
     @staticmethod

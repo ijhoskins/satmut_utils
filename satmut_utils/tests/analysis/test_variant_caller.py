@@ -67,15 +67,15 @@ class TestVariantCaller(unittest.TestCase):
 
             test_sam.write(TEST_SAM)
             fu.flush_files((test_sam,))
-            cls.test_bam = su.sam_view(test_sam.name, "b")
+            cls.test_bam = su.sort_and_index(test_sam.name)
 
             test_invalid_sam.write(TEST_INVALID_SAM)
             fu.flush_files((test_invalid_sam,))
-            cls.test_invalid_bam = su.sam_view(test_invalid_sam.name, "b")
+            cls.test_invalid_bam = su.sort_and_index(test_invalid_sam.name)
 
         # Select mate-concordant and discordant reads for testing variant calling
         with pysam.AlignmentFile(cls.test_bam, "rb") as test_af:
-            for i, read in enumerate(test_af.fetch()):
+            for i, read in enumerate(test_af.fetch(until_eof=True)):
                 if i == 0:
                     cls.test_align_seg_r1_negative_discordant = read
                 if i == 1:
@@ -99,7 +99,7 @@ class TestVariantCaller(unittest.TestCase):
     def tearDownClass(cls):
         """Tear down for TestVariantCaller."""
 
-        fu.safe_remove((cls.tempdir, cls.test_bam, cls.test_invalid_bam, cls.primer_bed,))
+        fu.safe_remove((cls.tempdir, cls.test_bam, cls.test_invalid_bam, cls.primer_bed,), force_remove=True)
 
     def test_is_indel_no_indel(self):
         """Tests that InDels are not detected from a pysam aligned pair."""
@@ -191,8 +191,8 @@ class TestVariantCaller(unittest.TestCase):
         """Tests that we call SNPs for mismatches when there are no called MNPs/haplotypes."""
 
         expected_dict_keys = {
-            vc.CALL_TUPLE(contig="CBS_pEZY3", pos=2456, ref="A", alt="G"),
-            vc.CALL_TUPLE(contig="CBS_pEZY3", pos=2466, ref="G", alt="C")
+            vc.CALL_TUPLE(contig="CBS_pEZY3", pos=2456, ref="A", alt="G", refs=None, alts=None, positions=None),
+            vc.CALL_TUPLE(contig="CBS_pEZY3", pos=2466, ref="G", alt="C", refs=None, alts=None, positions=None)
         }
 
         expected_dict_vals = {2456, 2466}
@@ -200,9 +200,9 @@ class TestVariantCaller(unittest.TestCase):
         mm1 = vc.MM_TUPLE("CBS_pEZY3", 2456, "A", "G", 39, 60)
         mm2 = vc.MM_TUPLE("CBS_pEZY3", 2466, "G", "C", 40, 70)
         filt_r_mms = [mm1, mm2]
-        haplo_dict, pos_blacklist = self.vc._get_haplotype_dict(filt_r_mms, 12)
+        haplo_dict, pos_blacklist = self.vc._get_haplotype_dict(filt_r_mms, 3)
 
-        # Because MNP span is greater than the distance between mismatches, both mismatches should be called as SNPs
+        # Because MNP span is less than the distance between mismatches, both mismatches should be called as SNPs
         observed = self.vc._call_snps(filt_r_mms, pos_blacklist, haplo_dict)
 
         test_1 = len(expected_dict_keys - set(observed.keys())) == 0
@@ -213,13 +213,15 @@ class TestVariantCaller(unittest.TestCase):
             test_2_res |= e
 
         test_2 = len(expected_dict_vals - test_2_res) == 0
-
-        self.assertTrue(all((test_1, test_2)))
+        test_res = (test_1, test_2)
+        self.assertTrue(all(test_res))
 
     def test_call_snps_mismatch_outside_haplotypes(self):
         """Tests that we call SNPs for mismatches not in an already-called MNP/haplotype."""
 
-        expected_dict_key = vc.CALL_TUPLE(contig="CBS_pEZY3", pos=2470, ref="C", alt="T")
+        expected_dict_key = vc.CALL_TUPLE(
+            contig="CBS_pEZY3", pos=2470, ref="C", alt="T", refs=None, alts=None, positions=None)
+
         expected_dict_val = {2470}
 
         # mm1 and mm2 will be a part of a haplotype and mm3 will be the SNP
@@ -236,7 +238,8 @@ class TestVariantCaller(unittest.TestCase):
 
         test_1 = expected_dict_key == list(observed.keys())[0]
         test_2 = expected_dict_val == list(observed.values())[0]
-        self.assertTrue(all((test_1, test_2)))
+        test_res = (test_1, test_2)
+        self.assertTrue(all(test_res))
 
     def test_enumerate_mismatches(self):
         """Tests that we properly enumerate mismatches in a read."""
@@ -304,14 +307,20 @@ class TestVariantCaller(unittest.TestCase):
     def test_assign_stats_snp(self):
         """Tests assignment of SNP BQ and read position stats to the variant call dict."""
 
+        call_tuple = vc.CALL_TUPLE(
+            contig="CBS_pEZY3", pos=2456, ref="A", alt="G", refs="A", alts="G", positions="2456")
+
         self.vc.variant_counts = collections.OrderedDict()
+        self.vc.variant_counts[call_tuple] = [
+            [0, [], [], []],  # R1, +
+            [0, [], [], []],  # R1, -
+            [0, [], [], []],  # R2, +
+            [0, [], [], []]  # R2, -
+        ]
 
         per_bp_stats = vc.PER_BP_STATS(
             r1_bqs=np.array([39], dtype=np.int32), r2_bqs=np.array([40], dtype=np.int32),
             r1_read_pos=np.array([60], dtype=np.int32), r2_read_pos=np.array([103], dtype=np.int32))
-
-        call_tuple = vc.CALL_TUPLE(
-            contig="CBS_pEZY3", pos=2456, ref="A", alt="G", refs="A", alts="G", positions="2456")
 
         expected = collections.OrderedDict()
         expected[call_tuple] = [
@@ -330,14 +339,20 @@ class TestVariantCaller(unittest.TestCase):
     def test_assign_stats_mnp(self):
         """Tests assignment of MNP BQ and read position stats to the variant call dict."""
 
+        call_tuple = vc.CALL_TUPLE(
+            contig="CBS_pEZY3", pos=2456, ref="AC", alt="GT", refs="A,C", alts="G,T", positions="2456,2457")
+
         self.vc.variant_counts = collections.OrderedDict()
+        self.vc.variant_counts[call_tuple] = [
+                [0, [], [], []],  # R1, +
+                [0, [], [], []],  # R1, -
+                [0, [], [], []],  # R2, +
+                [0, [], [], []]   # R2, -
+            ]
 
         per_bp_stats = vc.PER_BP_STATS(
             r1_bqs=np.array([39, 39], dtype=np.int32), r2_bqs=np.array([40, 39], dtype=np.int32),
             r1_read_pos=np.array([60, 61], dtype=np.int32), r2_read_pos=np.array([103, 102], dtype=np.int32))
-
-        call_tuple = vc.CALL_TUPLE(
-            contig="CBS_pEZY3", pos=2456, ref="AC", alt="GT", refs="A,C", alts="G,T", positions="2456,2457")
 
         expected = collections.OrderedDict()
         expected[call_tuple] = [
