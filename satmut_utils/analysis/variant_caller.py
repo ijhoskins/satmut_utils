@@ -1043,7 +1043,8 @@ class VariantCaller(object):
             vu.remove_end_info_tag(in_vcf=patch_reference, out_vcf=reference_vcf)
         else:
             patch_temp = vu.remove_end_info_tag(in_vcf=patch_reference)
-            intersect_features(ff1=patch_temp, ff2=self.targets, outfile=reference_vcf, as_bedtool=False)
+            # Need to write the header as this can cause issues with opening the file in table_from_vcf()
+            intersect_features(ff1=patch_temp, ff2=self.targets, outfile=reference_vcf, as_bedtool=False, header=True)
             temp_files.append(patch_temp)
 
         # Create a summary table for the VCF

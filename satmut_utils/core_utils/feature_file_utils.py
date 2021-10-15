@@ -86,9 +86,7 @@ def intersect_features(ff1, ff2, outfile=None, as_bedtool=False, **kwargs):
     ff1_bt = pybedtools.BedTool(ff1)
     ff2_bt = pybedtools.BedTool(ff2)
 
-    # Always print the header as this can cause issues with opening the file downstream
-    # (e.g. pysam.VariantFile on a header-less VCF)
-    intersect_bt = ff1_bt.intersect(ff2_bt, header=True, **kwargs)
+    intersect_bt = ff1_bt.intersect(ff2_bt, **kwargs)
 
     if as_bedtool:
         return intersect_bt
