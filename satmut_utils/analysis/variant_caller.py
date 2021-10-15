@@ -126,6 +126,12 @@ class VariantCaller(object):
         self.exclude_n = exclude_n
         self.mut_sig = mut_sig
 
+        if output_dir is None:
+            self.output_dir = tempfile.mkdtemp(suffix=__class__.__name__)
+
+        if not os.path.exists(self.output_dir):
+            os.mkdir(self.output_dir)
+
         # Preprocess the alignments and setup the output directory
         self.vc_preprocessor = rp.VariantCallerPreprocessor(am=am, ref=ref, output_dir=output_dir, nthreads=nthreads)
 
@@ -140,7 +146,7 @@ class VariantCaller(object):
         # Divide the mapped reads by 2 to approximate pairs
         self.norm_factor = self.VARIANT_CALL_NORM_DP / (self.total_mapped / 2)
 
-        self.prefix = os.path.join(self.vc_preprocessor.output_dir, fu.remove_extension(os.path.basename(self.am)))
+        self.prefix = os.path.join(self.output_dir, fu.remove_extension(os.path.basename(self.am)))
 
         _logger.info("Loading transcript CDS annotations for AA change determination.")
         self.amino_acid_mapper = cm.AminoAcidMapper(
@@ -591,11 +597,12 @@ class VariantCaller(object):
         if len(ref_positions) == 0:
             return None
 
-        # Reference positions are 0-based; reference_end (last element in positions) points to one past the last
-        # aligned base, thus no need to add 1 in range stop
+        # Reference positions are 0-based
+        # pysam says reference_end (last element in positions) points to one past the last
+        # aligned base; but this is not true, so add 1 to the range end
         min_ref_pos = min(ref_positions)
         max_ref_pos = max(ref_positions)
-        fragment_pos = range(min_ref_pos, max_ref_pos)
+        fragment_pos = range(min_ref_pos, max_ref_pos + 1)
 
         for pos in fragment_pos:
             # Enumerate the read pair for the DP denominator to frequency
@@ -1014,7 +1021,7 @@ class VariantCaller(object):
 
         # Quick fix to ignore internal htslib errors
         # see https://github.com/pysam-developers/pysam/issues/939
-        verbosity_save = pysam.set_verbosity(0)
+        # verbosity_save = pysam.set_verbosity(0)
 
         with pysam.AlignmentFile(self.vc_preprocessor.r1_calling_bam, "rb", check_sq=False) as af1, \
                 pysam.AlignmentFile(self.vc_preprocessor.r2_calling_bam, "rb", check_sq=False) as af2, \
@@ -1043,7 +1050,7 @@ class VariantCaller(object):
         vu.table_from_vcf(reference_vcf)
 
         fu.safe_remove(tuple(temp_files))
-        pysam.set_verbosity(verbosity_save)
+        # pysam.set_verbosity(verbosity_save)
 
         _logger.info("Completed variant calling workflow.")
 

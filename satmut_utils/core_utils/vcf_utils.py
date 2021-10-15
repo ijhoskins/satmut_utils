@@ -252,7 +252,7 @@ def remove_end_info_tag(in_vcf, out_vcf=None):
     # del variant.info[vu.VCF_END_ID] does not work as pysam protects this member of a VariantRecord object
     output_vcf = out_vcf
     if out_vcf is None:
-        output_vcf = tempfile.NamedTemporaryFile(suffix=".noend.vcf", delete=False).name
+        output_vcf = tempfile.NamedTemporaryFile(mode="w", suffix=".noend.vcf", delete=False).name
 
     with open(in_vcf, "r") as in_fh, \
             open(output_vcf, "w") as out_fh:
@@ -271,7 +271,7 @@ def table_from_vcf(vcf, output_filename=None):
     if output_filename is None:
         outname = fu.replace_extension(vcf, VCF_SUMMARY_EXT)
 
-    with pysam.VariantFile(vcf) as in_vf, \
+    with pysam.VariantFile(vcf, "r") as in_vf, \
             open(outname, "w") as out_fh:
 
         for i, variant in enumerate(in_vf):

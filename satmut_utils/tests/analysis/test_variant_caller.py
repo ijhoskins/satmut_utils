@@ -18,10 +18,6 @@ tempfile.tempdir =os.getenv("SCRATCH", "/tmp")
 TEST_SAM = """@HD	VN:1.0	SO:unknown
 @SQ	SN:CBS_pEZY3	LN:7108
 @RG	ID:CBS1_35_comb_R
-@PG	ID:bowtie2	PN:bowtie2	VN:2.4.2	CL:"/home/ihoskins/miniconda3/envs/CBS_variants/bin/bowtie2-align-s --wrapper basic-0 -p 5 --maxins 1000 --no-discordant --fr --mp 4 --rdg 6,4 --rfg 6,4 --local --rg-id CBS1_35_comb_R -x /home/ihoskins/reference_files/CBS_pEZY3.fa -1 /scratch/users/ihoskins/CBS_02APR2020/pEZY3_default_dedup/CBS1_35_comb_R1.umi.trimmed.fq -2 /scratch/users/ihoskins/CBS_02APR2020/pEZY3_default_dedup/CBS1_35_comb_R2.umi.trimmed.fq"
-@PG	ID:samtools	PN:samtools	PP:bowtie2	VN:1.10 (pysam)	CL:samtools sort -o /scratch/users/ihoskins/tmp8hwoa_cn.bam -O BAM -@ 5 -n /scratch/users/ihoskins/CBS_02APR2020/pEZY3_default_dedup/CBS1_35_comb_R.group.bam
-@PG	ID:samtools.1	PN:samtools	PP:samtools	VN:1.10 (pysam)	CL:samtools view -b -f 64 -F 12 -o /scratch/users/ihoskins/tmpn7t_7zvn.bam -O BAM -@ 5 /scratch/users/ihoskins/tmp8hwoa_cn.bam
-@PG	ID:samtools.2	PN:samtools	PP:samtools.1	VN:1.10 (pysam)	CL:samtools sort -o /scratch/users/ihoskins/CBS_02APR2020/pEZY3_default_dedup/CBS1_35_comb_R.preprocess.bam -O BAM -@ 5 -t UG /scratch/users/ihoskins/tmps48n3gfx.tag.bam
 MG01HS02:1483:HG7MTBCX3:2:1213:4430:45262_ACTTTTGA	83	CBS_pEZY3	2290	44	105M	=	2290	-105	GGTGAAGGGCTTCGACCAGGCGCCCGTGGTGGATGAGGCGGGGGTAAGCCTGGGAATGGTGACGCTTGGGATCATGCTCTCGTCCCTGCTTGCCGGGAAGGTGCA	111<1<11CCGCC<<@1CC</C</0CCG<F<1C<<C/C<<H@G<C<<111<1<1CEC<000<<1HHF<CG<1D1<</0/<<<1/11FFD<</D@D1HFHF?GHIG	AS:i:198	XN:i:0	XM:i:3	XO:i:0	XG:i:0	NM:i:3	MD:Z:2A44T23A33	YS:i:167	YT:Z:CP	RG:Z:CBS1_35_comb_R	BX:Z:ACTTTTGA	UG:Z:10000001_R1
 MG01HS02:1483:HG7MTBCX3:2:1213:4430:45262_ACTTTTGA	163	CBS_pEZY3	2290	44	105M	=	2290	105	GGAGAAGGGCTTACAAGAGGCGCCCGAGGAGGATGCGGCGGGGGTAATCCTGGGAATGGTGAAGCTTGGGAACATGCTATCGTCCCTGCTTGCCGGGAAAGTGCA	0<00011<0111<1111<1D0/<C/<////0<0<<1/</<FEHH/0<CH11<1DH11DC111<DF1<1D?1D<11<1<<11<<10011111<1</C/C?11=1DD	AS:i:167	XN:i:0	XM:i:10	XO:i:0	XG:i:0	NM:i:10	MD:Z:12C0G1C0C9T2T5A26C15C20G5	YS:i:198	YT:Z:CP	RG:Z:CBS1_35_comb_R	UG:Z:10000001_R2
 MG01HS02:1483:HG7MTBCX3:1:1215:11984:60374_CGTTGATC	99	CBS_pEZY3	2397	44	64M1D66M	=	2408	163	CGTCAGACCAAGTTGGCAAAGTCATCTACAAGCAGTTCAAACAGATCCGCCTCACGGACGCGCTGGCAGGCTCTCGCACATCCTGGAGATGGACCACTTCGCCCTGGTGGTGCACGAGCAGATCCAGTAC	HHHIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIHIIIHHHIIIIIIIHHIIIIHIIIGIHIIIIIIIIHHIIIIIIIIIIIIIIIIIIHIIIIIIIHIIHIHIIIEHHHIEHIIHIIC	AS:i:245	XN:i:0	XM:i:1	XO:i:1	XG:i:1	NM:i:2	MD:Z:59A4^G66	YS:i:286	YT:Z:CP	RG:Z:CBS1_35_comb_R	BX:Z:CGTTGATC	UG:Z:10015877_R1
@@ -76,13 +72,15 @@ class TestVariantCaller(unittest.TestCase):
         # Select mate-concordant and discordant reads for testing variant calling
         with pysam.AlignmentFile(cls.test_bam, "rb") as test_af:
             for i, read in enumerate(test_af.fetch(until_eof=True)):
+
+                # For some reason, samtools sort is not a stable sort
                 if i == 0:
-                    cls.test_align_seg_r1_negative_discordant = read
-                if i == 1:
                     cls.test_align_seg_r2_positive_discordant = read
+                if i == 1:
+                    cls.test_align_seg_r1_negative_discordant = read
                 if i == 2:
                     cls.test_align_seg_r1_positive_concordant = read
-                if i == 3:
+                if i == 4:
                     cls.test_align_seg_r2_negative_concordant = read
 
             test_af.reset()
@@ -132,32 +130,34 @@ class TestVariantCaller(unittest.TestCase):
     def test_get_haplotype_dict_within_window(self):
         """Tests that we can generate a dictionary containing positions of mismatches involved in a haplotype."""
 
-        expected_dict_key = vc.CALL_TUPLE(contig="CBS_pEZY3", pos=2456, ref="ACGCTGGGCAG", alt="GCGCTGGGCAC")
-        expected_dict_val = {0, 10}
+        expected_dict_key = vc.CALL_TUPLE(
+            contig="CBS_pEZY3", pos=2456, ref="ACG", alt="GCC", refs=None, alts=None, positions=None)
+
+        expected_dict_val = {2456, 2458}
 
         # This mismatch exists in MG01HS02:1483:HG7MTBCX3:1:1215:11984:60374_CGTTGATC
         mm1 = vc.MM_TUPLE("CBS_pEZY3", 2456, "A", "G", 39, 60)
 
         # This mismatch does not exist in MG01HS02:1483:HG7MTBCX3:1:1215:11984:60374_CGTTGATC
         # but we create it for testing
-        mm2 = vc.MM_TUPLE("CBS_pEZY3", 2466, "G", "C", 40, 70)
+        mm2 = vc.MM_TUPLE("CBS_pEZY3", 2458, "G", "C", 40, 62)
 
         filt_r_mms = [mm1, mm2]
-        observed_haplo_dict, observed_pos_blacklist = self.vc._get_haplotype_dict(filt_r_mms, 11)
+        observed_haplo_dict, observed_pos_blacklist = self.vc._get_haplotype_dict(filt_r_mms, 3)
 
         test_1 = list(observed_haplo_dict.keys())[0] == expected_dict_key
         test_2 = len(list(observed_haplo_dict.values())[0] - expected_dict_val) == 0
         test_3 = len(observed_pos_blacklist - expected_dict_val) == 0
-
-        self.assertTrue(all((test_1, test_2, test_3)))
+        test_res = (test_1, test_2, test_3)
+        self.assertTrue(all(test_res))
 
     def test_get_haplotype_dict_outside_window(self):
         """Tests that we can generate a dictionary containing positions of mismatches involved in a haplotype."""
 
         mm1 = vc.MM_TUPLE("CBS_pEZY3", 2456, "A", "G", 39, 60)
-        mm2 = vc.MM_TUPLE("CBS_pEZY3", 2466, "G", "C", 40, 70)
+        mm2 = vc.MM_TUPLE("CBS_pEZY3", 2458, "G", "C", 40, 62)
         filt_r_mms = [mm1, mm2]
-        observed_haplo_dict, observed_pos_blacklist = self.vc._get_haplotype_dict(filt_r_mms, 12)
+        observed_haplo_dict, observed_pos_blacklist = self.vc._get_haplotype_dict(filt_r_mms, 2)
 
         # The dictionary and set should be empty as the haplotype span is greater than the width
         test_1 = len(observed_haplo_dict) == 0
@@ -181,7 +181,7 @@ class TestVariantCaller(unittest.TestCase):
         mm2 = vc.MM_TUPLE("CBS_pEZY3", 2466, "G", "C", 40, 70)
         filt_r_mms = [mm1, mm2]
 
-        observed = self.vc._call_haplotypes(filt_r_mms, 12)
+        observed = self.vc._call_haplotypes(filt_r_mms)
 
         self.assertIsNone(observed)
 
@@ -297,12 +297,13 @@ class TestVariantCaller(unittest.TestCase):
 
         test_1 = refs == "A"
         test_2 = alts == "G"
-        test_3 = positions == "2457"
+        test_3 = positions == "2456"
         test_4 = per_bp_stats == vc.PER_BP_STATS(
             r1_bqs=np.array([39], dtype=np.int32), r2_bqs=np.array([40], dtype=np.int32),
             r1_read_pos=np.array([60], dtype=np.int32), r2_read_pos=np.array([103], dtype=np.int32))
 
-        self.assertTrue(all((test_1, test_2, test_3, test_4,)))
+        test_res = (test_1, test_2, test_3, test_4)
+        self.assertTrue(all(test_res))
 
     def test_assign_stats_snp(self):
         """Tests assignment of SNP BQ and read position stats to the variant call dict."""
@@ -434,7 +435,9 @@ class TestVariantCaller(unittest.TestCase):
         expected = set(self.test_align_seg_r1_positive_concordant.get_reference_positions()[15:])
 
         test_align_seg = copy.deepcopy(self.test_align_seg_r1_positive_concordant)
-        test_align_seg.query_alignment_qualities[0:15] = [0] * 15
+        test_align_seg_bqs = list(test_align_seg.query_qualities)
+        test_align_seg_bqs[0:15] = [0] * 15
+        test_align_seg.query_qualities = test_align_seg_bqs
 
         observed = self.vc._get_unmasked_positions(test_align_seg)
 
@@ -465,24 +468,29 @@ class TestVariantCaller(unittest.TestCase):
             expected[vc.COORDINATE_KEY("CBS_pEZY3", pos + 1)] += 1
 
         # Make sure to re-init the dict as it us updated by side effect by various test methods
-        self.coordinate_counts = collections.defaultdict(int)
+        self.vc.coordinate_counts = collections.defaultdict(int)
 
         # Include masked BQs which should drop out of the fragment coverage
         test_r1_align_seg = copy.deepcopy(self.test_align_seg_r1_positive_concordant)
-        test_r1_align_seg.query_alignment_qualities[0:15] = [0] * 15
+        test_r1_align_seg_bqs = list(test_r1_align_seg.query_qualities)
+        test_r1_align_seg_bqs[0:15] = [0] * 15
+        test_r1_align_seg.query_qualities = test_r1_align_seg_bqs
 
         test_r2_align_seg = copy.deepcopy(self.test_align_seg_r2_negative_concordant)
-        test_r2_align_seg.query_alignment_qualities[0:4] = [0] * 4
+        test_r2_align_seg_bqs = list(test_r2_align_seg.query_qualities)
+        test_r2_align_seg_bqs[0:4] = [0] * 4
+        test_r2_align_seg.query_qualities = test_r2_align_seg_bqs
 
-        self.vc._update_pos_dp(r1=test_r1_align_seg, r2=self.test_align_seg_r2_negative_concordant)
+        self.vc._update_pos_dp(r1=test_r1_align_seg, r2=test_r2_align_seg)
 
         # Test that the keys are in the expected range
-        test_1 = len(set(expected.keys()) - set(self.coordinate_counts.keys())) == 0
+        test_1 = len(set(expected.keys()) - set(self.vc.coordinate_counts.keys())) == 0
 
         # Test that 1 is set for all positions
-        test_2 = len(set(self.coordinate_counts.keys()) - {1}) == 0
+        test_2 = len(set(self.vc.coordinate_counts.values()) - {1}) == 0
 
-        self.assertTrue(all((test_1, test_2,)))
+        test_res = (test_1, test_2)
+        self.assertTrue(all(test_res))
 
     def test_update_pos_dp_all_masked(self):
         """Tests that None is returned for reads with complete BQ masking."""
@@ -491,10 +499,12 @@ class TestVariantCaller(unittest.TestCase):
         self.coordinate_counts = collections.defaultdict(int)
 
         test_r1_align_seg = copy.deepcopy(self.test_align_seg_r1_positive_concordant)
-        test_r1_align_seg.query_alignment_qualities = [0] * test_r1_align_seg.query_alignment_length
+        test_r1_align_seg_bqs = [0] * test_r1_align_seg.query_length
+        test_r1_align_seg.query_qualities = test_r1_align_seg_bqs
 
         test_r2_align_seg = copy.deepcopy(self.test_align_seg_r2_negative_concordant)
-        test_r2_align_seg.query_alignment_qualities[0:4] = [0] * test_r2_align_seg.query_alignment_length
+        test_r2_align_seg_bqs = [0] * test_r2_align_seg.query_length
+        test_r2_align_seg.query_qualities = test_r2_align_seg_bqs
 
         observed = self.vc._update_pos_dp(r1=test_r1_align_seg, r2=self.test_align_seg_r2_negative_concordant)
 
@@ -561,8 +571,8 @@ class TestVariantCaller(unittest.TestCase):
     def test_summarize_stats_bq(self):
         """Tests summarization of BQ stats for an MNP."""
 
-        expected_1 = "38"
-        expected_2 = "39"
+        expected_1 = "38.0"
+        expected_2 = "39.0"
 
         # An di-nt MNP with two supporting reads; normally we would have R2, - data but no need for testing
         var_list = [
@@ -580,14 +590,14 @@ class TestVariantCaller(unittest.TestCase):
 
         test_1 = expected_1 == observed_1
         test_2 = expected_2 == observed_2
-
-        self.assertTrue(all((test_1, test_2,)))
+        test_res = (test_1, test_2)
+        self.assertTrue(all(test_res))
 
     def test_summarize_stats_nm(self):
         """Tests summarization of read position stats for an MNP."""
 
-        expected_1 = "60.5"
-        expected_2 = "59.5"
+        expected_1 = "59.5"
+        expected_2 = "60.5"
 
         # An di-nt MNP with two supporting reads; normally we would have R2, - data but no need for testing
         var_list = [
@@ -605,15 +615,15 @@ class TestVariantCaller(unittest.TestCase):
 
         test_1 = expected_1 == observed_1
         test_2 = expected_2 == observed_2
-
-        self.assertTrue(all((test_1, test_2,)))
+        test_res = (test_1, test_2)
+        self.assertTrue(all(test_res))
 
     # Skip testing of _get_read_pos_stats(), _get_read_bq_stats() as they simply wrap _summarize_stats()
 
     def test_get_read_nm_stats(self):
         """Tests that NM stats are summarized when supporting reads are present."""
 
-        expected = ("4", su.R_COMPAT_NA, su.R_COMPAT_NA, su.R_COMPAT_NA)
+        expected = ("4.0", su.R_COMPAT_NA, su.R_COMPAT_NA, su.R_COMPAT_NA)
 
         var_list = [
             [2, ["39,39", "37,39"], ["60,61", "59,60"], [2, 6]],  # R1, +
@@ -636,49 +646,38 @@ class TestVariantCaller(unittest.TestCase):
             POS_NT=2456, REF_NT="A", ALT_NT="G", UP_REF_NT="C", DOWN_REF_NT="C", DP=3, CAO=3,
             CAF=1.0, NORM_CAO=1000000.0, R1_PLUS_AO=2, R1_MINUS_AO=1, R2_PLUS_AO=0, R2_MINUS_AO=0,
             R1_PLUS_MED_RP="59.5", R1_MINUS_MED_RP="60", R2_PLUS_MED_RP=su.R_COMPAT_NA, R2_MINUS_MED_RP=su.R_COMPAT_NA,
-            R1_PLUS_MED_BQ="37.5", R1_MINUS_MED_BQ="35", R2_PLUS_MED_BQ=su.R_COMPAT_NA, R2_MINUS_MED_BQ=su.R_COMPAT_NA,
-            R1_PLUS_MED_NM="4", R1_MINUS_MED_NM="3", R2_PLUS_MED_NM=su.R_COMPAT_NA, R2_MINUS_MED_NM=su.R_COMPAT_NA
+            R1_PLUS_MED_BQ="37.5", R1_MINUS_MED_BQ="20", R2_PLUS_MED_BQ=su.R_COMPAT_NA, R2_MINUS_MED_BQ=su.R_COMPAT_NA,
+            R1_PLUS_MED_NM="3.5", R1_MINUS_MED_NM="3", R2_PLUS_MED_NM=su.R_COMPAT_NA, R2_MINUS_MED_NM=su.R_COMPAT_NA
         )
 
         vcst_2 = vc.VARIANT_CALL_SUMMARY_TUPLE(
             POS_NT=2457, REF_NT="C", ALT_NT="T", UP_REF_NT="A", DOWN_REF_NT="G", DP=3, CAO=3,
             CAF=1.0, NORM_CAO=1000000.0, R1_PLUS_AO=2, R1_MINUS_AO=1, R2_PLUS_AO=0, R2_MINUS_AO=0,
             R1_PLUS_MED_RP="60.5", R1_MINUS_MED_RP="61", R2_PLUS_MED_RP=su.R_COMPAT_NA, R2_MINUS_MED_RP=su.R_COMPAT_NA,
-            R1_PLUS_MED_BQ="39", R1_MINUS_MED_BQ="30", R2_PLUS_MED_BQ=su.R_COMPAT_NA, R2_MINUS_MED_BQ=su.R_COMPAT_NA,
-            R1_PLUS_MED_NM="4", R1_MINUS_MED_NM="3", R2_PLUS_MED_NM=su.R_COMPAT_NA, R2_MINUS_MED_NM=su.R_COMPAT_NA
+            R1_PLUS_MED_BQ="39.0", R1_MINUS_MED_BQ="30", R2_PLUS_MED_BQ=su.R_COMPAT_NA, R2_MINUS_MED_BQ=su.R_COMPAT_NA,
+            R1_PLUS_MED_NM="3.5", R1_MINUS_MED_NM="3", R2_PLUS_MED_NM=su.R_COMPAT_NA, R2_MINUS_MED_NM=su.R_COMPAT_NA
         )
 
-        vcst_3 = vc.VARIANT_CALL_SUMMARY_TUPLE(
-            POS_NT=2459, REF_NT="C", ALT_NT="A", UP_REF_NT="G", DOWN_REF_NT="T", DP=3, CAO=3,
-            CAF=1.0, NORM_CAO=1000000.0, R1_PLUS_AO=2, R1_MINUS_AO=1, R2_PLUS_AO=0, R2_MINUS_AO=0,
-            R1_PLUS_MED_RP="62.5", R1_MINUS_MED_RP="63", R2_PLUS_MED_RP=su.R_COMPAT_NA, R2_MINUS_MED_RP=su.R_COMPAT_NA,
-            R1_PLUS_MED_BQ="40", R1_MINUS_MED_BQ="40", R2_PLUS_MED_BQ=su.R_COMPAT_NA, R2_MINUS_MED_BQ=su.R_COMPAT_NA,
-            R1_PLUS_MED_NM="4", R1_MINUS_MED_NM="3", R2_PLUS_MED_NM=su.R_COMPAT_NA, R2_MINUS_MED_NM=su.R_COMPAT_NA
-        )
-
-        expected[vc.VARIANT_CALL_KEY_TUPLE(contig="CBS_pEZY3", pos=2456, ref="ACGC", alt="GTGA", index=0)] = vcst_1
-        expected[vc.VARIANT_CALL_KEY_TUPLE(contig="CBS_pEZY3", pos=2457, ref="ACGC", alt="GTGA", index=1)] = vcst_2
-        expected[vc.VARIANT_CALL_KEY_TUPLE(contig="CBS_pEZY3", pos=2459, ref="ACGC", alt="GTGA", index=2)] = vcst_3
+        expected[vc.VARIANT_CALL_KEY_TUPLE(contig="CBS_pEZY3", pos=2456, ref="AC", alt="GT", index=0)] = vcst_1
+        expected[vc.VARIANT_CALL_KEY_TUPLE(contig="CBS_pEZY3", pos=2456, ref="AC", alt="GT", index=1)] = vcst_2
 
         self.vc.variant_counts = collections.OrderedDict()
 
         call_tuple = vc.CALL_TUPLE(
-            contig="CBS_pEZY3", pos=2456, ref="ACGC", alt="GTGA", refs="A,C,C", alts="G,T,A", positions="2456,2457,2459")
+            contig="CBS_pEZY3", pos=2456, ref="AC", alt="GT", refs="A,C", alts="G,T", positions="2456,2457")
 
         # Normally R2 data would be present but for the purpose of testing omit
         var_list = [
-            [2, ["38,39,40", "37,39,40"], ["60,61,63", "59,60,62"], [3, 4, 5]],  # R1, +
-            [1, ["20,30,40"], ["60,61,63"], [3]],  # R1, -
+            [2, ["38,39", "37,39"], ["60,61", "59,60"], [3, 4]],  # R1, +
+            [1, ["20,30"], ["60,61"], [3]],  # R1, -
             [0, [], [], []],  # R2, +
             [0, [], [], []]  # R2, -
         ]
 
         self.vc.variant_counts[call_tuple] = var_list
-
-        self.coordinate_counts = collections.defaultdict(int)
-        self.coordinate_counts[vc.COORDINATE_KEY("CBS_pEZY3", 2456)] += 4
-        self.coordinate_counts[vc.COORDINATE_KEY("CBS_pEZY3", 2457)] += 4
-        self.coordinate_counts[vc.COORDINATE_KEY("CBS_pEZY3", 2459)] += 3
+        self.vc.coordinate_counts = collections.defaultdict(int)
+        self.vc.coordinate_counts[vc.COORDINATE_KEY("CBS_pEZY3", 2456)] += 3
+        self.vc.coordinate_counts[vc.COORDINATE_KEY("CBS_pEZY3", 2457)] += 3
 
         observed = self.vc._call_variants(min_supporting_qnames=1)
 
@@ -690,22 +689,20 @@ class TestVariantCaller(unittest.TestCase):
         self.vc.variant_counts = collections.OrderedDict()
 
         call_tuple = vc.CALL_TUPLE(
-            contig="CBS_pEZY3", pos=2456, ref="ACGC", alt="GTGA", refs="A,C,C", alts="G,T,A", positions="2456,2457,2459")
+            contig="CBS_pEZY3", pos=2456, ref="AC", alt="GT", refs="A,C", alts="G,T", positions="2456,2457")
 
         # Normally R2 data would be present but for the purpose of testing omit
         var_list = [
-            [2, ["38,39,40", "37,39,40"], ["60,61,63", "59,60,62"], [3, 4, 5]],  # R1, +
-            [1, ["20,30,40"], ["60,61,63"], [3]],  # R1, -
+            [2, ["38,39", "37,39"], ["60,61", "59,60"], [3, 4]],  # R1, +
+            [1, ["20,30"], ["60,61"], [3]],  # R1, -
             [0, [], [], []],  # R2, +
             [0, [], [], []]  # R2, -
         ]
 
         self.vc.variant_counts[call_tuple] = var_list
-
         self.coordinate_counts = collections.defaultdict(int)
-        self.coordinate_counts[vc.COORDINATE_KEY("CBS_pEZY3", 2456)] += 4
-        self.coordinate_counts[vc.COORDINATE_KEY("CBS_pEZY3", 2457)] += 4
-        self.coordinate_counts[vc.COORDINATE_KEY("CBS_pEZY3", 2459)] += 3
+        self.coordinate_counts[vc.COORDINATE_KEY("CBS_pEZY3", 2456)] += 3
+        self.coordinate_counts[vc.COORDINATE_KEY("CBS_pEZY3", 2457)] += 3
 
         observed = self.vc._call_variants(min_supporting_qnames=4)
 
