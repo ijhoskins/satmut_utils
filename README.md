@@ -102,7 +102,6 @@ Filter edited reads and realign them for investigation of false negatives and po
 python satmut_utils.py -i ENST00000398165.7 -x $REF_DIR -o $OUTPUT_DIR -p primers.bed sim -a negative_control.bam -v sim_variants.vcf -f
 ```
 
-
 Use a random seed to select different reads for editing:
 ```
 python satmut_utils.py -i ENST00000398165.7 -x $REF_DIR -o $OUTPUT_DIR -p primers.bed sim -a negative_control.bam -v sim_variants.vcf -s 99
