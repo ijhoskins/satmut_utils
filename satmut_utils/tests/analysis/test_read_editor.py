@@ -23,14 +23,12 @@ TEST_VCF = """##fileformat=VCFv4.2
 ##INFO=<ID=IE,Number=1,Type=String,Description="Introduce sequencing error to a specific strand, either + or -.">
 ##INFO=<ID=IR,Number=1,Type=String,Description="Introduce error (sample strand chemical change) to a specific read mate, either R1 or R2.">
 #CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO
-ENST00000398165.7|ENSG00000160200.17|OTTHUMG00000086834.7|OTTHUMT00000195525.1|CBS-204|CBS|2605|protein_coding|	626	.	C	T	.	.	VARTYPE=snp;AF=1.0;IR=R1
 ENST00000398165.7|ENSG00000160200.17|OTTHUMG00000086834.7|OTTHUMT00000195525.1|CBS-204|CBS|2605|protein_coding|	795	.	GAC	ATG	.	.	AAM_AA_CHANGE=p.D179M;VARTYPE=tri_nt_MNP;AF=1.0
 ENST00000398165.7|ENSG00000160200.17|OTTHUMG00000086834.7|OTTHUMT00000195525.1|CBS-204|CBS|2605|protein_coding|	804	.	C	G	.	.	AAM_AA_CHANGE=p.R182G;VARTYPE=snp;AF=0.25
 ENST00000398165.7|ENSG00000160200.17|OTTHUMG00000086834.7|OTTHUMT00000195525.1|CBS-204|CBS|2605|protein_coding|	804	.	C	T	.	.	AAM_AA_CHANGE=p.R182W;VARTYPE=snp;AF=0.25
 ENST00000398165.7|ENSG00000160200.17|OTTHUMG00000086834.7|OTTHUMT00000195525.1|CBS-204|CBS|2605|protein_coding|	813	.	GG	AT	.	.	AAM_AA_CHANGE=p.G185M;VARTYPE=di_nt_MNP;AF=0.5
 ENST00000398165.7|ENSG00000160200.17|OTTHUMG00000086834.7|OTTHUMT00000195525.1|CBS-204|CBS|2605|protein_coding|	955	.	ACT	A	.	.	VARTYPE=del;AF=1.0
 ENST00000398165.7|ENSG00000160200.17|OTTHUMG00000086834.7|OTTHUMT00000195525.1|CBS-204|CBS|2605|protein_coding|	1094	.	T	TG	.	.	VARTYPE=ins;AF=1.0
-ENST00000398165.7|ENSG00000160200.17|OTTHUMG00000086834.7|OTTHUMT00000195525.1|CBS-204|CBS|2605|protein_coding|	1861	.	T	G	.	.	VARTYPE=snp;AF=1.0;IE=+
 """
 
 TEST_SAM = """@HD	VN:1.0	SO:coordinate
@@ -108,12 +106,17 @@ class TestReadEditor(unittest.TestCase):
             cls.test_bam, variants=cls.test_vcf, ref=cls.cbs_ref, primers=cls.test_primers,
             output_dir=cls.tempdir, output_prefix="test_editor")
 
-        cls.qname_lookup_rev = {zip(cls.ed.qname_lookup.values(), cls.ed.qname_lookup.keys())}
-
+        # The qnames at POS 804 are 0000001369, 000224875, 000225689, 0000051899
         cls.test_variant_config = ed.VARIANT_CONFIG_TUPLE(
             type=get_variant_type("C", "G"),
             contig="ENST00000398165.7|ENSG00000160200.17|OTTHUMG00000086834.7|OTTHUMT00000195525.1|CBS-204|CBS|2605|protein_coding|",
-            pos=804, ref="C", alt="G", af=0.5, ie=None, ir=None)
+            pos=804, ref="C", alt="G", af=0.5)
+
+        # The qname at POS 795 is 000224875
+        cls.test_variant_config_af1 = ed.VARIANT_CONFIG_TUPLE(
+            type=get_variant_type("GAC", "ATG"),
+            contig="ENST00000398165.7|ENSG00000160200.17|OTTHUMG00000086834.7|OTTHUMT00000195525.1|CBS-204|CBS|2605|protein_coding|",
+            pos=975, ref="GAC", alt="ATG", af=1.0)
 
         cls.contig = "ENST00000398165.7|ENSG00000160200.17|OTTHUMG00000086834.7|OTTHUMT00000195525.1|CBS-204|CBS|2605|protein_coding|"
 
@@ -128,21 +131,17 @@ class TestReadEditor(unittest.TestCase):
 
         expected = [
             ed.VARIANT_CONFIG_TUPLE(
-                type=get_variant_type("C", "T"), contig=self.contig, pos=626, ref="C", alt="T", af=1.0, ie=None, ir=ReadMate("R1")),
+                type=get_variant_type("GAC", "ATG"), contig=self.contig, pos=795, ref="GAC", alt="ATG", af=1.0),
             ed.VARIANT_CONFIG_TUPLE(
-                type=get_variant_type("GAC", "ATG"), contig=self.contig, pos=795, ref="GAC", alt="ATG", af=1.0, ie=None, ir=None),
+                type=get_variant_type("C", "G"), contig=self.contig, pos=804, ref="C", alt="G", af=0.25),
             ed.VARIANT_CONFIG_TUPLE(
-                type=get_variant_type("C", "G"), contig=self.contig, pos=804, ref="C", alt="G", af=0.25, ie=None, ir=None),
+                type=get_variant_type("C", "G"), contig=self.contig, pos=804, ref="C", alt="T", af=0.25),
             ed.VARIANT_CONFIG_TUPLE(
-                type=get_variant_type("C", "G"), contig=self.contig, pos=804, ref="C", alt="T", af=0.25, ie=None, ir=None),
+                type=get_variant_type("GG", "AT"), contig=self.contig, pos=813, ref="GG", alt="AT", af=0.5),
             ed.VARIANT_CONFIG_TUPLE(
-                type=get_variant_type("GG", "AT"), contig=self.contig, pos=813, ref="GG", alt="AT", af=0.5, ie=None, ir=None),
+                type=get_variant_type("ACT", "A"), contig=self.contig, pos=955, ref="ACT", alt="A", af=1.0),
             ed.VARIANT_CONFIG_TUPLE(
-                type=get_variant_type("ACT", "A"), contig=self.contig, pos=955, ref="ACT", alt="A", af=1.0, ie=None, ir=None),
-            ed.VARIANT_CONFIG_TUPLE(
-                type=get_variant_type("T", "TG"), contig=self.contig, pos=1094, ref="T", alt="TG", af=1.0, ie=None, ir=None),
-            ed.VARIANT_CONFIG_TUPLE(
-                type=get_variant_type("C", "T"), contig=self.contig, pos=1861, ref="T", alt="G", af=1.0, ie=Strand("+"), ir=None),
+                type=get_variant_type("T", "TG"), contig=self.contig, pos=1094, ref="T", alt="TG", af=1.0),
         ]
 
         observed = self.ed._get_variant_configs()
@@ -190,72 +189,83 @@ class TestReadEditor(unittest.TestCase):
         self.assertEqual(expected, observed)
 
     def test_iterate_over_pileup_reads(self):
-        """Tests that edit configs are appended to the edit dictionary."""
+        """Tests that edit configs are appended to the edit dictionary and the expected truth frequency is returned."""
 
-        expected = collections.defaultdict(list)
-
-        # The qnames at POS 804 are 0000001369, 000224875, 000225689, 0000051899
-        qname_alias_1 = self.qname_lookup_rev[]
-        qname_alias_2 = self.qname_lookup_rev[]
-
-        edit_key_1 = ed.EDIT_KEY_TUPLE(qname=qname_alias, mate=ReadMate(pileup_read.alignment.is_read1))
-
-        edit_config_1 = ed.EDIT_CONFIG_TUPLE(
-            contig=self.contig, pos=804, ref="C", alt="G", read_pos=pileup_read.query_position, ie=None, ir=None)
-
-        edit_configs = collections.defaultdict(list)
+        observed_edit_configs = dict()
 
         with pysam.AlignmentFile(self.ed.editor_preprocessor.edit_background, "rb") as edited_background_af:
 
-            contig = list(self.ed.variant_configs)[0].contig
-            target = COORD_FORMAT.format(contig, 804, 804)
+            # For purpose of testing change just the input coordinate
+            target = COORD_FORMAT.format(self.contig, 795, 795)
 
-            # We must use PileupColumns in iteration only
-            # See https://github.com/pysam-developers/pysam/issues/746
             for pc in edited_background_af.pileup(
                     region=target, truncate=True, max_depth=self.ed.MAX_DP, stepper="all",
-                    ignore_overlaps=False, ignore_orphans=False, min_base_quality=self.ed.MIN_BQ,
-                    min_mapping_quality=DEFAULT_MAPQ):
+                    ignore_overlaps=False, ignore_orphans=False,
+                    min_base_quality=self.ed.MIN_BQ, min_mapping_quality=DEFAULT_MAPQ):
 
-                pc_coord = COORD_FORMAT.format(pc.reference_name, pc.reference_pos + 1, pc.reference_pos + 1)
-                if pc_coord not in {804}:
-                    continue
-
-                var_indices = {i for i, e in enumerate(self.ed.variant_config_ids) if e == pc_coord}
-                var_configs = [e for i, e in enumerate(self.ed.variant_configs) if i in var_indices]
-                pc_ref_base = var_configs[0].ref
-
-                amenable_qnames = [
-                    self.ed._get_qname_alias(pileup_read.alignment.query_name) for pileup_read in pc.pileups
-                    if not pileup_read.is_del and not pileup_read.is_refskip and
-                       pileup_read.alignment.query_sequence[
-                       pileup_read.query_position:pileup_read.query_position + len(pc_ref_base)] == pc_ref_base and
-                       MASKED_BQ not in pileup_read.alignment.query_qualities[
-                                        pileup_read.query_position:pileup_read.query_position + len(pc_ref_base)]
-                ]
+                amenable_qnames = []
+                for pileup_read in pc.pileups:
+                    qname_alias = self.ed._get_qname_alias(pileup_read.alignment.query_name)
+                    amenable_qnames.append(qname_alias)
 
                 amenable_qname_counter = collections.Counter(amenable_qnames)
                 amenable_qnames = {qname for (qname, qname_count) in amenable_qname_counter.items() if qname_count == 2}
                 total_amenable_qnames = len(amenable_qnames)
 
-                self.ed._iterate_over_pileup_reads(
-                    pc, self.test_variant_config, edit_configs, amenable_qnames, total_amenable_qnames)
+            # Now we can test the method
+            observed_af = self.ed._iterate_over_pileup_reads(
+                pc, self.test_variant_config_af1, observed_edit_configs, amenable_qnames, total_amenable_qnames)
 
+            expected_af = 1.0
+
+            qname_lookup_rev = dict(zip(map(str, self.ed.qname_lookup.values()), self.ed.qname_lookup.keys()))
+
+            qname_alias = qname_lookup_rev["000224875"]
+
+            edit_key_r1 = ed.EDIT_KEY_TUPLE(qname=qname_alias, mate=ReadMate("R1"))
+            edit_config_r1 = ed.EDIT_CONFIG_TUPLE(contig=self.contig, pos=795, ref="GAC", alt="ATG", read_pos=113)
+
+            edit_key_r2 = ed.EDIT_KEY_TUPLE(qname=qname_alias, mate=ReadMate("R2"))
+            edit_config_r2 = ed.EDIT_CONFIG_TUPLE(contig=self.contig, pos=795, ref="GAC", alt="ATG", read_pos=116)
+
+            test_1 = observed_af == expected_af
+            test_2 = len({edit_key_r1, edit_key_r2} - set(observed_edit_configs.keys())) == 0
+            test_3 = observed_edit_configs[edit_key_r1] == edit_config_r1
+            test_4 = observed_edit_configs[edit_key_r2] == edit_config_r2
+            test_res = (test_1, test_2, test_3, test_4)
+
+            edited_background_af.reset()
+
+            self.assertTrue(all(test_res))
 
     def test_get_edit_configs(self):
         """Tests for update of the edit dictionary with several variant configs."""
+
+        observed_edit_configs = self.ed._get_edit_configs()
+
+        qname_lookup_rev = dict(zip(map(str, self.ed.qname_lookup.values()), self.ed.qname_lookup.keys()))
+
+        # tri-nt MNP
+        qname_alias_1 = qname_lookup_rev["000224875"]
+        edit_key_r1 = ed.EDIT_KEY_TUPLE(qname=qname_alias_1, mate=ReadMate("R1"))
+        edit_config_r1 = ed.EDIT_CONFIG_TUPLE(contig=self.contig, pos=795, ref="GAC", alt="ATG", read_pos=113)
+        edit_key_r2 = ed.EDIT_KEY_TUPLE(qname=qname_alias_1, mate=ReadMate("R2"))
+        edit_config_r2 = ed.EDIT_CONFIG_TUPLE(contig=self.contig, pos=795, ref="GAC", alt="ATG", read_pos=116)
+
+        # SNP A
+        qname_alias_1 = qname_lookup_rev["000224875"]
+        edit_key_r1 = ed.EDIT_KEY_TUPLE(qname=qname_alias_1, mate=ReadMate("R1"))
+        edit_config_r1 = ed.EDIT_CONFIG_TUPLE(contig=self.contig, pos=795, ref="GAC", alt="ATG", read_pos=113)
+        edit_key_r2 = ed.EDIT_KEY_TUPLE(qname=qname_alias_1, mate=ReadMate("R2"))
+        edit_config_r2 = ed.EDIT_CONFIG_TUPLE(contig=self.contig, pos=795, ref="GAC", alt="ATG", read_pos=116)
 
         pass
 
     def test_unmask_quals(self):
         """Tests for proper unmasking of qualities prior to write of reads."""
 
-        pass
-
-    def test_sort_key(self):
-        """Tests proper indicies are returned for SNPs, MNPs, and InDels."""
-
-        pass
+        observed = self.ed._unmask_quals([MASKED_BQ] * 10)
+        self.assertTrue(MASKED_BQ not in set(observed))
 
     def test_edit(self):
         """Tests editing of a read object."""
@@ -266,6 +276,7 @@ class TestReadEditor(unittest.TestCase):
         """Tests that multiple reads are edited."""
         pass
 
-    def test_get_edited_read_pairs(self):
-        """Tests filtering of edited reads."""
+    def test_workflow(self):
+        """Smoke test that the workflow runs."""
+
         pass

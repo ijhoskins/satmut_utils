@@ -8,7 +8,6 @@ import os
 import pysam
 import random
 import tempfile
-import pickle
 
 from analysis.read_preprocessor import ReadMasker
 from analysis import seq_utils as su
@@ -25,9 +24,9 @@ __email__ = "ianjameshoskins@utexas.edu"
 __status__ = "Development"
 
 
-VARIANT_CONFIG_TUPLE = collections.namedtuple("VARIANT_CONFIG_TUPLE", "type, contig, pos, ref, alt, af, ie, ir")
+VARIANT_CONFIG_TUPLE = collections.namedtuple("VARIANT_CONFIG_TUPLE", "type, contig, pos, ref, alt, af")
 EDIT_KEY_TUPLE = collections.namedtuple("EDIT_KEY_TUPLE", "qname, mate")
-EDIT_CONFIG_TUPLE = collections.namedtuple("EDIT_CONFIG_TUPLE", "contig, pos, ref, alt, read_pos, ie, ir")
+EDIT_CONFIG_TUPLE = collections.namedtuple("EDIT_CONFIG_TUPLE", "contig, pos, ref, alt, read_pos")
 
 tempfile.tempdir = os.getenv("SCRATCH", "/tmp")
 
@@ -87,7 +86,7 @@ class ReadEditorPreprocessor(object):
 
 
 class ReadEditor(object):
-    """Class for editing variants into sequencing data."""
+    """Class for editing concordant variants into paired-end sequencing alignments."""
 
     DEFAULT_REFERENCE_DIR = "./references"
     DEFAULT_ENSEMBL_ID = None
@@ -101,20 +100,16 @@ class ReadEditor(object):
     DEFAULT_NTHREADS = 0
 
     MAX_DP = 100000000
-    MIN_BQ = 1  # omit primer-masked bases of BQ = 0
+    MIN_BQ = 1  # omit primer-masked bases where BQ = 0
     MATCH_REQ_LIM = 3
     VAR_TAG_DELIM = "_"
 
     TRUTH_VCF_SUFFIX = "truth.vcf"
     NORM_VCF_SUFFIX = "norm.vcf"
     EDIT_BAM_SUFFIX = "edit.bam"
-    REALIGN_BAM_SUFFIX = "realigned.bam"
-    EDIT_FILT_BAM_SUFFIX = "edit.filt.bam"
-    UNEDIT_VCF_SUFFIX = "unedit.vcf"
 
     def __init__(self, am, variants, ref, primers=DEFAULT_PRIMERS, output_dir=DEFAULT_OUTDIR,
-                 output_prefix=DEFAULT_PREFIX, filter_edited=DEFAULT_FILTER, realign=DEFAULT_REALIGN,
-                 random_seed=DEFAULT_SEED, nthreads=DEFAULT_NTHREADS):
+                 output_prefix=DEFAULT_PREFIX, random_seed=DEFAULT_SEED, nthreads=DEFAULT_NTHREADS):
         r"""Constructor for ReadEditor.
 
         :param str am: alignments to edit into.
@@ -122,12 +117,9 @@ class ReadEditor(object):
         :param str ref: reference FASTA. Default APPRIS primary annotation transcriptome.
         :param str | None primers: BED, GFF, or GTF file containing primers; for masking synthetic sequences for \
         accurate AF of variants under primer regions. This feature file should contain the strand of the primer. \
-        Set to None for no masking. Induce variants on select strands using the IE tag, e.g. IE="+"|"-". \
-        Induce variants on select reads by using the RI tag, e.g. IR="R1"|"R2".
+        Set to None for no masking.
         :param str output_dir: Optional output directory to store generated FASTQs and BAM. Default current directory.
         :param str | None output_prefix: Optional output prefix for the FASTQ(s) and BAM
-        :param bool filter_edited: filter the edited BAM for those read pairs that were edited? Default True.
-        :param bool realign: should full FASTQs be realigned? Needed for visualization of reads and variant calling. Default False.
         :param int random_seed: seed for random qname sampling
         :param int nthreads: Number of threads to use for SAM/BAM operations. Default 0 (autodetect).
 
@@ -140,8 +132,6 @@ class ReadEditor(object):
         self.ref = ref
         self.output_dir = output_dir
         self.output_prefix = output_prefix
-        self.filter_edited = filter_edited
-        self.realign = realign
         self.random_seed = random_seed
         self.nthreads = nthreads
 
@@ -158,6 +148,7 @@ class ReadEditor(object):
 
         self.out_path = os.path.join(self.output_dir, self.output_prefix)
         self.output_bam = fu.add_extension(self.out_path, self.EDIT_BAM_SUFFIX)
+        self.truth_vcf = fu.add_extension(self.out_path, self.TRUTH_VCF_SUFFIX)
 
         _logger.info("Pre-processing input files for editing.")
         self.editor_preprocessor = ReadEditorPreprocessor(am=am, primers=primers, ref=ref, outdir=output_dir)
@@ -209,17 +200,9 @@ class ReadEditor(object):
                 if vu.VCF_AF_ID in var.info:
                     af_val = var.info[vu.VCF_AF_ID]
 
-                ie_val = None
-                ir_val = None
-                if vu.VCF_IE_ID in var.info:
-                    ie_val = su.Strand(var.info[vu.VCF_IE_ID][0])
-
-                if vu.VCF_IR_ID in var.info:
-                    ir_val = su.ReadMate(var.info[vu.VCF_IR_ID][0])
-
-                vct = VARIANT_CONFIG_TUPLE(type=vu.get_variant_type(var.ref, var.alts[0]),
-                                           contig=var.contig, pos=var.pos, ref=var.ref, alt=var.alts[0],
-                                           af=af_val, ie=ie_val, ir=ir_val)
+                vct = VARIANT_CONFIG_TUPLE(
+                    type=vu.get_variant_type(var.ref, var.alts[0]), contig=var.contig, pos=var.pos,
+                    ref=var.ref, alt=var.alts[0], af=af_val)
 
                 variant_tuples.append(vct)
 
@@ -264,45 +247,36 @@ class ReadEditor(object):
 
         :param pysam.PileupColumn pileup_column: iterator over PileupRead objects
         :param read_editor.VARIANT_CONFIG_TUPLE variant_config: config for the variant
-        :param collections.defaultdict edit_configs: dict containing editing data
+        :param dict edit_configs: dict containing editing data
         :param set amenable_qnames: amenable qnames as the coordinate
         :param int total_amenable_qnames: number amenable qnames as the coordinate
+        :return float: expected allele frequency of the variant specified by variant_config
         """
 
         qnames_to_edit = self._get_edit_qnames(amenable_qnames, variant_config, total_amenable_qnames)
+
+        # Once we edit a read, do not allow editing on it again so we don't glob variants;
+        # also required for InDel generation which upon edit, changes the edit position of the edit_config
         amenable_qnames -= qnames_to_edit
 
         # Now we have our set of qnames to edit, so store these as edit_configs
         for pileup_read in pileup_column.pileups:
 
-            # Though we have already checked these criteria in the initial determination of variants to edit,
-            # if running with IE or IR tags, we must check again as one mate may map while the other mate may have
-            # a del at the variant coordinate. The same applies to the match criterion: one mate may match the
-            # reference while the other has an error which we would like to preserve.
-            if not pileup_read.is_del and not pileup_read.is_refskip:
+            qname_alias = self._get_qname_alias(pileup_read.alignment.query_name)
 
-                qpos = pileup_read.query_position
-                qpos_end = pileup_read.query_position + len(variant_config.ref)
+            if qname_alias in qnames_to_edit:
 
-                # Consider a qname amenable only if it matches the reference sequence at the pileup
-                obs_bp = pileup_read.alignment.query_sequence[qpos:qpos_end]
+                edit_key = EDIT_KEY_TUPLE(qname=qname_alias, mate=su.ReadMate(pileup_read.alignment.is_read1))
 
-                if obs_bp != variant_config.ref or su.MASKED_BQ in pileup_read.alignment.query_qualities[qpos:qpos_end]:
-                    continue
+                edit_config = EDIT_CONFIG_TUPLE(
+                    contig=variant_config.contig, pos=variant_config.pos,
+                    ref=variant_config.ref, alt=variant_config.alt, read_pos=pileup_read.query_position)
 
-                qname_alias = self._get_qname_alias(pileup_read.alignment.query_name)
+                edit_configs[edit_key] = edit_config
 
-                if qname_alias in qnames_to_edit:
-
-                    edit_key = EDIT_KEY_TUPLE(qname=qname_alias, mate=su.ReadMate(pileup_read.alignment.is_read1))
-
-                    edit_config = EDIT_CONFIG_TUPLE(
-                        contig=variant_config.contig, pos=variant_config.pos,
-                        ref=variant_config.ref, alt=variant_config.alt,
-                        read_pos=pileup_read.query_position,
-                        ie=variant_config.ie, ir=variant_config.ir)
-
-                    edit_configs[edit_key].append(edit_config)
+        # Determine the expected frequency for writing the truth VCF
+        expected_af = len(qnames_to_edit) / total_amenable_qnames
+        return expected_af
 
     def _get_edit_configs(self):
         """Gets a dictionary of read variant editing configurations. Editing should be deterministic.
@@ -310,12 +284,15 @@ class ReadEditor(object):
         :return collections.defaultdict: dict of lists of reads to edit
         """
 
-        edit_configs = collections.defaultdict(list)
+        edit_configs = dict()
         random.seed(self.random_seed)
 
-        _logger.info("Getting read pileups.")
-        with pysam.AlignmentFile(self.editor_preprocessor.edit_background, "rb") as edited_background_af:
+        with pysam.AlignmentFile(self.editor_preprocessor.edit_background, "rb") as edited_background_af, \
+                pysam.VariantFile(self.variants, "r") as in_vcf, \
+                pysam.VariantFile(self.truth_vcf, "w", header=in_vcf.header) as truth_vcf:
 
+            # Note this only works for single contig alignments!
+            # This is used for target arg of the pileup call
             contig = list(self.variant_configs)[0].contig
             contig_positions = {variant_config.pos for variant_config in self.variant_configs}
             contig_pos_min = min(contig_positions)
@@ -323,7 +300,6 @@ class ReadEditor(object):
             target = su.COORD_FORMAT.format(contig, contig_pos_min, contig_pos_max)
 
             # We must use PileupColumns in iteration only
-            # See https://github.com/pysam-developers/pysam/issues/746
             for pc in edited_background_af.pileup(
                     region=target, truncate=True, max_depth=self.MAX_DP, stepper="all",
                     ignore_overlaps=False, ignore_orphans=False,
@@ -338,23 +314,45 @@ class ReadEditor(object):
                 var_indices = {i for i, e in enumerate(self.variant_config_ids) if e == pc_coord}
                 var_configs = [e for i, e in enumerate(self.variant_configs) if i in var_indices]
 
-                # First calculate the total number of amenable qnames at the coordinate; this is used for multiplying by
-                # per-variant AFs to determine number of qnames to edit; we do this as opposed to calculating later
-                # as amenable_qnames for each variant are dynamically updated based on qnames already selected for
-                # editing of prior variants.
+                # First calculate the total number of amenable (non-aberrant) qnames at the coordinate;
+                # this is the depth for multiplying by variant AFs to determine the integer number of qnames to edit
+                # Here apply several filters to determine amenable qnames
                 pc_ref_base = var_configs[0].ref
+                len_ref = len(pc_ref_base)
+                amenable_qnames = []
 
-                # The expr at the end says any base involved in the variant should not overlap a primer
-                amenable_qnames = [
-                    self._get_qname_alias(pileup_read.alignment.query_name) for pileup_read in pc.pileups
-                    if not pileup_read.is_del and not pileup_read.is_refskip and
-                       pileup_read.alignment.query_sequence[
-                       pileup_read.query_position:pileup_read.query_position+len(pc_ref_base)] == pc_ref_base and
-                       su.MASKED_BQ not in pileup_read.alignment.query_qualities[
-                                           pileup_read.query_position:pileup_read.query_position + len(pc_ref_base)]
-                ]
+                for pileup_read in pc.pileups:
 
-                # Ensure that both mates overlap the position as in calling satmut_utils requires both reads support
+                    # If the current read position has a InDel, skip for editing
+                    # WARNING: this does not check nearby positions, and may cause FNs if certain reads are chosen
+                    # In this case, try changing the seed for low frequency dels
+                    if pileup_read.is_del or pileup_read.is_refskip:
+                        continue
+
+                    # If the editable read position does not match the reference sequence, do not edit
+                    # This should handle cases where editing InDels at the termini of read does not raise an IndexError
+                    end_pos = pileup_read.query_position + len_ref
+                    if end_pos > pileup_read.alignment.query_alignment_length:
+
+                        # If we match up to the end position of the REF (e.g. in a del at terminus), we may edit
+                        # Otherwise, the slice will create a string that does not match the pc_ref_base
+                        end_pos = pileup_read.alignment.query_alignment_length
+
+                    obs_bps = pileup_read.alignment.query_sequence[pileup_read.query_position:end_pos]
+
+                    if pileup_read.alignment.query_sequence[
+                       pileup_read.query_position:pileup_read.query_position + len_ref] != obs_bps:
+                        continue
+
+                    # If the edited bases intersect any synthetic primer regions, do not edit
+                    if su.MASKED_BQ in pileup_read.alignment.query_qualities[
+                                       pileup_read.query_position:pileup_read.query_position + len_ref]:
+                        continue
+
+                    qname_alias = self._get_qname_alias(pileup_read.alignment.query_name)
+                    amenable_qnames.append(qname_alias)
+
+                # Finally ensure both mates overlap the POS; satmut_utils call requires both mates for variant calls
                 amenable_qname_counter = collections.Counter(amenable_qnames)
                 amenable_qnames = {qname for (qname, qname_count) in amenable_qname_counter.items() if qname_count == 2}
                 total_amenable_qnames = len(amenable_qnames)
@@ -363,9 +361,15 @@ class ReadEditor(object):
                     _logger.warning("No amenable qnames for editing at %s." % pc_coord)
                     continue
 
-                # Finally get the edit configs
+                # Get the edit configs for all variants at the column
                 for var_config in var_configs:
-                    self._iterate_over_pileup_reads(pc, var_config, edit_configs, amenable_qnames, total_amenable_qnames)
+
+                    # Update the edit_configs dict and determine the truth frequency
+                    expected_af = self._iterate_over_pileup_reads(
+                        pc, var_config, edit_configs, amenable_qnames, total_amenable_qnames)
+
+                    # Write the variant and its expected frequency to the truth VCF
+                    self._write_variant_to_truth_vcf(truth_vcf, var_config, expected_af)
 
         return edit_configs
 
@@ -379,25 +383,6 @@ class ReadEditor(object):
 
         unmasked_quals = [su.DEFAULT_MAX_BQ if bq == su.MASKED_BQ else bq for bq in quals]
         return unmasked_quals
-
-    @staticmethod
-    def _sort_key(edit_config_tuple):
-        """Custom sort key for variants.
-
-        :param analysis.read_editor.EDIT_CONFIG_TUPLE edit_config_tuple: config for a variant
-        :return int: sort order for elements
-        """
-
-        len_ref = len(edit_config_tuple.ref)
-        len_alt = len(edit_config_tuple.alt)
-
-        # We should always attempt to edit SNPs and MNPs before InDels
-        if len_ref == len_alt:
-            return 0
-        elif len_ref < len_alt:
-            return 1
-        elif len_alt > len_ref:
-            return 2
 
     def _edit(self, align_seg, variant):
         """Induces a single variant in the read object.
@@ -416,14 +401,14 @@ class ReadEditor(object):
         align_seg.query_sequence = "".join(new_seq)
         align_seg.query_qualities = new_quals
 
-        # Set an alignment tag so we know which reads were editd into and what variant was editd in the read
+        # Set an alignment tag so we know which reads were edited and what variant was generated
         var_tag = self.VAR_TAG_DELIM.join([variant.contig, str(variant.pos), variant.ref, variant.alt])
         align_seg.set_tag(su.SAM_EDITED_TAG, var_tag)
 
     def _iterate_over_reads(self, edit_configs):
         """Iterate over the reads and edit.
 
-        :param collections.defaultdict edit_configs: dict with list of variants to edit at a specific read and position."""
+        :param dict edit_configs: dict with list of variants to edit at a specific read and position."""
 
         already_written = set()
 
@@ -440,43 +425,22 @@ class ReadEditor(object):
                 qname_alias = self._get_qname_alias(align_seg.query_name)
                 candidate_key = EDIT_KEY_TUPLE(qname=qname_alias, mate=su.ReadMate(align_seg.is_read1))
 
-                # We do this for RNA reads where we have supplementary alignments in the context of genomic alignment.
+                # We do this for RNA reads where we have supplementary alignments.
                 # The first encountered read will be edited, and we must not write a later supplement (so no dups arise
                 # that would cause the resultant FASTQs to be differing lengths).
                 # Note this could potentially cause issues if the first supplementary read encountered hard clips
                 # and the later supplement does not, as IndexErrors could arise when trying to edit a variant
                 # in the hard-clipped read (whereas the index would have been present in the later supplement).
-                # However, doing it this way greatly simplifies logic; thus filter hard-clipped reads prior to
-                # editing to avoid such edge cases. The benefit in keeping the key as just the qname and mate allows
-                # us to edit variants on different exons when RNA reads were mapped to genomic space.
+                # However, this logic greatly simplifies logic; thus filter hard-clipped reads prior to editing to
+                # avoid such edge cases
                 if candidate_key in already_written:
                     continue
 
-                # Make sure to unmask BQs if they were masked; because we could use a masked BAM as input and
-                # provide primers=None, always apply the unmasking to simplify logic
+                # Make sure to unmask BQs if they were masked to begin with
                 align_seg.query_qualities = self._unmask_quals(align_seg.query_qualities)
 
                 if candidate_key in edit_configs:
-
-                    vars_to_edit = sorted(edit_configs[candidate_key], key=self._sort_key)
-                    for variant in vars_to_edit:
-
-                        # Here we do strand and read checking on the fly
-                        if variant.ie is None and variant.ir is None:
-                            self._edit(align_seg, variant)
-
-                        elif variant.ie is not None and variant.ir is not None and \
-                                variant.ie == su.Strand(align_seg.is_reverse) and \
-                                variant.ir == su.ReadMate(align_seg.is_read1):
-                            self._edit(align_seg, variant)
-
-                        elif variant.ie is not None and variant.ir is None and \
-                                variant.ie == su.Strand(align_seg.is_reverse):
-                            self._edit(align_seg, variant)
-
-                        elif variant.ir is not None and variant.ie is None and \
-                                variant.ir == su.ReadMate(align_seg.is_read1):
-                            self._edit(align_seg, variant)
+                    self._edit(align_seg, edit_configs[candidate_key])
 
                 # Unset the CIGAR string prior to writing as this interferes with proper object construction
                 align_seg.cigarstring = None
@@ -492,91 +456,30 @@ class ReadEditor(object):
         r1_fastq, r2_fastq = su.bam_to_fastq(bam=self.output_bam, out_prefix=self.out_path)
         return r1_fastq, r2_fastq
 
-    def _get_edited_read_pairs(self, edit_configs, filtered_bam=None):
-        """Filters the edited BAM for read pairs that were edited.
+    @staticmethod
+    def _write_variant_to_truth_vcf(truth_vcf_fh, vc, expected_af):
+        """Writes a variant to the truth VCF containing the expected frequencies for input variants.
 
-        :param collections.defaultdict edit_configs: dict with list of variants to edit at a specific read and position
-        :param str | None filtered_bam: output BAM filename to write to; if None, will write to configured output path
-        :return str: BAM file containing edited reads.
+        :param pysam.VariantFile truth_vf: truth VCF VariantFile object
+        :param analysis.read_editor.VARIANT_CONFIG_TUPLE vc: namedtuple containing variant info
+        :param float expected_af: expected allele frequency of the variant
         """
 
-        filt_bam = filtered_bam
-        if filtered_bam is None:
-            filt_bam = fu.add_extension(self.out_path, self.EDIT_FILT_BAM_SUFFIX)
+        info_dict = {vu.VCF_VAR_ID: vu.VCF_VAR_ID_DELIM.join(vc.contig, vc.pos, vc.ref, vc.alt),
+                     vu.VCF_AF_ID: str(expected_af)}
 
-        edited_qnames = {k.qname for k in edit_configs.keys()}
+        new_variant_record = truth_vcf_fh.new_record(
+            contig=vc.contig, start=vc.pos, alleles=(vc.ref, vc.alt), info=info_dict)
 
-        # Now stream through the edited BAM and filter out the edited read pairs, which are qname-sorted.
-        with tempfile.NamedTemporaryFile("wb", suffix=".temp.filtered.bam", delete=False) as temp_bam, \
-                pysam.AlignmentFile(self.output_bam, "rb") as in_af, \
-                pysam.AlignmentFile(temp_bam, "wb", header=in_af.header) as out_af:
-
-            for align_seq in in_af.fetch(until_eof=True):
-
-                qname_alias = self._get_qname_alias(align_seq.query_name)
-
-                if qname_alias in edited_qnames:
-                    out_af.write(align_seq)
-
-            temp_bam_name = temp_bam.name
-
-            # Finally coordinate sort and index the BAM for visualization in a browser
-            su.sort_and_index(temp_bam_name, filt_bam)
-            fu.safe_remove((temp_bam_name,))
-
-    def _get_unedited_vars(self, edit_configs):
-        """Determines if variants not called from the truth set were due to no editing for various reasons.
-
-        :param collections.defaultdict edit_configs: dict with list of variants to edit at a specific read and position
-        :return str | None: output VCF file containing unedited variants if any exist, else None
-        """
-
-        # Get the set of intended variants
-        input_var_ids = {
-            self.VAR_TAG_DELIM.join([vct.contig, str(vct.pos), vct.ref, vct.alt]) for vct in self.variant_configs}
-
-        # Get the set of variants with edit configurations; to exist in the edit config dict, there must
-        # be amenable qnames for editing
-        config_var_ids = {
-            self.VAR_TAG_DELIM.join([edit_config_tuple.contig, str(edit_config_tuple.pos),
-                                     edit_config_tuple.ref, edit_config_tuple.alt])
-            for e in edit_configs.values() for edit_config_tuple in e}
-
-        # Take the difference between input variants and variants with edit configurations
-        unedited_var_ids = input_var_ids - config_var_ids
-
-        if len(unedited_var_ids) > 0:
-            unedited_vcf = fu.add_extension(self.out_path, self.UNEDIT_VCF_SUFFIX)
-
-            with pysam.VariantFile(self.variants, "r") as in_vcf, \
-                    pysam.VariantFile(unedited_vcf, "w", header=in_vcf.header) as out_vcf:
-
-                for var_record in in_vcf.fetch():
-                    if self.VAR_TAG_DELIM.join(
-                        [str(var_record.chrom), str(var_record.pos),
-                         str(var_record.ref), str(var_record.alts[0])]) in unedited_var_ids:
-
-                        out_vcf.write(var_record)
-
-            return unedited_vcf
-
-        return None
-
-    def _write_truth_vcf(self):
-        """Writes a truth VCF containing the expected frequencies for input variants.
-
-        :return str: filename of the truth VCF
-        """
-
-        pass
+        truth_vcf_fh.write(new_variant_record)
 
     def workflow(self):
         r"""Runs the ReadEditor workflow.
 
         :return tuple: (str, str, str) paths of the edited BAM, R1 FASTQ, R2 FASTQ
 
-        Note: the edited BAM should not be used for variant calling as its CIGAR and MD tags have not been updated.
-        I prefer re-alignment rather than CIGAR and MD tag update for simplicity. However alignment incurs a cost so
+        Note: the edited BAM should not be used for variant calling as its CIGAR and MD tags have not been updated. \
+        I prefer re-alignment rather than CIGAR and MD tag update for simplicity. However alignment incurs a cost so \
         in the future implement BAM tag updates with samtools.
         """
 
@@ -591,26 +494,11 @@ class ReadEditor(object):
         zipped_r1_fastq = fu.gzip_file(r1_fastq)
         zipped_r2_fastq = fu.gzip_file(r2_fastq)
 
-        if self.filter_edited:
-            _logger.info("Filtering edited BAM for edited read pairs.")
-            self._get_edited_read_pairs(edit_configs)
-
-        # Determine if there were any variants that were not edited and write them out
-        self._get_unedited_vars(edit_configs)
-
-        # The first output BAM is useful for post-editing investigation, but we really need a realigned BAM
-        # for proper visualization of alignments in some genome browsers like IGV
-        # Realign reads to re-generate CIGAR and MD tags
-        if self.realign:
-            _logger.info("Locally realigning all reads.")
-            realigned_bam_name = fu.add_extension(self.out_path, self.REALIGN_BAM_SUFFIX)
-            align_workflow(
-                f1=r1_fastq, f2=r2_fastq, ref=self.ref, outdir=self.output_dir, outbam=realigned_bam_name, local=True)
-
-            return realigned_bam_name, zipped_r1_fastq, zipped_r2_fastq
+        # We need to realign to re-generate CIGAR and MD tags and for proper visualization of alignments in browsers
+        _logger.info("Locally realigning all reads.")
+        align_workflow(f1=r1_fastq, f2=r2_fastq, ref=self.ref, outdir=self.output_dir, outbam=self.output_bam, local=True)
 
         return self.output_bam, zipped_r1_fastq, zipped_r2_fastq
-
 
 
 class Editor(object):

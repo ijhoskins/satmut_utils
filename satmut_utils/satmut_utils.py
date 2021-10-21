@@ -95,12 +95,6 @@ def parse_commandline_params(args):
 
     parser_sim.add_argument("-s", "--random_seed", type=int, default=9, help='Seed for random read sampling.')
 
-    parser_sim.add_argument("-n", "--no_realignment", action="store_true",
-                        help='Flag indicating to not realign the edited FASTQs. Cuts runtime.')
-
-    parser_sim.add_argument("-f", "--filter_edited", action="store_true",
-                            help='Flag indicating to filter and output edited reads as BAM.')
-
     # call subcommand
     parser_call = subparsers.add_parser(CALL_WORKFLOW, help='%s help' % CALL_WORKFLOW)
     parser_call.set_defaults(func=call_workflow)
@@ -252,7 +246,6 @@ def get_call_references(reference_dir, ensembl_id, ref, transcript_gff, gff_refe
 
 def sim_workflow(am, vcf, ensembl_id=ri.ReadEditor.DEFAULT_ENSEMBL_ID, reference_dir=ri.ReadEditor.DEFAULT_REFERENCE_DIR,
                  ref=ri.ReadEditor.DEFAULT_REF, primers=ri.ReadEditor.DEFAULT_PRIMERS, outdir=ri.ReadEditor.DEFAULT_OUTDIR,
-                 filter_edited=ri.ReadEditor.DEFAULT_FILTER, realign=ri.ReadEditor.DEFAULT_REALIGN,
                  random_seed=ri.ReadEditor.DEFAULT_SEED, nthreads=ri.ReadEditor.DEFAULT_NTHREADS):
     """Runs the satmut_utils sim workflow.
 
@@ -263,8 +256,6 @@ def sim_workflow(am, vcf, ensembl_id=ri.ReadEditor.DEFAULT_ENSEMBL_ID, reference
     :param str ref: indexed reference FASTA
     :param str | None primers: feature file of primer locations for read masking and primer detection
     :param str outdir: Optional output directory to store generated FASTQs and BAM
-    :param bool filter_edited: filter the edited BAM for those read pairs that were edited? Default True.
-    :param bool realign: should full FASTQs be realigned? Needed for visualization of reads and variant calling. Default False.
     :param int random_seed: seed for random qname sampling
     :param int nthreads: Number of threads to use for SAM/BAM operations. Default 0 (autodetect).
     :return tuple: (str | None, str, str | None) paths of the edited BAM, R1 FASTQ, R2 FASTQ
@@ -281,7 +272,7 @@ def sim_workflow(am, vcf, ensembl_id=ri.ReadEditor.DEFAULT_ENSEMBL_ID, reference
     # Run the editing workflow
     output_bam, zipped_r1_fastq, zipped_r2_fastq = ri.ReadEditor(
         am=am, variants=vcf, ref=ref_fa, primers=primers, output_dir=outdir, output_prefix=out_prefix,
-        filter_edited=filter_edited, realign=realign, random_seed=random_seed, nthreads=nthreads)
+        random_seed=random_seed, nthreads=nthreads)
 
     return output_bam, zipped_r1_fastq, zipped_r2_fastq
 
@@ -407,8 +398,7 @@ def main():
         _, _, _ = sim_workflow(
             am=args_dict["alignments"], vcf=args_dict["vcf"], ensembl_id=args_dict["ensembl_id"],
             reference_dir=args_dict["reference_dir"], ref=args_dict["reference"], primers=args_dict["primers"],
-            outdir=args_dict["outdir"], filter_edited=args_dict["filter_edited"], random_seed=args_dict["random_seed"],
-            nthreads=args_dict["nthreads"])
+            outdir=args_dict["outdir"], random_seed=args_dict["random_seed"], nthreads=args_dict["nthreads"])
 
     elif parsed_args.subcommand == CALL_WORKFLOW:
 

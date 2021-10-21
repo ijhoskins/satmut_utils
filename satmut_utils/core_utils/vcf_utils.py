@@ -112,9 +112,6 @@ VCF_ALT_NT_ID = "ALT_NT"
 VCF_UP_REF_NT_ID = "UP_REF_NT"
 VCF_DOWN_REF_NT_ID = "DOWN_REF_NT"
 
-VCF_IE_ID = "IE"  # induce error
-VCF_IR_ID = "IR"  # induce read
-
 # VariantAnnotator constants
 VCF_VAR_ID = "VAR_ID"
 VCF_MM_ID = "MISMATCH_ID"
