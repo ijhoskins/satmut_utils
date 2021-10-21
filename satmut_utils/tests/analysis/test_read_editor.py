@@ -26,7 +26,7 @@ TEST_VCF = """##fileformat=VCFv4.2
 ENST00000398165.7|ENSG00000160200.17|OTTHUMG00000086834.7|OTTHUMT00000195525.1|CBS-204|CBS|2605|protein_coding|	795	.	GAC	ATG	.	.	AAM_AA_CHANGE=p.D179M;VARTYPE=tri_nt_MNP;AF=1.0
 ENST00000398165.7|ENSG00000160200.17|OTTHUMG00000086834.7|OTTHUMT00000195525.1|CBS-204|CBS|2605|protein_coding|	804	.	C	G	.	.	AAM_AA_CHANGE=p.R182G;VARTYPE=snp;AF=0.25
 ENST00000398165.7|ENSG00000160200.17|OTTHUMG00000086834.7|OTTHUMT00000195525.1|CBS-204|CBS|2605|protein_coding|	804	.	C	T	.	.	AAM_AA_CHANGE=p.R182W;VARTYPE=snp;AF=0.25
-ENST00000398165.7|ENSG00000160200.17|OTTHUMG00000086834.7|OTTHUMT00000195525.1|CBS-204|CBS|2605|protein_coding|	813	.	GG	AT	.	.	AAM_AA_CHANGE=p.G185M;VARTYPE=di_nt_MNP;AF=0.5
+ENST00000398165.7|ENSG00000160200.17|OTTHUMG00000086834.7|OTTHUMT00000195525.1|CBS-204|CBS|2605|protein_coding|	812	.	GG	AT	.	.	AAM_AA_CHANGE=p.G185M;VARTYPE=di_nt_MNP;AF=0.25
 ENST00000398165.7|ENSG00000160200.17|OTTHUMG00000086834.7|OTTHUMT00000195525.1|CBS-204|CBS|2605|protein_coding|	955	.	ACT	A	.	.	VARTYPE=del;AF=1.0
 ENST00000398165.7|ENSG00000160200.17|OTTHUMG00000086834.7|OTTHUMT00000195525.1|CBS-204|CBS|2605|protein_coding|	1094	.	T	TG	.	.	VARTYPE=ins;AF=1.0
 """
@@ -37,14 +37,14 @@ TEST_SAM = """@HD	VN:1.0	SO:coordinate
 0000005815	83	ENST00000398165.7|ENSG00000160200.17|OTTHUMG00000086834.7|OTTHUMT00000195525.1|CBS-204|CBS|2605|protein_coding|	241	42	148M	=	241	-148	ACCATCTGTCCGGTCCCAGCATGCCTTCTGAGACCCCCCAGGCAGAAGTGGGGCCCACAGGCTGCCCCCACCGCTCAGGGCCACACTCGGCGAAGGGGAGCCTGGAGAAGGGGTCCCCAGAGGATAAGGAAGCCAAGGAGCCCCTGTG	SSSSSSSSSSINKKNIRJRIJONJRNJIRQISRQIMIJMSLQJMIRRMISPKPQJJMIOQKQOQJKPIMPKJPMSNNSILPILKNRRLIJPQKMMKQIOLPSMIMKLRSILNIMNPISOPPRLRQSNRPMQPJJMRRRSSSSSSSSSS	AS:i:0	XN:i:0	XM:i:0	XO:i:0	XG:i:0	NM:i:0	MD:Z:148	YS:i:0	YT:Z:CP
 0000253933	163	ENST00000398165.7|ENSG00000160200.17|OTTHUMG00000086834.7|OTTHUMT00000195525.1|CBS-204|CBS|2605|protein_coding|	566	42	150M	=	569	153	GTGTGAGCTCTTGGCCAAGTGTGAGTTCTTCAACGCGGGCGGGAGCGTGAAGGACCGCATCAGCCTGCGGATGATTGAGGATGCTGAGCGCGACGGGACGCTGAAGCCCGGGGACACGATTATCGAGCCGACATCCGGGAACACCGGGAT	SSSSSSSSSSNJMMKKPJQMSSSMINMMKOSQKPKINROPPORPQLKMMIJNSSORRIIPRKRIMIPOMOPMJSNLIQQLORJRJILRJMLPSILQSKMLKKSLJPNMMQIMLKRNQMNSPKPOPQIIINIPMOSRIKROPSLSSSSSSS	AS:i:0	XN:i:0	XM:i:0	XO:i:0	XG:i:0	NM:i:0	MD:Z:150	YS:i:0	YT:Z:CP
 0000253933	83	ENST00000398165.7|ENSG00000160200.17|OTTHUMG00000086834.7|OTTHUMT00000195525.1|CBS-204|CBS|2605|protein_coding|	569	42	150M	=	566	-153	TGAGCTCTTGGCCAAGTGTGAGTTCTTCAACGCGGGCGGGAGCGTGAAGGACCGCATCAGCCTGCGGATGATTGAGGATGCTGAGCGCGACGGGACGCTGAAGCCCGGGGACACGATTATCGAGCCGACATCCGGGAACACCGGGATCGG	SSSSSSSQIKKSQINKPSPSLRILIONLIMNKJNQPRINPOJOKONRPSKSQININOKOPONIPINNOIRSPOPJSSQPMPPLOOSKNOSJRINIKJNOMRLSSKJLLJLONQOJSMNPMJLMIMMPLSIIMMLLLONMSSSSSSSSSSS	AS:i:0	XN:i:0	XM:i:0	XO:i:0	XG:i:0	NM:i:0	MD:Z:150	YS:i:0	YT:Z:CP
-0000224875	163	ENST00000398165.7|ENSG00000160200.17|OTTHUMG00000086834.7|OTTHUMT00000195525.1|CBS-204|CBS|2605|protein_coding|	680	42	150M	=	683	153	CACGATTATCGAGCCGACATCCGGGAACACCGGGATCGGGCTGGCCCTGGCTGCGGCAGTGAGGGGCTATCGCTGCATCATCGTGATGCCAGAGAAGATGAGCTCCGAGAAGGTGGACGTGCTGCGGGCACTGGGGGCTGAGATTGTGAG	SSSSSSSSSSOKROSNOMKISLLKKLNPLIJQOSJJMRLQIJJQRSRNMKLLOLJSJRNJRSPPPLMRQKQMIRQRLJOPSOJMKLRRMJIJOOJQLSPLKKMJSNNQLOMJSOJKRRMPPLOOIQPNRQJSLJSOKOKMMMMSSSSSSS	AS:i:0	XN:i:0	XM:i:0	XO:i:0	XG:i:0	NM:i:0	MD:Z:150	YS:i:0	YT:Z:CP
-0000224875	83	ENST00000398165.7|ENSG00000160200.17|OTTHUMG00000086834.7|OTTHUMT00000195525.1|CBS-204|CBS|2605|protein_coding|	683	42	150M	=	680	-153	GATTATCGAGCCGACATCCGGGAACACCGGGATCGGGCTGGCCCTGGCTGCGGCAGTGAGGGGCTATCGCTGCATCATCGTGATGCCAGAGAAGATGAGCTCCGAGAAGGTGGACGTGCTGCGGGCACTGGGGGCTGAGATTGTGAGGAC	SSSSSSSNSRKQNMLQIKNLNJPKLIINNNQRNIROIQJMJLLKOQSQIIKSOMOOQQIRRRNNMLIOLKSJQQJKKLQRSIQPLJLRMLPKOPMNPLIRLLIJNQLKISPOSKKIMIIKSMKMJKSKKORKISNPROOKSSSSSSSSSS	AS:i:0	XN:i:0	XM:i:0	XO:i:0	XG:i:0	NM:i:0	MD:Z:150	YS:i:0	YT:Z:CP
-0000001369	163	ENST00000398165.7|ENSG00000160200.17|OTTHUMG00000086834.7|OTTHUMT00000195525.1|CBS-204|CBS|2605|protein_coding|	794	42	150M	=	797	153	GGACGTGCTGCGGGCACTGGGGGCTGAGATTGTGAGGACGCCCACCAATGCCAGGTTCGACTCCCCGGAGTCACACGTGGGGGTGGCCTGGCGGCTGAAGAACGAAATCCCCAATTCTCACATCCTAGACCAGTACCGCAACGCCAGCAA	SSSSSSSSSSMOINJNKNNLLRNLPRRNNKLLNMRNNLJPMLSOINMSILMLMRLSLPNKLLRNJMSKJJIPQMJNRLQOJQLOSRORNQSQRPOPOSIPMPILKNNLPMNIQJPOQPILOOMORLPILSONMKLRLPPRIQPSSSSSSS	AS:i:0	XN:i:0	XM:i:0	XO:i:0	XG:i:0	NM:i:0	MD:Z:150	YS:i:0	YT:Z:CP
-0000051899	163	ENST00000398165.7|ENSG00000160200.17|OTTHUMG00000086834.7|OTTHUMT00000195525.1|CBS-204|CBS|2605|protein_coding|	794	42	150M	=	797	153	GGACGTGCTGCGGGCACTGGGGGCTGAGATTGTGAGGACGCCCACCAATGCCAGGTTCGACTCCCCGGAGTCACACGTGGGGGTGGCCTGGCGGCTGAAGAACGAAATCCCCAATTCTCACATCCTAGACCAGTACCGCAACGCCAGCAA	SSSSSSSSSSKPLJJQLOKSLOMIPSIPMILSORJONIQLPKJSMJRKNIIJRPSSIOJSOOMSKQKOQMNLIOQRSQIPILKSRQPMNIRMSNKQOOJQSLMQRNJJPJOJLKRSOKSQIPSKKQPSPSLJJKSPRMNJNJLSSSSSSS	AS:i:0	XN:i:0	XM:i:0	XO:i:0	XG:i:0	NM:i:0	MD:Z:150	YS:i:0	YT:Z:CP
-0000225689	99	ENST00000398165.7|ENSG00000160200.17|OTTHUMG00000086834.7|OTTHUMT00000195525.1|CBS-204|CBS|2605|protein_coding|	794	42	150M	=	797	153	GGACGTGCTGCGGGCACTGGGGGCTGAGATTGTGAGGACGCCCACCAATGCCAGGTTCGACTCCCCGGAGTCACACGTGGGGGTGGCCTGGCGGCTGAAGAACGAAATCCCCAATTCTCACATCCTAGACCAGTACCGCAACGCCAGCAA	SSSSSSSSSSPNIIJKQLRPOSSJKSMKOQKPIQKONRJNQRRPJNOQLOMPSPMSSNQRJIRPOOJIPLNSKNLMKPNSRLJLRMMJKIRPJIRKSJKMLSQOQQSJLPMSIPRLLQMIIROKOPNROSOPSKJJSPPSQIQSSSSSSS	AS:i:0	XN:i:0	XM:i:0	XO:i:0	XG:i:0	NM:i:0	MD:Z:150	YS:i:0	YT:Z:CP
-0000001369	83	ENST00000398165.7|ENSG00000160200.17|OTTHUMG00000086834.7|OTTHUMT00000195525.1|CBS-204|CBS|2605|protein_coding|	797	42	150M	=	794	-153	CGTGCTGCGGGCACTGGGGGCTGAGATTGTGAGGACGCCCACCAATGCCAGGTTCGACTCCCCGGAGTCACACGTGGGGGTGGCCTGGCGGCTGAAGAACGAAATCCCCAATTCTCACATCCTAGACCAGTACCGCAACGCCAGCAACCC	SSSSSSSIRMRPPMKORMQQKPOQRJLQPLOKSQJOIMJJILKPKJQKNRIJJLJPRMNIRKJMJKKOJQPSKSSNJIILLLSRMPPNLIJOOJNNMMLPIOKLPSMQSQOQKPOSSQKISLQSLLRRKNSMRORRNJKOSSSSSSSSSS	AS:i:0	XN:i:0	XM:i:0	XO:i:0	XG:i:0	NM:i:0	MD:Z:150	YS:i:0	YT:Z:CP
-0000051899	83	ENST00000398165.7|ENSG00000160200.17|OTTHUMG00000086834.7|OTTHUMT00000195525.1|CBS-204|CBS|2605|protein_coding|	797	42	150M	=	794	-153	CGTGCTGCGGGCACTGGGGGCTGAGATTGTGAGGACGCCCACCAATGCCAGGTTCGACTCCCCGGAGTCACACGTGGGGGTGGCCTGGCGGCTGAAGAACGAAATCCCCAATTCTCACATCCTAGACCAGTACCGCAACGCCAGCAACCC	SSSSSSSNMRMMNRNPRQKRNRIOMSLPIIISLOQIOKKOOOMLOLQINPNMNNQOIMNJOQRSMPQISIIQINSJORMRROLSJQMLISKMLPMJMMSQINOOQOOSQMJMIJJLRSKPNSSSOMQPNSNKQJLIJJKKSSSSSSSSSS	AS:i:0	XN:i:0	XM:i:0	XO:i:0	XG:i:0	NM:i:0	MD:Z:150	YS:i:0	YT:Z:CP
-0000225689	147	ENST00000398165.7|ENSG00000160200.17|OTTHUMG00000086834.7|OTTHUMT00000195525.1|CBS-204|CBS|2605|protein_coding|	797	42	150M	=	794	-153	CGTGCTGCGGGCACTGGGGGCTGAGATTGTGAGGACGCCCACCAATGCCAGGTTCGACTCCCCGGAGTCACACGTGGGGGTGGCCTGGCGGCTGAAGAACGAAATCCCCAATTCTCACATCCTAGACCAGTACCGCAACGCCAGCAACCC	SSSSSSSNKMQOSOKSKJRQJJPKLKPRPOISPKNLQSSKLMLIKKPOSOQONSMILKSQISIJJMQOMNKQPQMQRIQRQQQSSJISSMSSQJILPIPMLOLQNMIMIRLQJSNKLKQJOSPRNMSPJKQJIQMKSIPSSSSSSSSSSS	AS:i:0	XN:i:0	XM:i:0	XO:i:0	XG:i:0	NM:i:0	MD:Z:150	YS:i:0	YT:Z:CP
+0000224875	163	ENST00000398165.7|ENSG00000160200.17|OTTHUMG00000086834.7|OTTHUMT00000195525.1|CBS-204|CBS|2605|protein_coding|	680	42	150M	=	683	153	CACGATTATCGAGCCGACATCCGGGAACACCGGGATCGGGCTGGCCCTGGCTGCGGCAGTGAGGGGCTATCGCTGCATCATCGTGATGCCAGAGAAGATGAGCTCCGAGAAGGTGGACGTGCTGTGGGCACTGGGGGCTGAGATTGTGAG	SSSSSSSSSSOKROSNOMKISLLKKLNPLIJQOSJJMRLQIJJQRSRNMKLLOLJSJRNJRSPPPLMRQKQMIRQRLJOPSOJMKLRRMJIJOOJQLSPLKKMJSNNQLOMJSOJKRRMPPLOOIQPNRQJSLJSOKOKMMMMSSSSSSS	AS:i:-4	XN:i:0	XM:i:1	XO:i:0	XG:i:0	NM:i:1	MD:Z:124C25	YS:i:0	YT:Z:CP
+0000224875	83	ENST00000398165.7|ENSG00000160200.17|OTTHUMG00000086834.7|OTTHUMT00000195525.1|CBS-204|CBS|2605|protein_coding|	683	42	150M	=	680	-153	GATTATCGAGCCGACATCCGGGAACACCGGGATCGGGCTGGCCCTGGCTGCGGCAGTGAGGGGCTATCGCTGCATCATCGTGATGCCAGAGAAGATGAGCTCCGAGAAGGTGGACGTGCTGCGGGCACTGGGGGCTGAGATTGTGAGGAC	SSSSSSSNSRKQNMLQIKNLNJPKLIINNNQRNIROIQJMJLLKOQSQIIKSOMOOQQIRRRNNMLIOLKSJQQJKKLQRSIQPLJLRMLPKOPMNPLIRLLIJNQLKISPOSKKIMIIKSMKMJKSKKORKISNPROOKSSSSSSSSSS	AS:i:0	XN:i:0	XM:i:0	XO:i:0	XG:i:0	NM:i:0	MD:Z:150	YS:i:-4	YT:Z:CP
+0000001369	163	ENST00000398165.7|ENSG00000160200.17|OTTHUMG00000086834.7|OTTHUMT00000195525.1|CBS-204|CBS|2605|protein_coding|	794	42	150M	=	797	153	GGACGTGCTGAGGGCACTGGGGGCTGAGATTGTGAGGACGCCCACCAATGCCAGGTTCGACTCCCCGGAGTCACACGTGGGGGTGGCCTGGCGGCTGAAGAACGAAATCCCCAATTCTCACATCCTAGACCAGTACCGCAACGCCAGCAA	SSSSSSSSSSMOINJNKNNLLRNLPRRNNKLLNMRNNLJPMLSOINMSILMLMRLSLPNKLLRNJMSKJJIPQMJNRLQOJQLOSRORNQSQRPOPOSIPMPILKNNLPMNIQJPOQPILOOMORLPILSONMKLRLPPRIQPSSSSSSS	AS:i:-4	XN:i:0	XM:i:1	XO:i:0	XG:i:0	NM:i:1	MD:Z:10C139	YS:i:0	YT:Z:CP
+0000051899	163	ENST00000398165.7|ENSG00000160200.17|OTTHUMG00000086834.7|OTTHUMT00000195525.1|CBS-204|CBS|2605|protein_coding|	794	42	17M2D131M	=	797	153	GGACGTGCTGCGGGCACGGGGCTGAGATTGTGAGGACGCCCACCAATGCCAGGTTCGACTCCCCGGAGTCACACGTGGGGGTGGCCTGGCGGCTGAAGAACGAAATCCCCAATTCTCACATCCTAGACCAGTACCGCAACGCCAGCAA	SSSSSSSSSSKPLJJQLSLOMIPSIPMILSORJONIQLPKJSMJRKNIIJRPSSIOJSOOMSKQKOQMNLIOQRSQIPILKSRQPMNIRMSNKQOOJQSLMQRNJJPJOJLKRSOKSQIPSKKQPSPSLJJKSPRMNJNJLSSSSSSS	AS:i:-14	XN:i:0	XM:i:0	XO:i:1	XG:i:2	NM:i:2	MD:Z:17^TG131	YS:i:0	YT:Z:CP
+0000225689	99	ENST00000398165.7|ENSG00000160200.17|OTTHUMG00000086834.7|OTTHUMT00000195525.1|CBS-204|CBS|2605|protein_coding|	794	42	17M1I133M	=	797	153	GGACGTGCTGCGGGCACTTGGGGGCTGAGATTGTGAGGACGCCCACCAATGCCAGGTTCGACTCCCCGGAGTCACACGTGGGGGTGGCCTGGCGGCTGAAGAACGAAATCCCCAATTCTCACATCCTAGACCAGTACCGCAACGCCAGCAA	SSSSSSSSSSPNIIJKQLRRPOSSJKSMKOQKPIQKONRJNQRRPJNOQLOMPSPMSSNQRJIRPOOJIPLNSKNLMKPNSRLJLRMMJKIRPJIRKSJKMLSQOQQSJLPMSIPRLLQMIIROKOPNROSOPSKJJSPPSQIQSSSSSSS	AS:i:-10	XN:i:0	XM:i:0	XO:i:1	XG:i:1	NM:i:1	MD:Z:150	YS:i:0	YT:Z:CP
+0000001369	83	ENST00000398165.7|ENSG00000160200.17|OTTHUMG00000086834.7|OTTHUMT00000195525.1|CBS-204|CBS|2605|protein_coding|	797	42	150M	=	794	-153	CGTGCTGCGGGCACTGGGGGCTGAGATTGTGAGGACGCCCACCAATGCCAGGTTCGACTCCCCGGAGTCACACGTGGGGGTGGCCTGGCGGCTGAAGAACGAAATCCCCAATTCTCACATCCTAGACCAGTACCGCAACGCCAGCAACCC	SSSSSSSIRMRPPMKORMQQKPOQRJLQPLOKSQJOIMJJILKPKJQKNRIJJLJPRMNIRKJMJKKOJQPSKSSNJIILLLSRMPPNLIJOOJNNMMLPIOKLPSMQSQOQKPOSSQKISLQSLLRRKNSMRORRNJKOSSSSSSSSSS	AS:i:0	XN:i:0	XM:i:0	XO:i:0	XG:i:0	NM:i:0	MD:Z:150	YS:i:-4	YT:Z:CP
+0000051899	83	ENST00000398165.7|ENSG00000160200.17|OTTHUMG00000086834.7|OTTHUMT00000195525.1|CBS-204|CBS|2605|protein_coding|	797	42	150M	=	794	-153	CGTGCTGCGGGCACTGGGGGCTGAGATTGTGAGGACGCCCACCAATGCCAGGTTCGACTCCCCGGAGTCACACGTGGGGGTGGCCTGGCGGCTGAAGAACGAAATCCCCAATTCTCACATCCTAGACCAGTACCGCAACGCCAGCAACCC	SSSSSSSNMRMMNRNPRQKRNRIOMSLPIIISLOQIOKKOOOMLOLQINPNMNNQOIMNJOQRSMPQISIIQINSJORMRROLSJQMLISKMLPMJMMSQINOOQOOSQMJMIJJLRSKPNSSSOMQPNSNKQJLIJJKKSSSSSSSSSS	AS:i:0	XN:i:0	XM:i:0	XO:i:0	XG:i:0	NM:i:0	MD:Z:150	YS:i:-14	YT:Z:CP
+0000225689	147	ENST00000398165.7|ENSG00000160200.17|OTTHUMG00000086834.7|OTTHUMT00000195525.1|CBS-204|CBS|2605|protein_coding|	797	42	150M	=	794	-153	CGTGCTGCGGGCACTGGGGGCTGAGATTGTGAGGACGCCCACCAATGCCAGGTTCGACTCCCCGGAGTCACACGTGGGGGTGGCCTGGCGGCTGAAGAACGAAATCCCCAATTCTCACATCCTAGACCAGTACCGCAACGCCAGCAACCC	SSSSSSSNKMQOSOKSKJRQJJPKLKPRPOISPKNLQSSKLMLIKKPOSOQONSMILKSQISIJJMQOMNKQPQMQRIQRQQQSSJISSMSSQJILPIPMLOLQNMIMIRLQJSNKLKQJOSPRNMSPJKQJIQMKSIPSSSSSSSSSSS	AS:i:0	XN:i:0	XM:i:0	XO:i:0	XG:i:0	NM:i:0	MD:Z:150	YS:i:-10	YT:Z:CP
 0000003129	163	ENST00000398165.7|ENSG00000160200.17|OTTHUMG00000086834.7|OTTHUMT00000195525.1|CBS-204|CBS|2605|protein_coding|	908	42	147M	=	908	-147	TTCTCACATCCTAGACCAGTACCGCAACGCCAGCAACCCCCTGGCTCACTACGACACCACCGCTGATGAGATCCTGCAGCAGTGTGATGGGAAGCTGGACATGCTGGTGGCTTCAGTGGGCACGGGCGGCACCATCACGGGCATTGC	SSSSSSSSSSOLPSKLNQOJLLNMPKLJJJNKQKOMMOKQPNLNOOLMJOMSQKIIQLKNLIPRQKNQIQRQIMJQSIQONKSIMONLJQSLMQOLNJSONKMNNLNNPKLQKPPIOMPQQQKOKPMSRPRKONMNNSSSSSSSSSS	AS:i:0	XN:i:0	XM:i:0	XO:i:0	XG:i:0	NM:i:0	MD:Z:147	YS:i:0	YT:Z:CP
 0000003129	83	ENST00000398165.7|ENSG00000160200.17|OTTHUMG00000086834.7|OTTHUMT00000195525.1|CBS-204|CBS|2605|protein_coding|	908	42	147M	=	908	-147	TTCTCACATCCTAGACCAGTACCGCAACGCCAGCAACCCCCTGGCTCACTACGACACCACCGCTGATGAGATCCTGCAGCAGTGTGATGGGAAGCTGGACATGCTGGTGGCTTCAGTGGGCACGGGCGGCACCATCACGGGCATTGC	SSSSSSSSSSIJJMPQKJKKINNNMKNPOQPJJNMLIRNKIRQPJNRPRSOQQMIMOIKNPLILONPKONSOOQJRSIQMIPNQSQSSNSKSOONKJJSQRIPOJQONPOQJRJSKRNMRQKRLNSQILNSQKOOIRSSSSSSSSSS	AS:i:0	XN:i:0	XM:i:0	XO:i:0	XG:i:0	NM:i:0	MD:Z:147	YS:i:0	YT:Z:CP
 0000323491	99	ENST00000398165.7|ENSG00000160200.17|OTTHUMG00000086834.7|OTTHUMT00000195525.1|CBS-204|CBS|2605|protein_coding|	1016	42	150M	=	1019	153	GGCTTCAGTGGGCACGGGCGGCACCATCACGGGCATTGCCAGGAAGCTGAAGGAGAAGTGTCCTGGATGCAGGATCATTGGGGTGGATCCCGAAGGGTCCATCCTCGCAGAGCCGGAGGAGCTGAACCAGACGGAGCAGACAACCTACGA	SSSSSSSSSSNIILOQONPRQOPJOIOLNJJIOPNKQNPOKQRRSRJMPKSSPQQNJOMIJMKNIQRQPRSRIMNQNPONMRPKROKNORRRQQIISIQRONILSJKKRPSSIPKILKIMKQPNNOLJNKRIORKIMPMIPIKSSSSSSS	AS:i:0	XN:i:0	XM:i:0	XO:i:0	XG:i:0	NM:i:0	MD:Z:150	YS:i:0	YT:Z:CP
@@ -106,6 +106,8 @@ class TestReadEditor(unittest.TestCase):
             cls.test_bam, variants=cls.test_vcf, ref=cls.cbs_ref, primers=cls.test_primers,
             output_dir=cls.tempdir, output_prefix="test_editor")
 
+        cls.observed_edit_configs = cls.ed._get_edit_configs()
+
         # The qnames at POS 804 are 0000001369, 000224875, 000225689, 0000051899
         cls.test_variant_config = ed.VARIANT_CONFIG_TUPLE(
             type=get_variant_type("C", "G"),
@@ -116,9 +118,16 @@ class TestReadEditor(unittest.TestCase):
         cls.test_variant_config_af1 = ed.VARIANT_CONFIG_TUPLE(
             type=get_variant_type("GAC", "ATG"),
             contig="ENST00000398165.7|ENSG00000160200.17|OTTHUMG00000086834.7|OTTHUMT00000195525.1|CBS-204|CBS|2605|protein_coding|",
-            pos=975, ref="GAC", alt="ATG", af=1.0)
+            pos=795, ref="GAC", alt="ATG", af=1.0)
 
         cls.contig = "ENST00000398165.7|ENSG00000160200.17|OTTHUMG00000086834.7|OTTHUMT00000195525.1|CBS-204|CBS|2605|protein_coding|"
+
+        # Single-stranded errors introduced into 000224875 and 0000001369 R2s at position 804 to check REF base
+        # A del was introduced into 0000051899 R2, and an ins into 0000225689 R1, to check InDels
+        # Masked BQ checking is implicit in the frequency assertion for cls.test_variant_config_af1
+
+        # {'0000224875': 1, '0000001369': 2, '0000051899': 3, '0000225689': 4, '0000003129': 5, '0000323491': 6}
+        # qname_lookup_rev = dict(zip(map(str, self.ed.qname_lookup.values()), self.ed.qname_lookup.keys()))
 
     @classmethod
     def tearDownClass(cls):
@@ -135,9 +144,9 @@ class TestReadEditor(unittest.TestCase):
             ed.VARIANT_CONFIG_TUPLE(
                 type=get_variant_type("C", "G"), contig=self.contig, pos=804, ref="C", alt="G", af=0.25),
             ed.VARIANT_CONFIG_TUPLE(
-                type=get_variant_type("C", "G"), contig=self.contig, pos=804, ref="C", alt="T", af=0.25),
+                type=get_variant_type("C", "T"), contig=self.contig, pos=804, ref="C", alt="T", af=0.25),
             ed.VARIANT_CONFIG_TUPLE(
-                type=get_variant_type("GG", "AT"), contig=self.contig, pos=813, ref="GG", alt="AT", af=0.5),
+                type=get_variant_type("GG", "AT"), contig=self.contig, pos=812, ref="GG", alt="AT", af=0.25),
             ed.VARIANT_CONFIG_TUPLE(
                 type=get_variant_type("ACT", "A"), contig=self.contig, pos=955, ref="ACT", alt="A", af=1.0),
             ed.VARIANT_CONFIG_TUPLE(
@@ -181,14 +190,46 @@ class TestReadEditor(unittest.TestCase):
         variant_config = ed.VARIANT_CONFIG_TUPLE(
             type=get_variant_type("C", "G"),
             contig="ENST00000398165.7|ENSG00000160200.17|OTTHUMG00000086834.7|OTTHUMT00000195525.1|CBS-204|CBS|2605|protein_coding|",
-            pos=804, ref="C", alt="G", af=0.1, ie=None, ir=None)
+            pos=804, ref="C", alt="G", af=0.1)
 
         qnames_to_edit = self.ed._get_edit_qnames(amenable_qnames, variant_config, total_amenable_qnames)
         observed = len(qnames_to_edit)
 
         self.assertEqual(expected, observed)
 
-    def test_iterate_over_pileup_reads(self):
+    def test_iterate_over_pileup_reads_af(self):
+        """Tests that edit configs are appended to the edit dictionary and the expected truth frequency is returned."""
+
+        expected = 1.0
+
+        observed_edit_configs = dict()
+        with pysam.AlignmentFile(self.ed.editor_preprocessor.edit_background, "rb") as edited_background_af:
+
+            # For purpose of testing change just the input coordinate
+            target = COORD_FORMAT.format(self.contig, 795, 795)
+
+            for pc in edited_background_af.pileup(
+                    region=target, truncate=True, max_depth=self.ed.MAX_DP, stepper="all",
+                    ignore_overlaps=False, ignore_orphans=False,
+                    min_base_quality=self.ed.MIN_BQ, min_mapping_quality=DEFAULT_MAPQ):
+
+                amenable_qnames = []
+                for pileup_read in pc.pileups:
+                    qname_alias = self.ed._get_qname_alias(pileup_read.alignment.query_name)
+                    amenable_qnames.append(qname_alias)
+
+                amenable_qname_counter = collections.Counter(amenable_qnames)
+                amenable_qnames = {qname for (qname, qname_count) in amenable_qname_counter.items() if qname_count == 2}
+                total_amenable_qnames = len(amenable_qnames)
+
+                # Now we can test the method
+                observed = self.ed._iterate_over_pileup_reads(
+                    pc, self.test_variant_config_af1, observed_edit_configs, amenable_qnames, total_amenable_qnames)
+
+                edited_background_af.reset()
+                self.assertEqual(expected, observed)
+
+    def test_iterate_over_pileup_reads_edit_configs(self):
         """Tests that edit configs are appended to the edit dictionary and the expected truth frequency is returned."""
 
         observed_edit_configs = dict()
@@ -212,54 +253,118 @@ class TestReadEditor(unittest.TestCase):
                 amenable_qnames = {qname for (qname, qname_count) in amenable_qname_counter.items() if qname_count == 2}
                 total_amenable_qnames = len(amenable_qnames)
 
-            # Now we can test the method
-            observed_af = self.ed._iterate_over_pileup_reads(
-                pc, self.test_variant_config_af1, observed_edit_configs, amenable_qnames, total_amenable_qnames)
+                # Now we can test the method
+                _ = self.ed._iterate_over_pileup_reads(
+                    pc, self.test_variant_config_af1, observed_edit_configs, amenable_qnames, total_amenable_qnames)
 
-            expected_af = 1.0
+                qname_alias = self.ed.qname_lookup["0000224875"]
+                edit_key_r1 = ed.EDIT_KEY_TUPLE(qname=qname_alias, mate=ReadMate("R1"))
+                edit_config_r1 = ed.EDIT_CONFIG_TUPLE(contig=self.contig, pos=795, ref="GAC", alt="ATG", read_pos=112)
 
-            qname_lookup_rev = dict(zip(map(str, self.ed.qname_lookup.values()), self.ed.qname_lookup.keys()))
+                edit_key_r2 = ed.EDIT_KEY_TUPLE(qname=qname_alias, mate=ReadMate("R2"))
+                edit_config_r2 = ed.EDIT_CONFIG_TUPLE(contig=self.contig, pos=795, ref="GAC", alt="ATG", read_pos=115)
 
-            qname_alias = qname_lookup_rev["000224875"]
+                test_1 = len({edit_key_r1, edit_key_r2} - set(observed_edit_configs.keys())) == 0
+                test_2 = observed_edit_configs[edit_key_r1] == edit_config_r1
+                test_3 = observed_edit_configs[edit_key_r2] == edit_config_r2
+                test_res = (test_1, test_2, test_3)
 
-            edit_key_r1 = ed.EDIT_KEY_TUPLE(qname=qname_alias, mate=ReadMate("R1"))
-            edit_config_r1 = ed.EDIT_CONFIG_TUPLE(contig=self.contig, pos=795, ref="GAC", alt="ATG", read_pos=113)
+                edited_background_af.reset()
 
-            edit_key_r2 = ed.EDIT_KEY_TUPLE(qname=qname_alias, mate=ReadMate("R2"))
-            edit_config_r2 = ed.EDIT_CONFIG_TUPLE(contig=self.contig, pos=795, ref="GAC", alt="ATG", read_pos=116)
+                self.assertTrue(all(test_res))
 
-            test_1 = observed_af == expected_af
-            test_2 = len({edit_key_r1, edit_key_r2} - set(observed_edit_configs.keys())) == 0
-            test_3 = observed_edit_configs[edit_key_r1] == edit_config_r1
-            test_4 = observed_edit_configs[edit_key_r2] == edit_config_r2
-            test_res = (test_1, test_2, test_3, test_4)
+    def test_get_edit_configs_trint_mnp_and_masking_detection(self):
+        """Tests update of the edit config dictionary for a tri-nt MNP and implicitly tests BQ masking detection."""
 
-            edited_background_af.reset()
+        # Based on creation of the test dataset, specific reads are expected to be configured for editing
+        # through a combination of the frequency and which reads have pre-existing errors
 
-            self.assertTrue(all(test_res))
+        # tri-nt MNP; presence of 1 editable read validates BQ masking detection
+        qname_alias_000224875 = self.ed.qname_lookup["000224875"]
+        edit_key_r1_000224875 = ed.EDIT_KEY_TUPLE(qname=qname_alias_000224875, mate=ReadMate("R1"))
+        edit_config_r1_000224875 = ed.EDIT_CONFIG_TUPLE(contig=self.contig, pos=795, ref="GAC", alt="ATG", read_pos=112)
+        edit_key_r2_000224875 = ed.EDIT_KEY_TUPLE(qname=qname_alias_000224875, mate=ReadMate("R2"))
+        edit_config_r2_000224875 = ed.EDIT_CONFIG_TUPLE(contig=self.contig, pos=795, ref="GAC", alt="ATG", read_pos=115)
 
-    def test_get_edit_configs(self):
-        """Tests for update of the edit dictionary with several variant configs."""
+        test_1 = self.observed_edit_configs[edit_key_r1_000224875] == edit_config_r1_000224875
+        test_2 = self.observed_edit_configs[edit_key_r2_000224875] == edit_config_r2_000224875
+        test_res = (test_1, test_2,)
+        self.assertTrue(all(test_res))
 
-        observed_edit_configs = self.ed._get_edit_configs()
+    def test_get_edit_configs_snp_ref_base_match_check(self):
+        """Tests update of the edit config dictionary for a SNP and implicitly tests REF base check."""
 
-        qname_lookup_rev = dict(zip(map(str, self.ed.qname_lookup.values()), self.ed.qname_lookup.keys()))
+        # SNP A (C>G) will be in 0000051899
+        qname_alias_0000051899 = self.ed.qname_lookup["0000051899"]
+        edit_key_r1_0000051899 = ed.EDIT_KEY_TUPLE(qname=qname_alias_0000051899, mate=ReadMate("R1"))
+        edit_key_r2_0000051899 = ed.EDIT_KEY_TUPLE(qname=qname_alias_0000051899, mate=ReadMate("R2"))
+        edit_config_r1_0000051899 = ed.EDIT_CONFIG_TUPLE(contig=self.contig, pos=804, ref="C", alt="G", read_pos=7)
+        edit_config_r2_0000051899 = ed.EDIT_CONFIG_TUPLE(contig=self.contig, pos=804, ref="C", alt="G", read_pos=10)
 
-        # tri-nt MNP
-        qname_alias_1 = qname_lookup_rev["000224875"]
-        edit_key_r1 = ed.EDIT_KEY_TUPLE(qname=qname_alias_1, mate=ReadMate("R1"))
-        edit_config_r1 = ed.EDIT_CONFIG_TUPLE(contig=self.contig, pos=795, ref="GAC", alt="ATG", read_pos=113)
-        edit_key_r2 = ed.EDIT_KEY_TUPLE(qname=qname_alias_1, mate=ReadMate("R2"))
-        edit_config_r2 = ed.EDIT_CONFIG_TUPLE(contig=self.contig, pos=795, ref="GAC", alt="ATG", read_pos=116)
+        test_1 = self.observed_edit_configs[edit_key_r1_0000051899] == edit_config_r1_0000051899
+        test_2 = self.observed_edit_configs[edit_key_r2_0000051899] == edit_config_r2_0000051899
+        test_res = (test_1, test_2,)
+        self.assertTrue(all(test_res))
 
-        # SNP A
-        qname_alias_1 = qname_lookup_rev["000224875"]
-        edit_key_r1 = ed.EDIT_KEY_TUPLE(qname=qname_alias_1, mate=ReadMate("R1"))
-        edit_config_r1 = ed.EDIT_CONFIG_TUPLE(contig=self.contig, pos=795, ref="GAC", alt="ATG", read_pos=113)
-        edit_key_r2 = ed.EDIT_KEY_TUPLE(qname=qname_alias_1, mate=ReadMate("R2"))
-        edit_config_r2 = ed.EDIT_CONFIG_TUPLE(contig=self.contig, pos=795, ref="GAC", alt="ATG", read_pos=116)
+    def test_get_edit_configs_multiple_snps(self):
+        """Tests update of the edit config dictionary for a second SNP at the same position as another."""
 
-        pass
+        # SNP B (C>T) will be in 000225689
+        qname_alias_000225689 = self.ed.qname_lookup["000225689"]
+        edit_key_r1_000225689 = ed.EDIT_KEY_TUPLE(qname=qname_alias_000225689, mate=ReadMate("R1"))
+        edit_key_r2_000225689 = ed.EDIT_KEY_TUPLE(qname=qname_alias_000225689, mate=ReadMate("R2"))
+        edit_config_r1_000225689 = ed.EDIT_CONFIG_TUPLE(contig=self.contig, pos=804, ref="C", alt="T", read_pos=7)
+        edit_config_r2_000225689 = ed.EDIT_CONFIG_TUPLE(contig=self.contig, pos=804, ref="C", alt="T", read_pos=10)
+
+        test_1 = self.observed_edit_configs[edit_key_r1_000225689] == edit_config_r1_000225689
+        test_2 = self.observed_edit_configs[edit_key_r2_000225689] == edit_config_r2_000225689
+        test_res = (test_1, test_2,)
+        self.assertTrue(all(test_res))
+
+    def test_get_edit_configs_dint_mnp_and_indel_detection(self):
+        """Tests update of the edit config dictionary for a second SNP at the same position as another."""
+
+        # di-nt MNP will be in 0000001369
+        qname_alias_0000001369 = self.ed.qname_lookup["0000001369"]
+        edit_key_r1_0000001369 = ed.EDIT_KEY_TUPLE(qname=qname_alias_0000001369, mate=ReadMate("R1"))
+        edit_key_r2_0000001369 = ed.EDIT_KEY_TUPLE(qname=qname_alias_0000001369, mate=ReadMate("R2"))
+        edit_config_r1_0000001369 = ed.EDIT_CONFIG_TUPLE(contig=self.contig, pos=812, ref="GG", alt="AT", read_pos=15)
+        edit_config_r2_0000001369 = ed.EDIT_CONFIG_TUPLE(contig=self.contig, pos=795, ref="GG", alt="AT", read_pos=18)
+
+        test_1 = self.observed_edit_configs[edit_key_r1_0000001369] == edit_config_r1_0000001369
+        test_2 = self.observed_edit_configs[edit_key_r2_0000001369] == edit_config_r2_0000001369
+        test_res = (test_1, test_2,)
+        self.assertTrue(all(test_res))
+
+    def test_get_edit_configs_del(self):
+        """Tests update of the edit config dictionary for a deletion."""
+
+        # 2-bp del will be in 0000003129
+        qname_alias_0000003129 = self.ed.qname_lookup["0000003129"]
+        edit_key_r1_0000003129 = ed.EDIT_KEY_TUPLE(qname=qname_alias_0000003129, mate=ReadMate("R1"))
+        edit_key_r2_0000003129 = ed.EDIT_KEY_TUPLE(qname=qname_alias_0000003129, mate=ReadMate("R2"))
+        edit_config_r1_0000003129 = ed.EDIT_CONFIG_TUPLE(contig=self.contig, pos=955, ref="ACT", alt="A", read_pos=47)
+        edit_config_r2_0000003129 = ed.EDIT_CONFIG_TUPLE(contig=self.contig, pos=955, ref="ACT", alt="A", read_pos=47)
+
+        test_1 = self.observed_edit_configs[edit_key_r1_0000003129] == edit_config_r1_0000003129
+        test_2 = self.observed_edit_configs[edit_key_r2_0000003129] == edit_config_r2_0000003129
+        test_res = (test_1, test_2,)
+        self.assertTrue(all(test_res))
+
+    def test_get_edit_configs_ins(self):
+        """Tests update of the edit config dictionary for an insertion."""
+
+        # 1-bp ins will be in 0000323491
+        qname_alias_0000323491 = self.ed.qname_lookup["0000323491"]
+        edit_key_r1_0000323491 = ed.EDIT_KEY_TUPLE(qname=qname_alias_0000323491, mate=ReadMate("R1"))
+        edit_key_r2_0000323491 = ed.EDIT_KEY_TUPLE(qname=qname_alias_0000323491, mate=ReadMate("R2"))
+        edit_config_r1_0000323491 = ed.EDIT_CONFIG_TUPLE(contig=self.contig, pos=1094, ref="T", alt="TG", read_pos=78)
+        edit_config_r2_0000323491 = ed.EDIT_CONFIG_TUPLE(contig=self.contig, pos=1094, ref="T", alt="TG", read_pos=75)
+
+        test_1 = self.observed_edit_configs[edit_key_r1_0000323491] == edit_config_r1_0000323491
+        test_2 = self.observed_edit_configs[edit_key_r2_0000323491] == edit_config_r2_0000323491
+        test_res = (test_1, test_2,)
+        self.assertTrue(all(test_res))
 
     def test_unmask_quals(self):
         """Tests for proper unmasking of qualities prior to write of reads."""

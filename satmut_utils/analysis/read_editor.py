@@ -70,8 +70,9 @@ class ReadEditorPreprocessor(object):
         self.preprocessed_input_bam = input_bam
         if self.primers is not None:
 
-            self.preprocessed_input_bam = ReadMasker(
-                in_bam=input_bam, feature_file=self.primers, outdir=outdir).out_bam
+            rm = ReadMasker(in_bam=input_bam, feature_file=self.primers, outdir=outdir)
+            rm.workflow()
+            self.preprocessed_input_bam = rm.out_bam
 
         # Note: do not intersect input alignments with the VCF as this could lead to unequal R1-R2 pairs that result
         # in unequal-length output FASTQs, which by definition would be invalid.
@@ -162,7 +163,7 @@ class ReadEditor(object):
 
         self.variant_config_id_set = set(self.variant_config_ids)
 
-        self.qname_lookup = {}
+        self.qname_lookup = collections.defaultdict(int)
 
         random.seed(self.random_seed)
 
@@ -208,22 +209,25 @@ class ReadEditor(object):
 
             vf.reset()
 
+        # TODO: sort configs by position and then by variant type
+        # This is needed to ensure pc_ref_base in _get_edit_configs() does not start with a del REF span
+
         return variant_tuples
 
     @staticmethod
-    def _get_edit_qnames(amenable_qnames, variant_config, total_amenable_qnames):
+    def _get_edit_qnames(amenable_qnames, variant_config, total_qnames):
         """Gets the set of qnames to edit based on depth and allele frequency.
 
         :param set amenable_qnames: qnames that can be edited
         :param collections.namedtuple variant_config: variant data
-        :param int total_amenable_qnames: total amenable qnames at the coordinate
+        :param int total_qnames: total qnames at the coordinate (less those arising from a primer at the column)
         :return set: qname IDs to edit
         """
 
         amenable_qname_len = len(amenable_qnames)
 
         # TODO: simulate sampling effects instead of a hard calculation for AF
-        num_qnames_to_edit = int(float(total_amenable_qnames) * variant_config.af)
+        num_qnames_to_edit = int(float(total_qnames) * variant_config.af)
 
         # Make sure to protect ourselves in cases where the VcfSplitter has not been used prior and we are editing
         # multiple variants at the same position with somewhat high AFs
@@ -242,21 +246,25 @@ class ReadEditor(object):
         return qnames_to_edit
 
     def _iterate_over_pileup_reads(self, pileup_column, variant_config, edit_configs, amenable_qnames,
-                                   total_amenable_qnames):
+                                   total_qnames, qname_blacklist):
         """Iterates over reads at a single column to find amenable qnames for editing.
 
         :param pysam.PileupColumn pileup_column: iterator over PileupRead objects
         :param read_editor.VARIANT_CONFIG_TUPLE variant_config: config for the variant
         :param dict edit_configs: dict containing editing data
         :param set amenable_qnames: amenable qnames as the coordinate
-        :param int total_amenable_qnames: number amenable qnames as the coordinate
+        :param int total_qnames: number total qnames as the coordinate
+        :param set qname_blacklist: blacklist of qnames to avoid, as they have already been configured for editing
         :return float: expected allele frequency of the variant specified by variant_config
         """
 
-        qnames_to_edit = self._get_edit_qnames(amenable_qnames, variant_config, total_amenable_qnames)
+        qnames_to_edit = self._get_edit_qnames(amenable_qnames, variant_config, total_qnames)
 
-        # Once we edit a read, do not allow editing on it again so we don't glob variants;
-        # also required for InDel generation which upon edit, changes the edit position of the edit_config
+        # Add qnames that are configured to be edited to the blacklist, so we never edit them again
+        # this is mostly required for InDel generation which upon edit, changes the edit position of the edit_config
+        qname_blacklist += qnames_to_edit
+
+        # Once we edit a read, do not allow editing on it again at the same column so we don't glob variants
         amenable_qnames -= qnames_to_edit
 
         # Now we have our set of qnames to edit, so store these as edit_configs
@@ -275,11 +283,32 @@ class ReadEditor(object):
                 edit_configs[edit_key] = edit_config
 
         # Determine the expected frequency for writing the truth VCF
-        expected_af = len(qnames_to_edit) / total_amenable_qnames
+        expected_af = float(len(qnames_to_edit) / total_qnames)
         return expected_af
 
+    @staticmethod
+    def _get_concordant_qnames(all_qnames, amenable_qnames):
+        """Determines the concordant qnames (overlapping mate coverage) for all and amenable qname subsets.
+
+        :param list all_qnames: all non-masked qnames at the column
+        :param list amenable_qnames: all non-masked, error-free qnames at the column
+        :return tuple: (int, set) total_qnames, amenable_qnames
+        """
+
+        # Determine the total concordant depth at the column; this will be multiplied by individual variant AFs
+        # to compute the integer number of qnames to edit
+        all_qname_counter = collections.Counter(all_qnames)
+        all_qnames = {qname for (qname, qname_count) in all_qname_counter.items() if qname_count == 2}
+        total_qnames = len(all_qnames)
+
+        # Ensure both mates overlap the POS; satmut_utils call requires both mates for variant calls
+        amenable_qname_counter = collections.Counter(amenable_qnames)
+        amenable_qnames = {qname for (qname, qname_count) in amenable_qname_counter.items() if qname_count == 2}
+
+        return total_qnames, amenable_qnames
+
     def _get_edit_configs(self):
-        """Gets a dictionary of read variant editing configurations. Editing should be deterministic.
+        """Gets a dictionary of read editing configurations and writes variants to the truth VCF.
 
         :return collections.defaultdict: dict of lists of reads to edit
         """
@@ -299,6 +328,8 @@ class ReadEditor(object):
             contig_pos_max = max(contig_positions)
             target = su.COORD_FORMAT.format(contig, contig_pos_min, contig_pos_max)
 
+            qname_blacklist = set()
+
             # We must use PileupColumns in iteration only
             for pc in edited_background_af.pileup(
                     region=target, truncate=True, max_depth=self.MAX_DP, stepper="all",
@@ -317,11 +348,27 @@ class ReadEditor(object):
                 # First calculate the total number of amenable (non-aberrant) qnames at the coordinate;
                 # this is the depth for multiplying by variant AFs to determine the integer number of qnames to edit
                 # Here apply several filters to determine amenable qnames
+                # TODO: make this the max ref span?
                 pc_ref_base = var_configs[0].ref
                 len_ref = len(pc_ref_base)
+
+                # Both of these lists will be used to determine which qnames have concordant coverage at the column
+                all_qnames = []
+
+                # The amenable list will additionally enforce concordance after the filters below
                 amenable_qnames = []
 
                 for pileup_read in pc.pileups:
+
+                    # If the edited bases intersect any synthetic primer regions, do not edit
+                    if su.MASKED_BQ in pileup_read.alignment.query_qualities[
+                                       pileup_read.query_position:pileup_read.query_position + len_ref]:
+                        continue
+
+                    # Now at this point, consider any concordant pair with/without error at the column for the
+                    # total column depth
+                    qname_alias = self._get_qname_alias(pileup_read.alignment.query_name)
+                    all_qnames.append(qname_alias)
 
                     # If the current read position has a InDel, skip for editing
                     # WARNING: this does not check nearby positions, and may cause FNs if certain reads are chosen
@@ -340,24 +387,19 @@ class ReadEditor(object):
 
                     obs_bps = pileup_read.alignment.query_sequence[pileup_read.query_position:end_pos]
 
-                    if pileup_read.alignment.query_sequence[
-                       pileup_read.query_position:pileup_read.query_position + len_ref] != obs_bps:
+                    if obs_bps != pc_ref_base:
                         continue
 
-                    # If the edited bases intersect any synthetic primer regions, do not edit
-                    if su.MASKED_BQ in pileup_read.alignment.query_qualities[
-                                       pileup_read.query_position:pileup_read.query_position + len_ref]:
-                        continue
-
-                    qname_alias = self._get_qname_alias(pileup_read.alignment.query_name)
                     amenable_qnames.append(qname_alias)
 
-                # Finally ensure both mates overlap the POS; satmut_utils call requires both mates for variant calls
-                amenable_qname_counter = collections.Counter(amenable_qnames)
-                amenable_qnames = {qname for (qname, qname_count) in amenable_qname_counter.items() if qname_count == 2}
-                total_amenable_qnames = len(amenable_qnames)
+                # Determine count and the set of amenable qnames for editing
+                total_qnames, amenable_qnames = self._get_concordant_qnames(all_qnames, amenable_qnames)
 
-                if total_amenable_qnames == 0:
+                # At this point amenable_qnames are all the "clean" reads at the current column
+                # Make sure to not edit into variants that have been configured to edit a variant at lower coordinate
+                amenable_qnames -= qname_blacklist
+
+                if len(amenable_qnames) == 0:
                     _logger.warning("No amenable qnames for editing at %s." % pc_coord)
                     continue
 
@@ -366,7 +408,7 @@ class ReadEditor(object):
 
                     # Update the edit_configs dict and determine the truth frequency
                     expected_af = self._iterate_over_pileup_reads(
-                        pc, var_config, edit_configs, amenable_qnames, total_amenable_qnames)
+                        pc, var_config, edit_configs, amenable_qnames, total_qnames, qname_blacklist)
 
                     # Write the variant and its expected frequency to the truth VCF
                     self._write_variant_to_truth_vcf(truth_vcf, var_config, expected_af)
@@ -385,7 +427,7 @@ class ReadEditor(object):
         return unmasked_quals
 
     def _edit(self, align_seg, variant):
-        """Induces a single variant in the read object.
+        """Edits a single variant in the read object.
 
         :param pysam.AlignedSegment align_seg: read object
         :param read_editor.EDIT_CONFIG_TUPLE variant: editing config for a single variant
@@ -465,8 +507,7 @@ class ReadEditor(object):
         :param float expected_af: expected allele frequency of the variant
         """
 
-        info_dict = {vu.VCF_VAR_ID: vu.VCF_VAR_ID_DELIM.join(vc.contig, vc.pos, vc.ref, vc.alt),
-                     vu.VCF_AF_ID: str(expected_af)}
+        info_dict = {vu.VCF_AF_ID: expected_af}
 
         new_variant_record = truth_vcf_fh.new_record(
             contig=vc.contig, start=vc.pos, alleles=(vc.ref, vc.alt), info=info_dict)
