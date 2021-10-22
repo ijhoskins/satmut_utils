@@ -2,7 +2,6 @@
 """Tests for analysis.read_preprocessor"""
 
 import collections
-import copy
 import numpy as np
 import pysam
 import re
@@ -147,7 +146,69 @@ CBS_pEZY3	2289	2394	CBSpEZY3_flushR_GSP2	0	-
 """
 
 
-class TestFastqPreprocessor(unittest.TestCase):
+class TestQnameVerification(unittest.TestCase):
+    """Read name format verification for processing."""
+
+    @classmethod
+    def setUpClass(cls):
+        """Set up for TestQnameVerification."""
+
+        # Test both a valid FASTQ and BAM
+        cls.tileseq_r1_fastq = tempfile.NamedTemporaryFile(suffix=".tileseq.R1.fastq", delete=False).name
+
+        with open(cls.tileseq_r1_fastq, "w") as tileseq_r1_fh:
+            tileseq_r1_fh.write(TEST_R1_TILESEQ_FASTQ)
+
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".group.sam") as group_sam:
+            group_sam.write(GROUP_TEST_SAM)
+            fu.flush_files((group_sam,))
+            cls.grouped_bam = su.sam_view(group_sam.name, None, "BAM", 0, "b")
+
+    @classmethod
+    def tearDownClass(cls):
+        """Tear down for TestQnameVerification."""
+
+        fu.safe_remove((cls.tileseq_r1_fastq, cls.grouped_bam,))
+
+    def test_verify_qname_format_Illumina(self):
+        """Test that a standard Illumina qname format is verified."""
+
+        expected = (True, ILLUMINA_FORMAT_INDEX)
+        observed = rp.QnameVerification.verify_qname_format("MG01HS02:1483:HG7MTBCX3:1:1107:1230:2106")
+        self.assertEqual(expected, observed)
+
+    def test_verify_qname_format_int(self):
+        """Test that an int qname format is verified."""
+
+        expected = (True, INT_FORMAT_INDEX)
+        observed = rp.QnameVerification.verify_qname_format("1")
+        self.assertEqual(expected, observed)
+
+    def test_verify_qname_format_invalid(self):
+        """Test that an unrecognized qname format is not verified."""
+
+        expected = (False, None)
+        observed = rp.QnameVerification.verify_qname_format("strange_qname")
+        self.assertEqual(expected, observed)
+
+    def test_verify_fastq(self):
+        """Test that qnames can be verified from a FASTQ."""
+
+        expected = (True, ILLUMINA_FORMAT_INDEX)
+        qv = rp.QnameVerification(fastq=self.tileseq_r1_fastq)
+        observed = qv.compatible, qv.format_index
+        self.assertEqual(expected, observed)
+
+    def test_verify_bam(self):
+        """Test that qnames can be verified from a BAM."""
+
+        expected = (True, ILLUMINA_FORMAT_INDEX)
+        qv = rp.QnameVerification(bam=self.grouped_bam)
+        observed = qv.compatible, qv.format_index
+        self.assertEqual(expected, observed)
+
+
+class TestFastqPreprocessor():
     """Tests for FastqPreprocessor."""
 
     @classmethod
@@ -896,7 +957,7 @@ class TestReadMasker(unittest.TestCase):
         cls.rm_tileseq = rp.ReadMasker(in_bam=cls.preproc_bam, feature_file=cls.primer_bed, outdir=cls.tempdir)
 
         cls.rm_race = rp.ReadMasker(
-            in_bam=cls.preproc_bam, feature_file=cls.primer_bed, is_race_like=True, outdir=cls.tempdir)
+            in_bam=cls.preproc_bam, feature_file=cls.primer_bed, race_like=True, outdir=cls.tempdir)
 
         #
         with tempfile.NamedTemporaryFile(mode="w", suffix=".primers2.bed", delete=False) as primer_bed2:
@@ -904,7 +965,7 @@ class TestReadMasker(unittest.TestCase):
             cls.primer_bed2 = primer_bed2.name
 
         cls.rm_normal = rp.ReadMasker(
-            in_bam=cls.preproc_bam, feature_file=cls.primer_bed2, is_race_like=True, outdir=cls.tempdir)
+            in_bam=cls.preproc_bam, feature_file=cls.primer_bed2, race_like=True, outdir=cls.tempdir)
 
     @classmethod
     def tearDownClass(cls):

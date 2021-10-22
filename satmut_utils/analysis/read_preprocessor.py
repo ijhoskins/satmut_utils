@@ -2,6 +2,7 @@
 """Objects for read pre-processing."""
 
 import collections
+import gzip
 import logging
 import numpy as np
 import os
@@ -15,6 +16,7 @@ import analysis.seq_utils as su
 import core_utils.feature_file_utils as ffu
 import core_utils.file_utils as fu
 import core_utils.vcf_utils as vu
+from definitions import *
 from scripts.run_bowtie2_aligner import workflow as baw
 
 
@@ -42,6 +44,109 @@ UMITOOLS_UG_TAG = "UG"  # unique group ID
 # UMI_DELIM is used as the delimiter for primer appending; UMI_SEP is used by umitools to add the canonical UMI
 UMI_SEP = "_"
 UMI_DELIM = "."
+
+
+class QnameVerification(object):
+    """Class for checking and validating read name formats, which may affect processing."""
+
+    def __init__(self, fastq=None, bam=None):
+        """Constructor for QnameVerification.
+
+        :param str | None fastq: FASTQ file, may be gzipped.
+        :param str | None bam: BAM file
+        """
+
+        self.fastq = fastq
+        self.bam = bam
+        self.error_msg = """The QNAME format is incompatible with the primer masking workflow. A work-around is to \
+        replace qnames (read names) with unique integers and provide."""
+        self.compatible, self.format_index = self.workflow()
+
+    @staticmethod
+    def verify_qname_format(qname):
+        """Determine if the qname is compatible with primer masking (Illumina standard format or a single integer).
+
+        :param str qname: example read name
+        :return tuple: (bool, int | None) whether or not the qname matches a compatible format, and the index of the format
+        """
+
+        qname_split = qname.split(ILLUMINA_QNAME_DELIM)
+        qname_split_len = len(qname_split)
+
+        # Illumina format has 7 fields and the first field normally has a non-numeric character
+        if qname_split_len == ILLUMINA_QNAME_NFIELDS and regex.match("^[a-zA-Z]", qname_split[0]):
+            return True, ILLUMINA_FORMAT_INDEX
+
+        if qname_split_len == 1:
+            try:
+                _ = int(qname_split[0])
+                return True, INT_FORMAT_INDEX
+            except ValueError:
+                return False, None
+
+    def _verify_fastq(self):
+        """Verifies qname format for a FASTQ.
+
+        :return tuple: (bool, int | None) whether or not the qname matches a compatible format, and the index of the format
+        :raises NotImplementedError: if the read name is not a recognizable format.
+        """
+
+        if self.fastq.endswith(fu.GZ_EXTENSION):
+            open_func = gzip.open
+            file_mode = "rb"
+        else:
+            open_func = open
+            file_mode = "r"
+
+        with open_func(self.fastq, file_mode) as fh:
+            for i, line in enumerate(fh):
+                if i == 0:
+                    compatible, format_index = self.verify_qname_format(line.split(ILLUMINA_QNAME_INDEX_DELIM)[0])
+
+                    if not compatible:
+                        fh.seek(0)
+                        raise NotImplementedError("The QNAME format is incompatible with primer masking.")
+
+                    fh.seek(0)
+                    return compatible, format_index
+
+    def _verify_bam(self):
+        """Verifies qname format for a BAM.
+
+        :return tuple: (bool, int | None) whether or not the qname matches a compatible format, and the index of the format
+        :raises NotImplementedError: if the read name is not a recognizable format.
+        """
+
+        with pysam.AlignmentFile(self.bam, "rb") as af:
+            for i, align_seg in enumerate(af.fetch(until_eof=True)):
+                if i == 0:
+                    compatible, format_index = self.verify_qname_format(align_seg.query_name)
+
+                    if not compatible:
+                        af.reset()
+                        raise NotImplementedError()
+
+                    af.reset()
+                    return compatible, format_index
+
+    def workflow(self):
+        """ Runs the qname verification workflow.
+
+        :return tuple: (bool, int | None) whether or not the qname matches a compatible format, and the index of the format
+        :raises NotImplementedError: if the read name is not a recognizable format.
+        """
+
+        _logger.info("Started qname verification workflow.")
+
+        if self.fastq is not None:
+            compatible, format_index = self._verify_fastq()
+            return compatible, format_index
+
+        if self.bam is not None:
+            compatible, format_index = self._verify_bam()
+            return compatible, format_index
+
+        _logger.info("Completed qname verification workflow.")
 
 
 class FastqPreprocessor(object):
@@ -1086,23 +1191,24 @@ class ReadMasker(object):
     GROUPBY_DELIM = ","
     DEFAULT_OUTDIR = "."
     DEFAULT_NTHREADS = 0
+    DEFAULT_RACE_LIKE = False
 
-    def __init__(self, in_bam, feature_file, is_race_like=False, consensus_dedup=CDEDUP_FLAG,
+    def __init__(self, in_bam, feature_file, race_like=DEFAULT_RACE_LIKE, sort_cmd=QNAME_SORTS[ILLUMINA_FORMAT_INDEX],
                  outdir=DEFAULT_OUTDIR, nthreads=DEFAULT_NTHREADS):
         """Constructor for ReadMasker.
 
         :param str in_bam: BAM file to mask
         :param str feature_file: BED or GTF/GFF file of primer locations
-        :param bool is_race_like: is the data produced by RACE-like (e.g. AMP) data? Default False.
-        :param bool consensus_dedup: were the reads consensus-deduplicated? Default False.
+        :param bool race_like: is the data produced by RACE-like (e.g. AMP) data? Default False.
+        :param list sort_cmd: sort key dependent on the qname format
         :param str outdir: optional output dir for the results
         :param int nthreads: number threads to use for SAM/BAM file manipulations. Default 0 (autodetect).
         """
 
         self.in_bam = in_bam
         self.feature_file = feature_file
-        self.is_race_like = is_race_like
-        self.consensus_dedup = consensus_dedup
+        self.race_like = race_like
+        self.sort_cmd = sort_cmd
         self.nthreads = nthreads
         self.out_bam = os.path.join(outdir, fu.replace_extension(os.path.basename(in_bam), self.MASKED_SUFFIX))
 
@@ -1144,14 +1250,9 @@ class ReadMasker(object):
         groupby_cmd = ["bedtools", "groupby", "-g", str(ffu.BED_INTERSECT_WB_B_BED_NAME_OFFSET + 1),
                        "-c", ",".join(primer_coord_fields), "-o", "collapse"]
 
-        # TODO: determine if the number of fields in the read name can vary, as this could affect the sort
+        # WARNING: determine if the number of fields in the read name can vary, as this could affect the sort
         # Often if we encounter improperly paired R1s/R2s during iteration in the VariantCaller, it is because
         # this sort is not working properly.
-        # TODO: make this more robust
-        sort_cmd = ["sort", "-t:", "-k1,1", "-k2,2", "-k3,3", "-k4,4n", "-k5,5n", "-k6,6n", "-k7,7n"]
-
-        if self.consensus_dedup:
-            sort_cmd = ["sort", "-k1,1n"]
 
         # Finally run the custom intersect, groupby, and sort pipeline in a subprocess
         with tempfile.NamedTemporaryFile(mode="w", suffix=".read.primer.intersect.bed", delete=False) as out_file, \
@@ -1160,7 +1261,7 @@ class ReadMasker(object):
 
             intersect_p = subprocess.Popen(intersect_cmd, stdout=subprocess.PIPE, stderr=masker_stderr)
             groupby_p = subprocess.Popen(groupby_cmd, stdin=intersect_p.stdout, stdout=subprocess.PIPE, stderr=masker_stderr)
-            sort_p = subprocess.Popen(sort_cmd, stdin=groupby_p.stdout, stdout=out_file, stderr=masker_stderr)
+            sort_p = subprocess.Popen(self.sort_cmd, stdin=groupby_p.stdout, stdout=out_file, stderr=masker_stderr)
 
             _ = sort_p.wait()
             intersect_p.stdout.close()
@@ -1180,6 +1281,7 @@ class ReadMasker(object):
 
         groupby_res_split = groupby_res.rstrip(fu.FILE_NEWLINE).split(fu.FILE_DELIM)
         intersecting_qname = groupby_res_split[self.GROUPBY_QNAME_FIELD].split(self.MATE_EXT_DELIM)[0]
+
         # Split the contig again since we use groupby -o collapse instead of -o distinct
         intersecting_primer_contig = [groupby_res_split[self.GROUPBY_PRIMER_CONTIG_FIELD].split(self.GROUPBY_DELIM)[0]]
         intersecting_primer_starts = groupby_res_split[self.GROUPBY_PRIMER_START_FIELD].split(ffu.BED_GROUPBY_DELIM)
@@ -1250,7 +1352,7 @@ class ReadMasker(object):
                      or (primer_tuple.strand == su.Strand.MINUS and primer_fiveprime_coord == ref_pos_end)):
 
                 # In this case the whole read should be masked only if it is Tile-seq or if it is a RACE-like R2
-                if not self.is_race_like or (self.is_race_like and read_strand == su.ReadMate.R2):
+                if not self.race_like or (self.race_like and read_strand == su.ReadMate.R2):
                     base_indices_to_mask = set(range(0, align_seg.query_length))
                     return base_indices_to_mask
 
@@ -1262,20 +1364,20 @@ class ReadMasker(object):
             threeprime_read_index = reference_positions.index(primer_threeprime_coord)
 
             # For Tile-seq libraries, both ends of R1 and R2 should be masked
-            if not self.is_race_like and ((read_strand == primer_tuple.strand and read_strand == su.Strand.PLUS) or
-                                          (read_strand != primer_tuple.strand and read_strand == su.Strand.MINUS)):
+            if not self.race_like and ((read_strand == primer_tuple.strand and read_strand == su.Strand.PLUS) or
+                                       (read_strand != primer_tuple.strand and read_strand == su.Strand.MINUS)):
 
                 # Mask from start of read (0 index) to index of 3' end of primer (include stop in range)
                 base_indices_to_mask += list(range(0, threeprime_read_index + 1))
 
-            if not self.is_race_like and ((read_strand == primer_tuple.strand and read_strand == su.Strand.MINUS) or
-                                          (read_strand != primer_tuple.strand and read_strand == su.Strand.PLUS)):
+            if not self.race_like and ((read_strand == primer_tuple.strand and read_strand == su.Strand.MINUS) or
+                                       (read_strand != primer_tuple.strand and read_strand == su.Strand.PLUS)):
 
                 # Mask from index of 3' end of primer to end of read (read length)
                 base_indices_to_mask += list(range(threeprime_read_index, align_seg.query_length))
 
             # For RACE-like (e.g. AMP) chemistry make sure the 5' end of a R1 is never masked
-            if self.is_race_like and read_mate == su.ReadMate.R1 and read_strand != primer_tuple.strand:
+            if self.race_like and read_mate == su.ReadMate.R1 and read_strand != primer_tuple.strand:
 
                 if read_strand == su.Strand.PLUS and primer_fiveprime_coord == ref_pos_end:
                     base_indices_to_mask += list(range(threeprime_read_index, align_seg.query_length))
@@ -1284,7 +1386,7 @@ class ReadMasker(object):
                     base_indices_to_mask += list(range(0, threeprime_read_index + 1))
 
             # For RACE-like (e.g. AMP) chemistry make sure the 3' end of a R2 is never masked
-            if self.is_race_like and read_mate == su.ReadMate.R2 and read_strand == primer_tuple.strand:
+            if self.race_like and read_mate == su.ReadMate.R2 and read_strand == primer_tuple.strand:
 
                 if read_strand == su.Strand.PLUS and primer_fiveprime_coord == ref_pos_start:
                     base_indices_to_mask += list(range(0, threeprime_read_index + 1))
@@ -1429,7 +1531,7 @@ class VariantCallerPreprocessor(object):
         self.workflow()
 
     def workflow(self):
-        """Preprocesses the alignments qname-sorting and splitting into R1 and R2 BAMs."""
+        """Preprocesses the alignments: unmapped pair filtering, qname-sorting, and splitting into R1, R2 BAMs."""
 
         _logger.info("Started variant call preprocessing workflow.")
 

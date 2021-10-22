@@ -541,7 +541,7 @@ class TestVariantCaller(unittest.TestCase):
         with pysam.AlignmentFile(self.vc.vc_preprocessor.r1_calling_bam, "rb", check_sq=False) as af1, \
                 pysam.AlignmentFile(self.vc.vc_preprocessor.r2_calling_bam, "rb", check_sq=False) as af2:
 
-            self.vc.iterate_over_reads(af1=af1, af2=af2, min_bq=30, max_nm=20, max_mnp_window=3)
+            self.vc._iterate_over_reads(af1=af1, af2=af2, min_bq=30, max_nm=20, max_mnp_window=3)
 
         self.assertEqual(expected, self.vc.variant_counts)
 
@@ -553,7 +553,7 @@ class TestVariantCaller(unittest.TestCase):
         with pysam.AlignmentFile(self.vc.vc_preprocessor.r1_calling_bam, "rb", check_sq=False) as af1, \
                 pysam.AlignmentFile(self.vc.vc_preprocessor.r2_calling_bam, "rb", check_sq=False) as af2:
 
-            self.vc.iterate_over_reads(af1=af1, af2=af2, min_bq=30, max_nm=1, max_mnp_window=3)
+            self.vc._iterate_over_reads(af1=af1, af2=af2, min_bq=30, max_nm=1, max_mnp_window=3)
 
         self.assertEqual(0, len(self.vc.variant_counts))
 
@@ -566,7 +566,7 @@ class TestVariantCaller(unittest.TestCase):
                 pysam.AlignmentFile(self.vc_invalid.vc_preprocessor.r2_calling_bam, "rb", check_sq=False) as af2:
 
             with self.assertRaises(RuntimeError):
-                self.vc.iterate_over_reads(af1=af1, af2=af2, min_bq=30, max_nm=1, max_mnp_window=3)
+                self.vc._iterate_over_reads(af1=af1, af2=af2, min_bq=30, max_nm=1, max_mnp_window=3)
 
     def test_summarize_stats_bq(self):
         """Tests summarization of BQ stats for an MNP."""

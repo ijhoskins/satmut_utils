@@ -2,6 +2,7 @@
 """Tests for analysis.read_editor"""
 
 import collections
+import copy
 import pysam
 import tempfile
 import unittest
@@ -10,7 +11,7 @@ import analysis.read_editor as ed
 import core_utils.file_utils as fu
 from core_utils.vcf_utils import get_variant_type
 from definitions import *
-from analysis.seq_utils import sort_and_index, COORD_FORMAT, DEFAULT_MAPQ, Strand, ReadMate, MASKED_BQ
+from analysis.seq_utils import sort_and_index, COORD_FORMAT, DEFAULT_MAPQ, Strand, ReadMate, MASKED_BQ, SAM_EDITED_TAG
 
 tempfile.tempdir = os.getenv("SCRATCH", "/tmp")
 
@@ -101,6 +102,13 @@ class TestReadEditor(unittest.TestCase):
 
             test_primers.write(TEST_PRIMERS)
             cls.test_primers = test_primers.name
+
+        # Store some aligned segments for testing editing objects
+        with pysam.AlignmentFile(cls.test_bam, "rb") as test_bam:
+            for i, align_seg in enumerate(test_bam.fetch(until_eof=True)):
+                if i == 0:
+                    cls.test_align_seg = align_seg
+                break
 
         cls.ed = ed.ReadEditor(
             cls.test_bam, variants=cls.test_vcf, ref=cls.cbs_ref, primers=cls.test_primers,
@@ -372,14 +380,76 @@ class TestReadEditor(unittest.TestCase):
         observed = self.ed._unmask_quals([MASKED_BQ] * 10)
         self.assertTrue(MASKED_BQ not in set(observed))
 
-    def test_edit(self):
-        """Tests editing of a read object."""
+    def test_edit_snp(self):
+        """Tests edit of a SNP in a read object."""
 
-        pass
+        test_align_seg = copy.deepcopy(self.test_align_seg)
+        ect = ed.EDIT_CONFIG_TUPLE(contig=self.contig, pos=251, ref="C", alt="A", read_pos=10)
+
+        self.ed._edit(align_seg=test_align_seg, variant=ect)
+
+        expected_1 = "A"
+        expected_2 = self.ed.VAR_TAG_DELIM.join([self.contig, str(251), "C", "A"])
+
+        test_1 = test_align_seg.query_sequence[10] == expected_1
+        test_2 = test_align_seg.get_tag(SAM_EDITED_TAG) == expected_2
+        test_res = (test_1, test_2,)
+        self.assertTrue(all(test_res))
+
+    def test_edit_mnp(self):
+        """Tests edit of a MNP in a read object."""
+
+        test_align_seg = copy.deepcopy(self.test_align_seg)
+        ect = ed.EDIT_CONFIG_TUPLE(contig=self.contig, pos=252, ref="GGT", alt="AAC", read_pos=11)
+
+        self.ed._edit(align_seg=test_align_seg, variant=ect)
+
+        expected_1 = "AAC"
+        expected_2 = self.ed.VAR_TAG_DELIM.join([self.contig, str(252), "GGT", "AAC"])
+
+        test_1 = test_align_seg.query_sequence[11:14] == expected_1
+        test_2 = test_align_seg.get_tag(SAM_EDITED_TAG) == expected_2
+        test_res = (test_1, test_2,)
+        self.assertTrue(all(test_res))
+
+    def test_edit_ins(self):
+        """Tests edit of an insertion in a read object."""
+
+        test_align_seg = copy.deepcopy(self.test_align_seg)
+        ect = ed.EDIT_CONFIG_TUPLE(contig=self.contig, pos=251, ref="C", alt="A", read_pos=10)
+
+        self.ed._edit(align_seg=test_align_seg, variant=ect)
+
+        expected_1 = "A"
+        expected_2 = self.ed.VAR_TAG_DELIM.join([self.contig, str(251), "C", "A"])
+
+        test_1 = test_align_seg.query_sequence[10] == expected_1
+        test_2 = test_align_seg.get_tag(SAM_EDITED_TAG) == expected_2
+        test_res = (test_1, test_2,)
+        self.assertTrue(all(test_res))
+
+    def test_edit_del(self):
+        """Tests edit of a deletion in a read object."""
+
+        test_align_seg = copy.deepcopy(self.test_align_seg)
+        ect = ed.EDIT_CONFIG_TUPLE(contig=self.contig, pos=251, ref="C", alt="A", read_pos=10)
+
+        self.ed._edit(align_seg=test_align_seg, variant=ect)
+
+        expected_1 = "A"
+        expected_2 = self.ed.VAR_TAG_DELIM.join([self.contig, str(251), "C", "A"])
+
+        test_1 = test_align_seg.query_sequence[10] == expected_1
+        test_2 = test_align_seg.get_tag(SAM_EDITED_TAG) == expected_2
+        test_res = (test_1, test_2,)
+        self.assertTrue(all(test_res))
 
     def test_iterate_over_reads(self):
         """Tests that multiple reads are edited."""
-        pass
+
+        self.ed._iterate_over_reads(self.observed_edit_configs)
+
+        # Verify that the edit BAM
 
     def test_workflow(self):
         """Smoke test that the workflow runs."""

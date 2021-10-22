@@ -9,14 +9,14 @@ import sys
 import tempfile
 
 from analysis.read_preprocessor import FastqPreprocessor, UMIExtractor, ReadGrouper, \
-    ConsensusDeduplicatorPreprocessor, ConsensusDeduplicator, ReadMasker
+    ConsensusDeduplicatorPreprocessor, ConsensusDeduplicator, ReadMasker, QnameVerification
 import analysis.read_editor as ri
 from analysis.references import get_ensembl_references, index_reference
-from analysis.seq_utils import UNKNOWN_BASE, FASTA_INDEX_SUFFIX
+from analysis.seq_utils import FASTA_INDEX_SUFFIX
 from analysis.variant_caller import VariantCaller
 import core_utils.file_utils as fu
 from core_utils.string_utils import none_or_str
-from definitions import AMP_UMI_REGEX, GRCH38_FASTA
+from definitions import AMP_UMI_REGEX, GRCH38_FASTA, QNAME_SORTS, INT_FORMAT_INDEX
 from scripts.run_bowtie2_aligner import workflow as baw
 
 
@@ -67,17 +67,20 @@ def parse_commandline_params(args):
     parser.add_argument("-x", "--reference_dir", type=str, default="./references",
                         help='Directory containing curated reference files.')
 
+    parser.add_argument("-z", "--race_like", action="store_true",
+                        help='Flag for data generated from a RACE-like chemistry with R1s starting at variable ends '
+                             'and R2s starting at primers.')
+
     parser.add_argument("-p", "--primers", type=none_or_str,
-                        help='Optional primer feature file, e.g. BED, GFF, GTF. Must have the strand field. '
-                             'Recommended for removing synthetic errors from alignments with base quality masking.')
+                        help='Optional primer BED file with a strand field. Recommended for removing synthetic errors '
+                             'from alignments.')
 
     parser.add_argument("-o", "--outdir", type=str, default=".",
                         help='Optional output directory. Default current working directory.')
 
     parser.add_argument("-j", "--nthreads", type=int, default=FastqPreprocessor.NCORES,
-                        help='Number of threads to use for bowtie2 alignment and BAM operations. '
+                        help='Number of threads to use for bowtie2 alignment and BAM sorting operations. '
                              'Default %i, autodetect.' % FastqPreprocessor.NCORES)
-
 
     # Subcommands
     subparsers = parser.add_subparsers(title='subcommands', help='sub-command help', dest="subcommand", required=True)
@@ -87,11 +90,11 @@ def parse_commandline_params(args):
     parser_sim.set_defaults(func=sim_workflow)
 
     parser_sim.add_argument("-a", "--alignments", required=True, type=str,
-                            help='SAM/BAM file containing alignments to edit.')
+                            help='BAM file containing alignments to edit.')
 
     parser_sim.add_argument("-v", "--vcf",  required=True, type=str,
-                        help='VCF file specifying variants to edit. Should have an AF INFO field for each variant, '
-                             'specifying the fraction of fragments to edit into.')
+                            help='VCF file specifying variants to edit. Should have an AF INFO field for each variant, '
+                                 'specifying the fraction of fragments with overlapping coverage to edit into.')
 
     parser_sim.add_argument("-s", "--random_seed", type=int, default=9, help='Seed for random read sampling.')
 
@@ -117,66 +120,68 @@ def parse_commandline_params(args):
 
     parser_call.add_argument("-t", "--targets", type=str,
                              help='Optional target BED file. Only variants intersecting the targets will be reported. '
-                                  'Contig names should match one of those in appris_human_v1_actual_regions_contigs.txt.')
+                                  'Contig names in the target file should match the contig name of the reference FASTA. '
+                                  'Provided -i, the name should match a single contig in '
+                                  'appris_human_v1_actual_regions_contigs.txt.')
 
     parser_call.add_argument("-d", "--consensus_deduplicate", action="store_true",
-                             help='For UMIs at the start of R1, flag to deduplicate and generated consensus reads.')
+                             help='For UMIs at the start of R1, flag to deduplicate and generate consensus reads.')
 
     parser_call.add_argument("-u", "--umi_regex", type=str, default=AMP_UMI_REGEX,
                              help='UMI regular expression to be passed to umi_tools extract command.')
 
-    parser_call.add_argument("-c", "--contig_del_threshold", type=int, default=ConsensusDeduplicator.CONTIG_DEL_THRESH,
-                             help='If -cd (consensus deduplicate), convert deletions to N that are larger than the threshold. '
-                                  'For RACE-like (e.g. AMP) data, a small number of R2s may share the same R1 UMI-position '
-                                  'but align to different coordinates, and will be merged, possibly with large gaps.')
-
-    parser_call.add_argument("-f", "--primer_fasta", type=none_or_str,
-                             help='If -cd, this may optionally be set to append originating primers to read names.'
-                                  'Useful for RACE-like (e.g. AMP) libraries to prohibit R2 merging. That is, without '
-                                  'this flag, tiled R2s sharing the same R1 will be merged into '
-                                  'contigs during consensus deduplication (-cd).')
-
-    parser_call.add_argument("-a", "--primer_nm_allowance", type=int, default=UMIExtractor.PRIMER_NM_ALLOW,
-                             help='If -pf, match primers in R2 with up to this many edit operations.')
+    parser_call.add_argument("-s", "--mutagenesis_signature", type=str, default=VariantCaller.VARIANT_CALL_MUT_SIG,
+                             help='Mutagenesis signature. One of NNN, NNK, or NNS.')
 
     parser_call.add_argument("-q", "--min_bq", type=int, default=VariantCaller.VARIANT_CALL_MIN_BQ,
-                             help='Min base quality to consider a read for variant calling. Default %i.' %
+                             help='Min base quality to consider a position for variant calling. Default %i.' %
                                   VariantCaller.VARIANT_CALL_MIN_BQ)
 
     parser_call.add_argument("-e", "--max_nm", type=int, default=VariantCaller.VARIANT_CALL_MAX_NM,
-                             help='Max edit distance to consider a read for variant calling. Default %i.' %
+                             help='Max edit distance to consider a read pair for variant calling. Default %i.' %
                                   VariantCaller.VARIANT_CALL_MAX_NM)
 
     parser_call.add_argument("-m", "--min_supporting", type=int, default=VariantCaller.VARIANT_CALL_MIN_DP,
-                             help='Min concordant counts for establishing candidate variants. Default %i.' %
+                             help='Min mate-concordant counts for variant calling. Default %i.' %
                                   VariantCaller.VARIANT_CALL_MIN_DP)
 
     parser_call.add_argument("-w", "--max_mnp_window", type=int, default=VariantCaller.VARIANT_CALL_MAX_MNP_WINDOW,
-                             help='Max window to search for a MNP and merge phased SNPs. Must be <= 3. '
-                                  'Any phased SNP within this window will be merged into a MNP, and its component SNPs '
-                                  'will not be called. Default %i.' % VariantCaller.VARIANT_CALL_MAX_MNP_WINDOW)
-
-    parser_call.add_argument("-z", "--include_n", action="store_true",
-                             help='Flag indicating to also call ALTs equal to, or containing, the unknown base call %s. '
-                                  'Potentially useful for training error models.' % UNKNOWN_BASE)
+                             help='Max window to search for a MNP and merge phased SNPs. Must be between 1 and 3.'
+                                  'Any consecutive SNPs within this window will be merged into a MNP, to the exclusion '
+                                  'of its component SNPs. Default %i.' % VariantCaller.VARIANT_CALL_MAX_MNP_WINDOW)
 
     parser_call.add_argument("-n", "--ntrimmed", type=int, default=FastqPreprocessor.NTRIMMED,
-                             help='Max number of adapters to trim from each read. Default %i.'
-                                  % FastqPreprocessor.NTRIMMED)
+                             help='Max number of adapters to trim from each read. Useful for trimming amplicons with '
+                                  'vector-transgene alignment. Default %i.' % FastqPreprocessor.NTRIMMED)
 
     parser_call.add_argument("-l", "--overlap_length", type=int, default=FastqPreprocessor.OVERLAP_LEN,
-                             help='Number of read bases overlapping the adapter sequence to consider for trimming. '
+                             help='Number of read bases overlapping the adapter sequence(s) to consider for trimming. '
                                   'Default %i.' % FastqPreprocessor.OVERLAP_LEN)
 
     parser_call.add_argument("-b", "--trim_bq", type=int, default=FastqPreprocessor.TRIM_QUALITY,
                              help='Base quality for 3\' trimming. Default %i.' % FastqPreprocessor.TRIM_QUALITY)
 
     parser_call.add_argument("-v", "--omit_trim", action="store_true",
-                             help='Flag to turn off adapter and 3\' base quality trimming. Useful for simulated data that '
-                                  'has already had adapters and bases trimmed.')
+                             help='Flag to turn off adapter and 3\' base quality trimming. Useful for simulated data '
+                                  'that has already been adapter-trimmed.')
 
-    parser_call.add_argument("-s", "--mutagenesis_signature", type=str, default=VariantCaller.VARIANT_CALL_MUT_SIG,
-                             help='Mutagenesis signature. One of NNN, NNK, or NNS.')
+    parser_call.add_argument("-c", "--contig_del_threshold", type=int, default=ConsensusDeduplicator.CONTIG_DEL_THRESH,
+                             help='If -z (RACE-like chemistry) and -cd (consensus deduplicate) are provided, '
+                                  'convert deletions to N that are larger than this threshold. Required as some R2s '
+                                  'may share the same R1 [UMI x position] but align to different coordinates. To '
+                                  'generate consensus R2 contigs, merging R2s may leave large gaps that will be '
+                                  'reassigned the unknown base N if the gap is greater than this threshold. This allows'
+                                  'reasonable reporting of fragment coverage. To avoid this behavior, provide -f.')
+
+    parser_call.add_argument("-f", "--primer_fasta", type=none_or_str,
+                             help='If -cd, this may optionally be set to append originating primers to read names.'
+                                  'Useful for RACE-like (e.g. AMP) libraries to prohibit R2 merging. That is, without '
+                                  'this flag, tiled R2s sharing the same R1 will be merged into contigs during '
+                                  'consensus deduplication (-cd).')
+
+    parser_call.add_argument("-a", "--primer_nm_allowance", type=int, default=UMIExtractor.PRIMER_NM_ALLOW,
+                             help='If -f, find primers in R2 with up to this many edit operations.')
+
 
     parsed_args = parser.parse_args(args)
     return parsed_args
@@ -244,22 +249,29 @@ def get_call_references(reference_dir, ensembl_id, ref, transcript_gff, gff_refe
     return ref_fa, gff, gff_ref
 
 
-def sim_workflow(am, vcf, ensembl_id=ri.ReadEditor.DEFAULT_ENSEMBL_ID, reference_dir=ri.ReadEditor.DEFAULT_REFERENCE_DIR,
-                 ref=ri.ReadEditor.DEFAULT_REF, primers=ri.ReadEditor.DEFAULT_PRIMERS, outdir=ri.ReadEditor.DEFAULT_OUTDIR,
-                 random_seed=ri.ReadEditor.DEFAULT_SEED, nthreads=ri.ReadEditor.DEFAULT_NTHREADS):
+def sim_workflow(bam, vcf, race_like,
+                 ensembl_id=ri.ReadEditor.DEFAULT_ENSEMBL_ID, reference_dir=ri.ReadEditor.DEFAULT_REFERENCE_DIR,
+                 ref=ri.ReadEditor.DEFAULT_REF, primers=ri.ReadEditor.DEFAULT_PRIMERS,
+                 outdir=ri.ReadEditor.DEFAULT_OUTDIR, random_seed=ri.ReadEditor.DEFAULT_SEED,
+                 nthreads=ri.ReadEditor.DEFAULT_NTHREADS):
     """Runs the satmut_utils sim workflow.
 
-    :param str am: SAM/BAM file to edit into
+    :param str bam: BAM file to edit into
     :param str vcf: VCF file specifying variants to edit
+    :param bool race_like: is the data produced by RACE-like (e.g. AMP) data? Default False.
     :param str | None ensembl_id: Ensembl gene or transcript ID, with version number
     :param str reference_dir: directory containing curated APPRIS reference files. Default ./references.
     :param str ref: indexed reference FASTA
     :param str | None primers: feature file of primer locations for read masking and primer detection
     :param str outdir: Optional output directory to store generated FASTQs and BAM
     :param int random_seed: seed for random qname sampling
-    :param int nthreads: Number of threads to use for SAM/BAM operations. Default 0 (autodetect).
+    :param int nthreads: Number of threads to use for BAM operations. Default 0 (autodetect).
     :return tuple: (str | None, str, str | None) paths of the edited BAM, R1 FASTQ, R2 FASTQ
     """
+
+    # Unfortunately sort-order harmony with samtools sort -n requires we know the format of the qname
+    # Check to make sure we have either Illumina format or single integer read names
+    _ = QnameVerification(bam=bam)
 
     if not os.path.exists(outdir):
         os.mkdir(outdir)
@@ -267,17 +279,18 @@ def sim_workflow(am, vcf, ensembl_id=ri.ReadEditor.DEFAULT_ENSEMBL_ID, reference
     ref_fa = get_sim_reference(
         reference_dir=reference_dir, ensembl_id=ensembl_id, ref=ref, outdir=os.path.join(outdir, "references"))
 
-    out_prefix = fu.remove_extension(os.path.basename(am))
+    out_prefix = fu.remove_extension(os.path.basename(bam))
 
     # Run the editing workflow
     output_bam, zipped_r1_fastq, zipped_r2_fastq = ri.ReadEditor(
-        am=am, variants=vcf, ref=ref_fa, primers=primers, output_dir=outdir, output_prefix=out_prefix,
-        random_seed=random_seed, nthreads=nthreads)
+        bam=bam, variants=vcf, ref=ref_fa, race_like=race_like, primers=primers,
+        output_dir=outdir, output_prefix=out_prefix,
+        random_seed=random_seed, nthreads=nthreads).workflow()
 
     return output_bam, zipped_r1_fastq, zipped_r2_fastq
 
 
-def call_workflow(fastq1, fastq2, r1_fiveprime_adapters, r1_threeprime_adapters,
+def call_workflow(fastq1, fastq2, r1_fiveprime_adapters, r1_threeprime_adapters, race_like,
                   ensembl_id=VariantCaller.VARIANT_CALL_ENSEMBL_ID,
                   reference_dir=VariantCaller.VARIANT_CALL_REFERENCE_DIR,
                   ref=VariantCaller.VARIANT_CALL_REF, transcript_gff=VariantCaller.VARIANT_CALL_GFF,
@@ -289,7 +302,6 @@ def call_workflow(fastq1, fastq2, r1_fiveprime_adapters, r1_threeprime_adapters,
                   min_bq=VariantCaller.VARIANT_CALL_MIN_BQ, max_nm=VariantCaller.VARIANT_CALL_MAX_NM,
                   min_supporting_qnames=VariantCaller.VARIANT_CALL_MIN_DP,
                   max_mnp_window=VariantCaller.VARIANT_CALL_MAX_MNP_WINDOW,
-                  include_n=not VariantCaller.VARIANT_CALL_EXCLUDE_N,
                   nthreads=FastqPreprocessor.NCORES, ntrimmed=FastqPreprocessor.NTRIMMED,
                   overlap_len=FastqPreprocessor.OVERLAP_LEN, trim_bq=FastqPreprocessor.TRIM_QUALITY,
                   omit_trim=FastqPreprocessor.TRIM_FLAG, mut_sig=VariantCaller.VARIANT_CALL_MUT_SIG):
@@ -299,6 +311,7 @@ def call_workflow(fastq1, fastq2, r1_fiveprime_adapters, r1_threeprime_adapters,
     :param str fastq2: path of the R2 FASTQ
     :param str r1_fiveprime_adapters: comma-delimited 5' adapters to trim from R1
     :param str r1_threeprime_adapters: comma-delimited 3' adapters to trim from R1
+    :param bool race_like: is the data produced by RACE-like (e.g. AMP) data? Default False.
     :param str | None ensembl_id: Ensembl gene or transcript ID, with version number
     :param str reference_dir: directory containing curated APPRIS reference files. Default ./references.
     :param str | None ref: path to reference FASTA used in alignment. Must be bowtie2 FM-index and samtools faidx indexed.
@@ -317,8 +330,7 @@ def call_workflow(fastq1, fastq2, r1_fiveprime_adapters, r1_threeprime_adapters,
     :param int max_nm: max edit distance to consider a read for variant calling
     :param int min_supporting_qnames: min number of fragments with R1-R2 concordant coverage for which to keep a variant
     :param int max_mnp_window: max number of consecutive nucleotides to search for MNPs
-    :param bool include_n: include variant calls to an "N"
-    :param int nthreads: Number of threads to use for SAM/BAM operations. Default 0 (autodetect).
+    :param int nthreads: Number of threads to use for BAM operations. Default 0 (autodetect).
     :param int ntrimmed: Max number of adapters to trim from each read
     :param int overlap_len: number of bases to match in read to trim. Default 8.
     :param int trim_bq: quality score for cutadapt quality trimming at the 3' end. Default 15.
@@ -327,6 +339,12 @@ def call_workflow(fastq1, fastq2, r1_fiveprime_adapters, r1_threeprime_adapters,
     :return tuple: (VCF, BED) filepaths
     :raises RuntimeError: if mut_sig is not one of NNN, NNK, NNS
     """
+
+    # Unfortunately sort-order harmony with samtools sort -n requires we know the format of the qname
+    # Check to make sure we have either Illumina format or single integer read names
+    if primers is not None:
+        qv = QnameVerification(fastq=fastq1)
+        sort_cmd = QNAME_SORTS[qv.format_index]
 
     # Get and index the references
     ref_fa, gff, gff_ref = get_call_references(
@@ -371,15 +389,20 @@ def call_workflow(fastq1, fastq2, r1_fiveprime_adapters, r1_threeprime_adapters,
     # Optionally run primer masking
     vc_in_bam = preproc_in_bam
     if primers is not None:
+
+        # Make sure to pass the proper sort command based on the qname format
+        if consensus_dedup:
+            sort_cmd = QNAME_SORTS[INT_FORMAT_INDEX]
+
         rm = ReadMasker(
-            in_bam=preproc_in_bam, feature_file=primers, consensus_dedup=consensus_dedup, outdir=outdir)
+            in_bam=preproc_in_bam, feature_file=primers, race_like=race_like, sort_cmd=sort_cmd, outdir=outdir)
         rm.workflow()
         vc_in_bam = rm.out_bam
 
     # Initialize the VariantCaller and prepare the alignments
     vc = VariantCaller(
         am=vc_in_bam, targets=targets, ref=ref_fa, trx_gff=gff, gff_ref=gff_ref, primers=primers,
-        output_dir=outdir, nthreads=nthreads, exclude_n=not include_n, mut_sig=mut_sig)
+        output_dir=outdir, nthreads=nthreads, mut_sig=mut_sig)
 
     # Run variant calling
     output_vcf, output_bed = vc.workflow(min_bq, max_nm, min_supporting_qnames, max_mnp_window)
@@ -396,16 +419,17 @@ def main():
     if parsed_args.subcommand == SIM_WORKFLOW:
 
         _, _, _ = sim_workflow(
-            am=args_dict["alignments"], vcf=args_dict["vcf"], ensembl_id=args_dict["ensembl_id"],
-            reference_dir=args_dict["reference_dir"], ref=args_dict["reference"], primers=args_dict["primers"],
-            outdir=args_dict["outdir"], random_seed=args_dict["random_seed"], nthreads=args_dict["nthreads"])
+            bam=args_dict["alignments"], vcf=args_dict["vcf"], race_like=parsed_args["race_like"],
+            ensembl_id=args_dict["ensembl_id"], reference_dir=args_dict["reference_dir"],
+            ref=args_dict["reference"], primers=args_dict["primers"], outdir=args_dict["outdir"],
+            random_seed=args_dict["random_seed"], nthreads=args_dict["nthreads"])
 
     elif parsed_args.subcommand == CALL_WORKFLOW:
 
         _, _ = call_workflow(
             fastq1=args_dict["fastq1"], fastq2=args_dict["fastq2"],
             r1_fiveprime_adapters=args_dict["r1_fiveprime_adapters"],
-            r1_threeprime_adapters=args_dict["r1_threeprime_adapters"],
+            r1_threeprime_adapters=args_dict["r1_threeprime_adapters"], race_like=parsed_args["race_like"],
             ensembl_id=args_dict["ensembl_id"], reference_dir=args_dict["reference_dir"], ref=args_dict["reference"],
             transcript_gff=args_dict["transcript_gff"], gff_reference=args_dict["gff_reference"],
             targets=VariantCaller.VARIANT_CALL_TARGET,outdir=args_dict["outdir"], primers=args_dict["primers"],
@@ -413,9 +437,10 @@ def main():
             consensus_dedup=args_dict["consensus_deduplicate"], umi_regex=args_dict["umi_regex"],
             contig_del_thresh=args_dict["contig_del_threshold"], min_bq=args_dict["min_bq"],
             max_nm=args_dict["max_nm"], min_supporting_qnames=args_dict["min_supporting"],
-            max_mnp_window=args_dict["max_mnp_window"], include_n=not args_dict["include_n"],
-            nthreads=args_dict["nthreads"], ntrimmed=args_dict["ntrimmed"], overlap_len=parsed_args["overlap_length"],
-            trim_bq=args_dict["trim_bq"], omit_trim=args_dict["omit_trim"], mut_sig=args_dict["mutagenesis_signature"])
+            max_mnp_window=args_dict["max_mnp_window"], nthreads=args_dict["nthreads"],
+            ntrimmed=args_dict["ntrimmed"], overlap_len=parsed_args["overlap_length"],
+            trim_bq=args_dict["trim_bq"], omit_trim=args_dict["omit_trim"],
+            mut_sig=args_dict["mutagenesis_signature"])
 
 
 if __name__ == "__main__":

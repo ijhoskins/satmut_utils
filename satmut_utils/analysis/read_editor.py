@@ -9,10 +9,11 @@ import pysam
 import random
 import tempfile
 
-from analysis.read_preprocessor import ReadMasker
+from analysis.read_preprocessor import QnameVerification, ReadMasker
 from analysis import seq_utils as su
 from core_utils import file_utils as fu
 from core_utils import vcf_utils as vu
+from definitions import QNAME_SORTS
 from scripts.run_bowtie2_aligner import workflow as align_workflow
 
 __author__ = "Ian_Hoskins"
@@ -36,17 +37,20 @@ _logger = logging.getLogger(__name__)
 class ReadEditorPreprocessor(object):
     """Class for preparing alignment files for editing of variants."""
 
+    DEFAULT_RACE_LIKE = False
     DEFAULT_PRIMERS = None
     DEFAULT_OUTDIR = "."
     DEFAULT_NTHREADS = 0
     EDIT_INPUT_SUFFIX = "edit.input.bam"
     QNAME_INPUT_SUFFIX = "qname.sort.bam"
 
-    def __init__(self, am, ref, primers=DEFAULT_PRIMERS, outdir=DEFAULT_OUTDIR, nthreads=DEFAULT_NTHREADS):
+    def __init__(self, bam, ref, race_like=DEFAULT_RACE_LIKE, primers=DEFAULT_PRIMERS, outdir=DEFAULT_OUTDIR,
+                 nthreads=DEFAULT_NTHREADS):
         r"""Constructor for ReadEditorPreprocessor.
 
-        :param str am: alignments to edit into
+        :param str bam: alignments to edit into
         :param str ref: samtools faidx indexed reference FASTA
+        :param bool race_like: is the data produced by RACE-like (e.g. AMP) data? Default False.
         :param str | None primers: BED, GFF, or GTF file containing primers; for masking synthetic sequences for \
         accurate AF of variants under primer regions. This feature file should contain the strand of the primer. \
         Set to None for no masking.
@@ -54,36 +58,50 @@ class ReadEditorPreprocessor(object):
         :param int nthreads: Number of threads to use for SAM/BAM operations. Default 0 (autodetect).
         """
 
-        self.am = am
-        self.primers = primers
+        self.input_bam = bam
         self.ref = ref
+        self.race_like = race_like
+        self.primers = primers
         self.outdir = outdir
         self.nthreads = nthreads
 
-        input_bam = self.am
-        if self.am.endswith(su.SAM_SUFFIX):
-            _logger.info("Converting SAM to BAM.")
-            input_bam = su.sam_view(self.am)
-
         # We consider masking synthetic primer regions to enable facile detection of variants "under" primers. In these
         # cases we want to ensure we don't edit into a read such that the variant appears to be a synthesis error
-        self.preprocessed_input_bam = input_bam
+        input_masked_bam = self.input_bam
         if self.primers is not None:
 
-            rm = ReadMasker(in_bam=input_bam, feature_file=self.primers, outdir=outdir)
+            # Determine if the read names are compatible with masking
+            qv = QnameVerification(bam=self.input_bam)
+            sort_cmd = QNAME_SORTS[qv.format_index]
+
+            rm = ReadMasker(in_bam=self.input_bam, feature_file=self.primers, race_like=race_like, sort_cmd=sort_cmd,
+                            outdir=self.outdir, nthreads=self.nthreads)
             rm.workflow()
-            self.preprocessed_input_bam = rm.out_bam
+            input_masked_bam = rm.out_bam
 
         # Note: do not intersect input alignments with the VCF as this could lead to unequal R1-R2 pairs that result
         # in unequal-length output FASTQs, which by definition would be invalid.
-        am_basename = os.path.basename(am)
+        am_basename = os.path.basename(self.input_bam)
+
+        # Filter supplementary and secondary alignments
+        # This must occur because if we choose the primary alignment for editing and writing, we should not try to edit
+        # or write the supplement or secondary alignment
+        preprocessed_input_bam = su.sam_view(
+            input_masked_bam, None, "BAM", self.nthreads, F=su.SAM_FLAG_SUPPL + su.SAM_FLAG_SECONDARY)
 
         # We will need a coordinate- and qname- sorted BAM for the pileup and then the editing
         self.edit_background = os.path.join(outdir, fu.replace_extension(am_basename, self.EDIT_INPUT_SUFFIX))
-        su.sort_and_index(am=self.preprocessed_input_bam, output_am=self.edit_background, nthreads=nthreads)
+        su.sort_and_index(am=preprocessed_input_bam, output_am=self.edit_background, nthreads=nthreads)
 
         qname_bam = os.path.join(outdir, fu.replace_extension(am_basename, self.QNAME_INPUT_SUFFIX))
-        self.qname_sorted_bam = su.sort_bam(self.edit_background, output_am=qname_bam, by_qname=True, nthreads=nthreads)
+        self.qname_sorted_bam = su.sort_bam(
+            bam=self.edit_background, output_am=qname_bam, by_qname=True, nthreads=nthreads)
+
+        temp_files = [preprocessed_input_bam]
+        if self.primers is not None:
+            temp_files.append(input_masked_bam)
+
+        fu.safe_remove((temp_files,), force_remove=True)
 
 
 class ReadEditor(object):
@@ -99,23 +117,23 @@ class ReadEditor(object):
     DEFAULT_FILTER = True
     DEFAULT_SEED = 9
     DEFAULT_NTHREADS = 0
-
     MAX_DP = 100000000
     MIN_BQ = 1  # omit primer-masked bases where BQ = 0
-    MATCH_REQ_LIM = 3
     VAR_TAG_DELIM = "_"
 
     TRUTH_VCF_SUFFIX = "truth.vcf"
     NORM_VCF_SUFFIX = "norm.vcf"
     EDIT_BAM_SUFFIX = "edit.bam"
 
-    def __init__(self, am, variants, ref, primers=DEFAULT_PRIMERS, output_dir=DEFAULT_OUTDIR,
-                 output_prefix=DEFAULT_PREFIX, random_seed=DEFAULT_SEED, nthreads=DEFAULT_NTHREADS):
+    def __init__(self, bam, variants, ref, race_like=ReadEditorPreprocessor.DEFAULT_RACE_LIKE,
+                 primers=DEFAULT_PRIMERS, output_dir=DEFAULT_OUTDIR, output_prefix=DEFAULT_PREFIX,
+                 random_seed=DEFAULT_SEED, nthreads=DEFAULT_NTHREADS):
         r"""Constructor for ReadEditor.
 
-        :param str am: alignments to edit into.
+        :param str bam: alignments to edit into.
         :param str variants: VCF/BCF specifying variants to edit; use the AF tag to specify AF, e.g. AF=0.1.
         :param str ref: reference FASTA. Default APPRIS primary annotation transcriptome.
+        :param bool race_like: is the data produced by RACE-like (e.g. AMP) data? Default False.
         :param str | None primers: BED, GFF, or GTF file containing primers; for masking synthetic sequences for \
         accurate AF of variants under primer regions. This feature file should contain the strand of the primer. \
         Set to None for no masking.
@@ -127,10 +145,11 @@ class ReadEditor(object):
         Note: Reads that have been edited will be tagged with an IN alignment tag.
         """
 
-        self.am = am
+        self.bam = bam
         self.variants = variants
-        self.primers = primers
         self.ref = ref
+        self.race_like = race_like
+        self.primers = primers
         self.output_dir = output_dir
         self.output_prefix = output_prefix
         self.random_seed = random_seed
@@ -145,14 +164,15 @@ class ReadEditor(object):
         self.variant_tbi = vu.tabix_index(self.norm_sort_vcf)
 
         if self.output_prefix is None:
-            self.output_prefix = fu.remove_extension(os.path.basename(am))
+            self.output_prefix = fu.remove_extension(os.path.basename(self.bam))
 
         self.out_path = os.path.join(self.output_dir, self.output_prefix)
         self.output_bam = fu.add_extension(self.out_path, self.EDIT_BAM_SUFFIX)
         self.truth_vcf = fu.add_extension(self.out_path, self.TRUTH_VCF_SUFFIX)
 
         _logger.info("Pre-processing input files for editing.")
-        self.editor_preprocessor = ReadEditorPreprocessor(am=am, primers=primers, ref=ref, outdir=output_dir)
+        self.editor_preprocessor = ReadEditorPreprocessor(
+            bam=self.bam, primers=primers, ref=ref, race_like=race_like, outdir=output_dir)
 
         _logger.info("Getting variant configs.")
         self.variant_configs = self._get_variant_configs()
@@ -452,8 +472,6 @@ class ReadEditor(object):
 
         :param dict edit_configs: dict with list of variants to edit at a specific read and position."""
 
-        already_written = set()
-
         with pysam.AlignmentFile(self.editor_preprocessor.qname_sorted_bam, "rb") as in_af, \
                 pysam.AlignmentFile(self.output_bam, "wb", header=in_af.header) as out_af:
 
@@ -467,17 +485,6 @@ class ReadEditor(object):
                 qname_alias = self._get_qname_alias(align_seg.query_name)
                 candidate_key = EDIT_KEY_TUPLE(qname=qname_alias, mate=su.ReadMate(align_seg.is_read1))
 
-                # We do this for RNA reads where we have supplementary alignments.
-                # The first encountered read will be edited, and we must not write a later supplement (so no dups arise
-                # that would cause the resultant FASTQs to be differing lengths).
-                # Note this could potentially cause issues if the first supplementary read encountered hard clips
-                # and the later supplement does not, as IndexErrors could arise when trying to edit a variant
-                # in the hard-clipped read (whereas the index would have been present in the later supplement).
-                # However, this logic greatly simplifies logic; thus filter hard-clipped reads prior to editing to
-                # avoid such edge cases
-                if candidate_key in already_written:
-                    continue
-
                 # Make sure to unmask BQs if they were masked to begin with
                 align_seg.query_qualities = self._unmask_quals(align_seg.query_qualities)
 
@@ -487,16 +494,17 @@ class ReadEditor(object):
                 # Unset the CIGAR string prior to writing as this interferes with proper object construction
                 align_seg.cigarstring = None
                 out_af.write(align_seg)
-                already_written.add(candidate_key)
 
     def _write_fastqs(self):
-        r"""Writes FASTQs for re-alignment.
+        r"""Writes and gzips FASTQs for re-alignment.
 
         :return tuple: (str, str) paths of the R1 and R2 FASTQ files
         """
 
         r1_fastq, r2_fastq = su.bam_to_fastq(bam=self.output_bam, out_prefix=self.out_path)
-        return r1_fastq, r2_fastq
+        zipped_r1_fastq = fu.gzip_file(r1_fastq)
+        zipped_r2_fastq = fu.gzip_file(r2_fastq)
+        return zipped_r1_fastq, zipped_r2_fastq
 
     @staticmethod
     def _write_variant_to_truth_vcf(truth_vcf_fh, vc, expected_af):
@@ -531,13 +539,12 @@ class ReadEditor(object):
         self._iterate_over_reads(edit_configs)
 
         _logger.info("Writing and gzipping FASTQs.")
-        r1_fastq, r2_fastq = self._write_fastqs()
-        zipped_r1_fastq = fu.gzip_file(r1_fastq)
-        zipped_r2_fastq = fu.gzip_file(r2_fastq)
+        zipped_r1_fastq, zipped_r2_fastq = self._write_fastqs()
 
         # We need to realign to re-generate CIGAR and MD tags and for proper visualization of alignments in browsers
         _logger.info("Locally realigning all reads.")
-        align_workflow(f1=r1_fastq, f2=r2_fastq, ref=self.ref, outdir=self.output_dir, outbam=self.output_bam, local=True)
+        align_workflow(f1=zipped_r1_fastq, f2=zipped_r2_fastq, ref=self.ref, outdir=self.output_dir,
+                       outbam=self.output_bam, local=True)
 
         return self.output_bam, zipped_r1_fastq, zipped_r2_fastq
 

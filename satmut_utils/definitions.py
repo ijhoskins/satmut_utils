@@ -52,3 +52,13 @@ AMP_UMI_NM_ALLOWANCE = 1
 # This uses the python regex library syntax with named capture groups and fuzzy matching
 AMP_UMI_REGEX = "(?P<umi_1>[ATCG]{%i})" % AMP_UMI_LEN + \
                 "(?P<discard_1>%s){e<=%i}" % (AMP_CR, AMP_CR_NM_ALLOWANCE)
+
+# For primer masking, some input read names (qnames) may need a different sort key than these two
+ILLUMINA_QNAME_DELIM = ":"
+ILLUMINA_QNAME_NFIELDS = 7
+ILLUMINA_FORMAT_INDEX = 0
+ILLUMINA_QNAME_INDEX_DELIM = " "
+INT_FORMAT_INDEX = 1
+ILLUMINA_QNAME_SORT = ("sort", "-t:", "-k1,1", "-k2,2", "-k3,3", "-k4,4n", "-k5,5n", "-k6,6n", "-k7,7n")
+INT_QNAME_SORT = ("sort", "-k1,1n")
+QNAME_SORTS = (ILLUMINA_QNAME_SORT, INT_QNAME_SORT)

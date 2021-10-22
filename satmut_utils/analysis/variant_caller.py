@@ -71,7 +71,6 @@ class VariantCaller(object):
     VARIANT_CALL_MIN_MAPQ = 0
     VARIANT_CALL_MIN_DP = 2
     VARIANT_CALL_MAX_NM = 7
-    VARIANT_CALL_EXCLUDE_N = True
     VARIANT_CALL_NORM_DP = 1000000
     VARIANT_CALL_COV_EXT = "cov.bedgraph"
     VARIANT_CALL_REF_CANDIDATE_EXT = "var.cand.vcf"
@@ -107,8 +106,6 @@ class VariantCaller(object):
         Set to None for no masking.
         :param str | None output_dir: output dir to use for output files; if None, will create a tempdir.
         :param int nthreads: number threads to use for SAM/BAM file manipulations. Default 0 (autodetect).
-        :param bool exclude_n: exclude variant calls to an "N". Default True. Setting to False may be useful for \
-        training error models.
         :param str mut_sig: mutagenesis signature- one of {NNN, NNK, NNS}. Default NNK.
         :raises RuntimeError: if no alignments are found in the input BAM
         """
@@ -123,7 +120,6 @@ class VariantCaller(object):
         self.primers = primers
         self.output_dir = output_dir
         self.nthreads = nthreads
-        self.exclude_n = exclude_n
         self.mut_sig = mut_sig
 
         if output_dir is None:
@@ -363,9 +359,6 @@ class VariantCaller(object):
 
                 ref_bp = str(reference_base).upper()
                 alt_bp = align_seg.query_sequence[query_pos].upper()
-
-                if self.exclude_n and alt_bp == su.UNKNOWN_BASE:
-                    continue
 
                 # We want the variant position 1-based with respect to the 5' end
                 var_pos = query_pos + 1 if read_strand == su.Strand.PLUS else align_seg.query_length - query_pos
@@ -608,8 +601,8 @@ class VariantCaller(object):
             # Enumerate the read pair for the DP denominator to frequency
             self.coordinate_counts[COORDINATE_KEY(r1.reference_name, pos + 1)] += 1
 
-    def iterate_over_reads(self, af1, af2, min_bq=VARIANT_CALL_MIN_BQ, max_nm=VARIANT_CALL_MAX_NM,
-                           max_mnp_window=VARIANT_CALL_MAX_MNP_WINDOW):
+    def _iterate_over_reads(self, af1, af2, min_bq=VARIANT_CALL_MIN_BQ, max_nm=VARIANT_CALL_MAX_NM,
+                            max_mnp_window=VARIANT_CALL_MAX_MNP_WINDOW):
         """Iterates over reads to enumerate variants.
 
         :param pysam.AlignmentFile af1: object corresponding to the R1 BAM
@@ -1029,7 +1022,7 @@ class VariantCaller(object):
                 pysam.VariantFile(patch_reference, "w", header=reference_vcf_header) as reference_candidates_fh:
 
             _logger.info("Collecting read mismatch data. This may take some time...")
-            self.iterate_over_reads(af1, af2, min_bq, max_nm, max_mnp_window)
+            self._iterate_over_reads(af1, af2, min_bq, max_nm, max_mnp_window)
 
             _logger.info("Calling variants.")
             concordant_counts = self._call_variants(min_supporting_qnames)
