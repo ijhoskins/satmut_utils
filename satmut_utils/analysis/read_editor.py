@@ -512,15 +512,16 @@ class ReadEditor(object):
     def _write_variant_to_truth_vcf(truth_vcf_fh, vc, expected_af):
         """Writes a variant to the truth VCF containing the expected frequencies for input variants.
 
-        :param pysam.VariantFile truth_vf: truth VCF VariantFile object
+        :param pysam.VariantFile truth_vcf_fh: truth VCF VariantFile object
         :param analysis.read_editor.VARIANT_CONFIG_TUPLE vc: namedtuple containing variant info
         :param float expected_af: expected allele frequency of the variant
         """
 
         info_dict = {vu.VCF_AF_ID: expected_af}
 
+        # start should be 0-based whereas the variant configs have 1-based coordinates
         new_variant_record = truth_vcf_fh.new_record(
-            contig=vc.contig, start=vc.pos, alleles=(vc.ref, vc.alt), info=info_dict)
+            contig=vc.contig, start=vc.pos - 1, stop=vc.pos - 1 + len(vc.ref), alleles=(vc.ref, vc.alt), info=info_dict)
 
         truth_vcf_fh.write(new_variant_record)
 

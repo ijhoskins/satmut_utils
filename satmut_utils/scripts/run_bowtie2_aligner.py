@@ -68,15 +68,15 @@ def workflow(f1, ref, f2=None, outdir=".", outbam=None, local=True, nthreads=Bow
     :param str f1: path to FASTA or FASTQ 1
     :param str ref: path of indexed reference FASTA
     :param str | None f2: optional path to FASTA or FASTQ 2
-    :param str outdir: optional output directory to write the output BAM to
-    :param str | None outbam: output BAM to create
+    :param str outdir: optional output directory to write the output BAM to. Default current directory.
+    :param str | None outbam: full file path of an output BAM to create; if None, use basename of f1, f2
     :param bool local: should a local alignment be done instead of global alignment (default True)
     :param int nthreads: number of threads to use for alignment
     :return analysis.aligners.Bowtie2: aligner object
     """
 
     # Need to change dir to scratch in case temp BAMs are created, as bowtie2 does not have an option for setting
-    # the temp directory, and we can't pollute home due to disk quotas
+    # the temp directory
     call_dir = os.getcwd()
     os.chdir(DEFAULT_TEMPDIR)
 

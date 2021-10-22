@@ -5,14 +5,16 @@ import collections
 import copy
 import gzip
 import pysam
+import shutil
 import tempfile
 import unittest
 
 import analysis.read_editor as ed
+from analysis.references import index_reference
+from analysis.seq_utils import sort_and_index, COORD_FORMAT, DEFAULT_MAPQ, ReadMate, MASKED_BQ, SAM_EDITED_TAG, FASTQ_QNAME_CHAR
 import core_utils.file_utils as fu
 from core_utils.vcf_utils import get_variant_type
 from definitions import *
-from analysis.seq_utils import sort_and_index, COORD_FORMAT, DEFAULT_MAPQ, ReadMate, MASKED_BQ, SAM_EDITED_TAG, FASTQ_QNAME_CHAR
 
 tempfile.tempdir = os.getenv("SCRATCH", "/tmp")
 
@@ -90,6 +92,11 @@ class TestReadEditor(unittest.TestCase):
         cls.test_data_dir = os.path.abspath(os.path.join(cls.test_dir, "..", "test_data"))
         cls.cbs_ref = os.path.join(cls.test_data_dir, cls.CBS_REF)
 
+        # Copy the reference to the tempdir and index it
+        cls.cbs_ref_copy = os.path.join(cls.tempdir, cls.CBS_REF)
+        shutil.copyfile(cls.cbs_ref, cls.cbs_ref_copy)
+        index_reference(cls.cbs_ref_copy)
+
         with tempfile.NamedTemporaryFile(mode="w", suffix=".test.sam") as test_sam, \
                 tempfile.NamedTemporaryFile(mode="w", suffix=".test.vcf", delete=False) as test_vcf, \
                 tempfile.NamedTemporaryFile(mode="w", suffix=".test.primers.bed", delete=False) as test_primers:
@@ -112,7 +119,7 @@ class TestReadEditor(unittest.TestCase):
                 break
 
         cls.ed = ed.ReadEditor(
-            cls.test_bam, variants=cls.test_vcf, ref=cls.cbs_ref, primers=cls.test_primers,
+            cls.test_bam, variants=cls.test_vcf, ref=cls.cbs_ref_copy, primers=cls.test_primers,
             output_dir=cls.tempdir, output_prefix="test_editor")
 
         cls.observed_edit_configs = cls.ed._get_edit_configs()
@@ -133,10 +140,6 @@ class TestReadEditor(unittest.TestCase):
 
         # Single-stranded errors introduced into 000224875 and 0000001369 R2s at position 804 to check REF base
         # A del was introduced into 0000051899 R2, and an ins into 0000225689 R1, to check InDels
-        # Masked BQ checking is implicit in the frequency assertion for cls.test_variant_config_af1
-
-        # {'0000224875': 1, '0000001369': 2, '0000051899': 3, '0000225689': 4, '0000003129': 5, '0000323491': 6}
-        # qname_lookup_rev = dict(zip(map(str, self.ed.qname_lookup.values()), self.ed.qname_lookup.keys()))
 
     @classmethod
     def tearDownClass(cls):
@@ -491,21 +494,17 @@ class TestReadEditor(unittest.TestCase):
 
         self.assertTrue(all(tests))
 
-    def test_workflow_files_exist(self):
-        """Smoke test that the workflow runs and outputs files."""
+    def test_workflow(self):
+        """Smoke test that the workflow runs, outputs files, and that the FASTQs are similarly ordered."""
 
-        # Simply check that the output files exist
-        res = self.ed.workflow()
-        observed = [os.path.exists(e) for e in res]
-        self.assertTrue(all(observed))
-
-    def test_workflow_fastq_lengths(self):
-        """Smoke test that the workflow runs and resultant FASTQs are equal lengths."""
-
-        # Simply check that the output files exist
-        _, r1_fq, r2_fq = self.ed.workflow()
+        # Check that the output files exist and that the FASTQs have ordered qnames
+        edit_bam, r1_fq, r2_fq = self.ed.workflow()
+        test_1 = [os.path.exists(e) for e in (edit_bam, r1_fq, r2_fq,)]
 
         with gzip.open(r1_fq) as r1, gzip.open(r2_fq) as r2:
             r1_qnames = [e for e in r1.readlines() if e.starts(FASTQ_QNAME_CHAR)]
             r2_qnames = [e for e in r2.readlines() if e.starts(FASTQ_QNAME_CHAR)]
-            self.assertEqual(r1_qnames, r2_qnames)
+            test_2 = r1_qnames == r2_qnames
+
+        test_res = (test_1, test_2,)
+        self.assertTrue(all(test_res))
