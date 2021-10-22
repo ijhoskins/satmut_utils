@@ -101,7 +101,7 @@ class ReadEditorPreprocessor(object):
         if self.primers is not None:
             temp_files.append(input_masked_bam)
 
-        fu.safe_remove((temp_files,), force_remove=True)
+        fu.safe_remove(tuple(temp_files))
 
 
 class ReadEditor(object):
@@ -167,6 +167,7 @@ class ReadEditor(object):
             self.output_prefix = fu.remove_extension(os.path.basename(self.bam))
 
         self.out_path = os.path.join(self.output_dir, self.output_prefix)
+        self.temp_edit_bam = tempfile.NamedTemporaryFile(mode="wb", suffix=".temp.edit.bam").name
         self.output_bam = fu.add_extension(self.out_path, self.EDIT_BAM_SUFFIX)
         self.truth_vcf = fu.add_extension(self.out_path, self.TRUTH_VCF_SUFFIX)
 
@@ -282,7 +283,7 @@ class ReadEditor(object):
 
         # Add qnames that are configured to be edited to the blacklist, so we never edit them again
         # this is mostly required for InDel generation which upon edit, changes the edit position of the edit_config
-        qname_blacklist += qnames_to_edit
+        qname_blacklist |= qnames_to_edit
 
         # Once we edit a read, do not allow editing on it again at the same column so we don't glob variants
         amenable_qnames -= qnames_to_edit
@@ -381,8 +382,9 @@ class ReadEditor(object):
                 for pileup_read in pc.pileups:
 
                     # If the edited bases intersect any synthetic primer regions, do not edit
-                    if su.MASKED_BQ in pileup_read.alignment.query_qualities[
-                                       pileup_read.query_position:pileup_read.query_position + len_ref]:
+                    if not (pileup_read.is_del or pileup_read.is_refskip) and \
+                            su.MASKED_BQ in pileup_read.alignment.query_qualities[
+                                            pileup_read.query_position:pileup_read.query_position + len_ref]:
                         continue
 
                     # Now at this point, consider any concordant pair with/without error at the column for the
@@ -473,7 +475,7 @@ class ReadEditor(object):
         :param dict edit_configs: dict with list of variants to edit at a specific read and position."""
 
         with pysam.AlignmentFile(self.editor_preprocessor.qname_sorted_bam, "rb") as in_af, \
-                pysam.AlignmentFile(self.output_bam, "wb", header=in_af.header) as out_af:
+                pysam.AlignmentFile(self.temp_edit_bam, "wb", header=in_af.header) as out_af:
 
             # Iterate over the qname-sorted reads, that way we write the BAM in that order for FASTQ conversion
             for align_seg in in_af.fetch(until_eof=True):
@@ -501,7 +503,7 @@ class ReadEditor(object):
         :return tuple: (str, str) paths of the R1 and R2 FASTQ files
         """
 
-        r1_fastq, r2_fastq = su.bam_to_fastq(bam=self.output_bam, out_prefix=self.out_path)
+        r1_fastq, r2_fastq = su.bam_to_fastq(bam=self.temp_edit_bam, out_prefix=self.out_path)
         zipped_r1_fastq = fu.gzip_file(r1_fastq)
         zipped_r2_fastq = fu.gzip_file(r2_fastq)
         return zipped_r1_fastq, zipped_r2_fastq
@@ -544,7 +546,7 @@ class ReadEditor(object):
         # We need to realign to re-generate CIGAR and MD tags and for proper visualization of alignments in browsers
         _logger.info("Locally realigning all reads.")
         align_workflow(f1=zipped_r1_fastq, f2=zipped_r2_fastq, ref=self.ref, outdir=self.output_dir,
-                       outbam=self.output_bam, local=True)
+                       outbam=self.output_bam, local=True, nthreads=self.nthreads)
 
         return self.output_bam, zipped_r1_fastq, zipped_r2_fastq
 

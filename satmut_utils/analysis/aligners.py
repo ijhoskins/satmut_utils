@@ -110,9 +110,9 @@ class Bowtie2(object):
         self.alignment_kwargs.update(config.kwargs)
 
         _logger.info("Aligning and writing to %s" % self.output_bam)
-        _ = self._align()
+        _, _, _, temp_bam = self._align()
 
-        su.index_bam(self.output_bam)
+        su.sort_and_index(am=temp_bam, output_am=self.output_bam, nthreads=self.config.nthreads)
 
     def _align(self):
         """Aligns reads.
@@ -120,7 +120,7 @@ class Bowtie2(object):
         :return tuple: return codes of each process in the pipeline
         """
 
-        with open(self.output_bam, "wb") as out_file, \
+        with tempfile.NamedTemporaryFile(suffix=".align.bam", delete=False) as out_file, \
                 open(os.path.join(os.path.dirname(os.path.abspath(self.output_bam)),
                                   "Bowtie2.stderr.log"), "a") as bowtie2_stderr:
 
@@ -162,4 +162,4 @@ class Bowtie2(object):
             align_p.stdout.close()
             tobam_p.stdout.close()
 
-            return align_p.poll(), tobam_p.poll(), sort_p.poll()
+            return align_p.poll(), tobam_p.poll(), sort_p.poll(), out_file.name

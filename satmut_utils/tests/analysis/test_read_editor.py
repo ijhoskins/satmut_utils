@@ -3,6 +3,7 @@
 
 import collections
 import copy
+import gzip
 import pysam
 import tempfile
 import unittest
@@ -11,7 +12,7 @@ import analysis.read_editor as ed
 import core_utils.file_utils as fu
 from core_utils.vcf_utils import get_variant_type
 from definitions import *
-from analysis.seq_utils import sort_and_index, COORD_FORMAT, DEFAULT_MAPQ, Strand, ReadMate, MASKED_BQ, SAM_EDITED_TAG
+from analysis.seq_utils import sort_and_index, COORD_FORMAT, DEFAULT_MAPQ, ReadMate, MASKED_BQ, SAM_EDITED_TAG, FASTQ_QNAME_CHAR
 
 tempfile.tempdir = os.getenv("SCRATCH", "/tmp")
 
@@ -122,7 +123,7 @@ class TestReadEditor(unittest.TestCase):
             contig="ENST00000398165.7|ENSG00000160200.17|OTTHUMG00000086834.7|OTTHUMT00000195525.1|CBS-204|CBS|2605|protein_coding|",
             pos=804, ref="C", alt="G", af=0.5)
 
-        # The qname at POS 795 is 000224875
+        # The qname at POS 795 is 0000224875
         cls.test_variant_config_af1 = ed.VARIANT_CONFIG_TUPLE(
             type=get_variant_type("GAC", "ATG"),
             contig="ENST00000398165.7|ENSG00000160200.17|OTTHUMG00000086834.7|OTTHUMT00000195525.1|CBS-204|CBS|2605|protein_coding|",
@@ -216,6 +217,8 @@ class TestReadEditor(unittest.TestCase):
             # For purpose of testing change just the input coordinate
             target = COORD_FORMAT.format(self.contig, 795, 795)
 
+            qname_blacklist = set()
+
             for pc in edited_background_af.pileup(
                     region=target, truncate=True, max_depth=self.ed.MAX_DP, stepper="all",
                     ignore_overlaps=False, ignore_orphans=False,
@@ -232,7 +235,7 @@ class TestReadEditor(unittest.TestCase):
 
                 # Now we can test the method
                 observed = self.ed._iterate_over_pileup_reads(
-                    pc, self.test_variant_config_af1, observed_edit_configs, amenable_qnames, total_amenable_qnames)
+                    pc, self.test_variant_config_af1, observed_edit_configs, amenable_qnames, total_amenable_qnames, qname_blacklist)
 
                 edited_background_af.reset()
                 self.assertEqual(expected, observed)
@@ -246,6 +249,8 @@ class TestReadEditor(unittest.TestCase):
 
             # For purpose of testing change just the input coordinate
             target = COORD_FORMAT.format(self.contig, 795, 795)
+
+            qname_blacklist = set()
 
             for pc in edited_background_af.pileup(
                     region=target, truncate=True, max_depth=self.ed.MAX_DP, stepper="all",
@@ -263,7 +268,7 @@ class TestReadEditor(unittest.TestCase):
 
                 # Now we can test the method
                 _ = self.ed._iterate_over_pileup_reads(
-                    pc, self.test_variant_config_af1, observed_edit_configs, amenable_qnames, total_amenable_qnames)
+                    pc, self.test_variant_config_af1, observed_edit_configs, amenable_qnames, total_amenable_qnames, qname_blacklist)
 
                 qname_alias = self.ed.qname_lookup["0000224875"]
                 edit_key_r1 = ed.EDIT_KEY_TUPLE(qname=qname_alias, mate=ReadMate("R1"))
@@ -288,14 +293,14 @@ class TestReadEditor(unittest.TestCase):
         # through a combination of the frequency and which reads have pre-existing errors
 
         # tri-nt MNP; presence of 1 editable read validates BQ masking detection
-        qname_alias_000224875 = self.ed.qname_lookup["000224875"]
-        edit_key_r1_000224875 = ed.EDIT_KEY_TUPLE(qname=qname_alias_000224875, mate=ReadMate("R1"))
-        edit_config_r1_000224875 = ed.EDIT_CONFIG_TUPLE(contig=self.contig, pos=795, ref="GAC", alt="ATG", read_pos=112)
-        edit_key_r2_000224875 = ed.EDIT_KEY_TUPLE(qname=qname_alias_000224875, mate=ReadMate("R2"))
-        edit_config_r2_000224875 = ed.EDIT_CONFIG_TUPLE(contig=self.contig, pos=795, ref="GAC", alt="ATG", read_pos=115)
+        qname_alias_0000224875 = self.ed.qname_lookup["0000224875"]
+        edit_key_r1_0000224875 = ed.EDIT_KEY_TUPLE(qname=qname_alias_0000224875, mate=ReadMate("R1"))
+        edit_config_r1_0000224875 = ed.EDIT_CONFIG_TUPLE(contig=self.contig, pos=795, ref="GAC", alt="ATG", read_pos=112)
+        edit_key_r2_0000224875 = ed.EDIT_KEY_TUPLE(qname=qname_alias_0000224875, mate=ReadMate("R2"))
+        edit_config_r2_0000224875 = ed.EDIT_CONFIG_TUPLE(contig=self.contig, pos=795, ref="GAC", alt="ATG", read_pos=115)
 
-        test_1 = self.observed_edit_configs[edit_key_r1_000224875] == edit_config_r1_000224875
-        test_2 = self.observed_edit_configs[edit_key_r2_000224875] == edit_config_r2_000224875
+        test_1 = self.observed_edit_configs[edit_key_r1_0000224875] == edit_config_r1_0000224875
+        test_2 = self.observed_edit_configs[edit_key_r2_0000224875] == edit_config_r2_0000224875
         test_res = (test_1, test_2,)
         self.assertTrue(all(test_res))
 
@@ -306,8 +311,8 @@ class TestReadEditor(unittest.TestCase):
         qname_alias_0000051899 = self.ed.qname_lookup["0000051899"]
         edit_key_r1_0000051899 = ed.EDIT_KEY_TUPLE(qname=qname_alias_0000051899, mate=ReadMate("R1"))
         edit_key_r2_0000051899 = ed.EDIT_KEY_TUPLE(qname=qname_alias_0000051899, mate=ReadMate("R2"))
-        edit_config_r1_0000051899 = ed.EDIT_CONFIG_TUPLE(contig=self.contig, pos=804, ref="C", alt="G", read_pos=7)
-        edit_config_r2_0000051899 = ed.EDIT_CONFIG_TUPLE(contig=self.contig, pos=804, ref="C", alt="G", read_pos=10)
+        edit_config_r1_0000051899 = ed.EDIT_CONFIG_TUPLE(contig=self.contig, pos=804, ref="C", alt="T", read_pos=7)
+        edit_config_r2_0000051899 = ed.EDIT_CONFIG_TUPLE(contig=self.contig, pos=804, ref="C", alt="T", read_pos=10)
 
         test_1 = self.observed_edit_configs[edit_key_r1_0000051899] == edit_config_r1_0000051899
         test_2 = self.observed_edit_configs[edit_key_r2_0000051899] == edit_config_r2_0000051899
@@ -317,15 +322,15 @@ class TestReadEditor(unittest.TestCase):
     def test_get_edit_configs_multiple_snps(self):
         """Tests update of the edit config dictionary for a second SNP at the same position as another."""
 
-        # SNP B (C>T) will be in 000225689
-        qname_alias_000225689 = self.ed.qname_lookup["000225689"]
-        edit_key_r1_000225689 = ed.EDIT_KEY_TUPLE(qname=qname_alias_000225689, mate=ReadMate("R1"))
-        edit_key_r2_000225689 = ed.EDIT_KEY_TUPLE(qname=qname_alias_000225689, mate=ReadMate("R2"))
-        edit_config_r1_000225689 = ed.EDIT_CONFIG_TUPLE(contig=self.contig, pos=804, ref="C", alt="T", read_pos=7)
-        edit_config_r2_000225689 = ed.EDIT_CONFIG_TUPLE(contig=self.contig, pos=804, ref="C", alt="T", read_pos=10)
+        # SNP B (C>T) will be in 0000225689
+        qname_alias_0000225689 = self.ed.qname_lookup["0000225689"]
+        edit_key_r1_0000225689 = ed.EDIT_KEY_TUPLE(qname=qname_alias_0000225689, mate=ReadMate("R1"))
+        edit_key_r2_0000225689 = ed.EDIT_KEY_TUPLE(qname=qname_alias_0000225689, mate=ReadMate("R2"))
+        edit_config_r1_0000225689 = ed.EDIT_CONFIG_TUPLE(contig=self.contig, pos=804, ref="C", alt="G", read_pos=10)
+        edit_config_r2_0000225689 = ed.EDIT_CONFIG_TUPLE(contig=self.contig, pos=804, ref="C", alt="G", read_pos=7)
 
-        test_1 = self.observed_edit_configs[edit_key_r1_000225689] == edit_config_r1_000225689
-        test_2 = self.observed_edit_configs[edit_key_r2_000225689] == edit_config_r2_000225689
+        test_1 = self.observed_edit_configs[edit_key_r1_0000225689] == edit_config_r1_0000225689
+        test_2 = self.observed_edit_configs[edit_key_r2_0000225689] == edit_config_r2_0000225689
         test_res = (test_1, test_2,)
         self.assertTrue(all(test_res))
 
@@ -337,7 +342,7 @@ class TestReadEditor(unittest.TestCase):
         edit_key_r1_0000001369 = ed.EDIT_KEY_TUPLE(qname=qname_alias_0000001369, mate=ReadMate("R1"))
         edit_key_r2_0000001369 = ed.EDIT_KEY_TUPLE(qname=qname_alias_0000001369, mate=ReadMate("R2"))
         edit_config_r1_0000001369 = ed.EDIT_CONFIG_TUPLE(contig=self.contig, pos=812, ref="GG", alt="AT", read_pos=15)
-        edit_config_r2_0000001369 = ed.EDIT_CONFIG_TUPLE(contig=self.contig, pos=795, ref="GG", alt="AT", read_pos=18)
+        edit_config_r2_0000001369 = ed.EDIT_CONFIG_TUPLE(contig=self.contig, pos=812, ref="GG", alt="AT", read_pos=18)
 
         test_1 = self.observed_edit_configs[edit_key_r1_0000001369] == edit_config_r1_0000001369
         test_2 = self.observed_edit_configs[edit_key_r2_0000001369] == edit_config_r2_0000001369
@@ -449,9 +454,58 @@ class TestReadEditor(unittest.TestCase):
 
         self.ed._iterate_over_reads(self.observed_edit_configs)
 
-        # Verify that the edit BAM
+        tests = []
+        # Test that we actually edited the reads with a specific ALT at the expected read position
+        with pysam.AlignmentFile(self.ed.output_bam, "rb") as af:
+            for align_seg in af.fetch(until_eof=True):
+                if align_seg.query_name == "0000224875":
+                    if align_seg.is_read1:
+                        tests.append(align_seg.query_sequence[112:115] == "ATG")
+                    else:
+                        tests.append(align_seg.query_sequence[115:118] == "ATG")
+                if align_seg.query_name == "0000051899":
+                    if align_seg.is_read1:
+                        tests.append(align_seg.query_sequence[7] == "T")
+                    else:
+                        tests.append(align_seg.query_sequence[10] == "T")
+                if align_seg.query_name == "0000225689":
+                    if align_seg.is_read1:
+                        tests.append(align_seg.query_sequence[10] == "G")
+                    else:
+                        tests.append(align_seg.query_sequence[7] == "G")
+                if align_seg.query_name == "0000001369":
+                    if align_seg.is_read1:
+                        tests.append(align_seg.query_sequence[15:17] == "AT")
+                    else:
+                        tests.append(align_seg.query_sequence[18:20] == "AT")
+                if align_seg.query_name == "0000003129":
+                    if align_seg.is_read1:
+                        tests.append(align_seg.query_sequence[47:50] == "AAC")
+                    else:
+                        tests.append(align_seg.query_sequence[47:50] == "AAC")
+                if align_seg.query_name == "0000323491":
+                    if align_seg.is_read1:
+                        tests.append(align_seg.query_sequence[78:80] == "TG")
+                    else:
+                        tests.append(align_seg.query_sequence[75:77] == "TG")
 
-    def test_workflow(self):
-        """Smoke test that the workflow runs."""
+        self.assertTrue(all(tests))
 
-        pass
+    def test_workflow_files_exist(self):
+        """Smoke test that the workflow runs and outputs files."""
+
+        # Simply check that the output files exist
+        res = self.ed.workflow()
+        observed = [os.path.exists(e) for e in res]
+        self.assertTrue(all(observed))
+
+    def test_workflow_fastq_lengths(self):
+        """Smoke test that the workflow runs and resultant FASTQs are equal lengths."""
+
+        # Simply check that the output files exist
+        _, r1_fq, r2_fq = self.ed.workflow()
+
+        with gzip.open(r1_fq) as r1, gzip.open(r2_fq) as r2:
+            r1_qnames = [e for e in r1.readlines() if e.starts(FASTQ_QNAME_CHAR)]
+            r2_qnames = [e for e in r2.readlines() if e.starts(FASTQ_QNAME_CHAR)]
+            self.assertEqual(r1_qnames, r2_qnames)
