@@ -97,7 +97,7 @@ class TestVariantCaller(unittest.TestCase):
     def tearDownClass(cls):
         """Tear down for TestVariantCaller."""
 
-        fu.safe_remove((cls.tempdir, cls.test_bam, cls.test_invalid_bam, cls.primer_bed,), force_remove=True)
+        fu.safe_remove((cls.tempdir, cls.test_bam, cls.test_invalid_bam,), force_remove=True)
 
     def test_is_indel_no_indel(self):
         """Tests that InDels are not detected from a pysam aligned pair."""

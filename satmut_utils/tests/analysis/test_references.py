@@ -37,7 +37,7 @@ class TestReferences(unittest.TestCase):
         cls.cbs_gff = os.path.join(cls.test_data_dir, cls.CBS_GFF)
 
         cls.cbs_ref = os.path.join(cls.test_data_dir, cls.CBS_REF)
-        cls.cbs_ref_copy = tempfile.NamedTemporaryFile(suffix=".copy.fa", delete=False).name
+        cls.cbs_ref_copy = tempfile.NamedTemporaryFile(suffix=".copy.fa", delete=False, dir=cls.tempdir).name
         shutil.copyfile(cls.cbs_ref, cls.cbs_ref_copy)
 
     @classmethod

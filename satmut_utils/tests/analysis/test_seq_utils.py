@@ -84,10 +84,10 @@ class TestSeqUtilsSetup(object):
         # We'll need another BED file to check intersection, etc.
         cls.test_bed_b_str = "".join(TEST_BED.split("\n")[0]) + fu.FILE_NEWLINE
 
-        with tempfile.NamedTemporaryFile("w", suffix=".test.fa", delete=False) as test_fasta, \
-                tempfile.NamedTemporaryFile("w", suffix=".test.a.bed", delete=False) as test_bed_a, \
-                tempfile.NamedTemporaryFile("w", suffix=".test.b.bed", delete=False) as test_bed_b, \
-                tempfile.NamedTemporaryFile("w", suffix=".test.sam", delete=False) as test_sam:
+        with tempfile.NamedTemporaryFile("w", suffix=".test.fa", delete=False, dir=cls.tempdir) as test_fasta, \
+                tempfile.NamedTemporaryFile("w", suffix=".test.a.bed", delete=False, dir=cls.tempdir) as test_bed_a, \
+                tempfile.NamedTemporaryFile("w", suffix=".test.b.bed", delete=False, dir=cls.tempdir) as test_bed_b, \
+                tempfile.NamedTemporaryFile("w", suffix=".test.sam", delete=False, dir=cls.tempdir) as test_sam:
 
             test_fasta.write(TEST_FASTA)
             test_bed_a.write(TEST_BED)
@@ -103,7 +103,7 @@ class TestSeqUtilsSetup(object):
     def tearDownClass(cls):
         """Tear down for TestSeqUtilsSetup."""
 
-        fu.safe_remove((cls.tempdir, cls.test_fasta, cls.test_bed_a, cls.test_bed_b, cls.test_sam,), force_remove=True)
+        fu.safe_remove((cls.tempdir,), force_remove=True)
 
 
 # Note multiple inheritance may not work with more than one non-unittest.TestCase superclass:
@@ -171,17 +171,11 @@ class TestSamtools(TestSeqUtilsSetup, unittest.TestCase):
     def setUpClass(cls):
         """Setup for TestSamtools."""
 
-        with tempfile.NamedTemporaryFile("w+", suffix=".test.sam", delete=False) as test_sam:
+        with tempfile.NamedTemporaryFile("w+", suffix=".test.sam", delete=False, dir=cls.tempdir) as test_sam:
             test_sam.write(TEST_SAM)
             cls.test_sam_name = test_sam.name
 
         random.seed(9)
-
-    @classmethod
-    def tearDownClass(cls):
-        """Tear down for TestSamtools."""
-
-        fu.safe_remove((cls.test_sam_name,))
 
     def test_sam_view(self):
         """Tests the pysam.view call."""
@@ -218,7 +212,8 @@ class TestSamtools(TestSeqUtilsSetup, unittest.TestCase):
         """Test that we properly sort a BAM."""
 
         # Randomly shuffle the lines
-        with tempfile.NamedTemporaryFile("w+", suffix=".unsorted.test.sam", delete=False) as test_unsorted_sam:
+        with tempfile.NamedTemporaryFile(
+                "w+", suffix=".unsorted.test.sam", delete=False, dir=self.tempdir) as test_unsorted_sam:
 
             sam_lines = TEST_SAM.splitlines()
             header_lines = []
@@ -274,11 +269,11 @@ class TestFastaToFastq(TestSeqUtilsSetup, unittest.TestCase):
     def setUpClass(cls):
         """Tests for TestFastaToFastq."""
 
-        with tempfile.NamedTemporaryFile("w+", suffix=".test.fa", delete=False) as test_fasta:
+        with tempfile.NamedTemporaryFile("w+", suffix=".test.fa", delete=False, dir=cls.tempdir) as test_fasta:
             test_fasta.write(TEST_FASTA)
             cls.test_fasta = test_fasta.name
 
-        with tempfile.NamedTemporaryFile(suffix=".out.fq", delete=False) as test_fastq_file:
+        with tempfile.NamedTemporaryFile(suffix=".out.fq", delete=False, dir=cls.tempdir) as test_fastq_file:
             output_fn = test_fastq_file.name
             su.fasta_to_fastq(cls.test_fasta, output_fn, max_len=None, snp_prob=0.1, letters=("A", "G",))
 
@@ -287,12 +282,6 @@ class TestFastaToFastq(TestSeqUtilsSetup, unittest.TestCase):
             observed_seq = "".join([line.rstrip("\r\n") for num, line in enumerate(output_fh.readlines()) if num == 1])
             expected_seq = "ATGTTACGTCACGTCGTTTAATCCGGAAACGGCGGCGGCGGCGACAGGACCGAGGGGCCTTAGTTGGTGGGCAAGTCGGGGATCCCAGAAAGAGAAGCGTGACCCGGAAGCGGAAACGGGTGTCCGTCCCAGCTCCGGCCTGCCAGTGAGCTTCTACCATCATGGACCTATTGTTCGGGCGCCGGAAGACGCCAGAGGAGCTACTGCGGCAGAACCAGAGGGCCCTGAACCGTGCCATGCGGGAGCTGGACCGCGAGCGACAGAAACTAGAGACCCAGGAGAAGAAAATCATTGCAGACATTAAGAAGATGGCCAAGCAAGGCCAGATGGATGCTGTTCGCATCATGGCAAAAGACTTGGTGCGCACCCGGCGCTATGTGCGCAAGTTTGTATTGATGCGGGCCAACATCCAGGCTGTGTCCCTCAAGATCCAGACACTCAAGTCCAACAACTCGATGGCACAAGCCATGAAGGGTGTCACCAAGGCCATGGGCACCATGAACAGACAGCTGAAGTTGCCCCAGATCCAGAAGATCATGATGGAGTTTGAGCGGCAGGCAGAGATCATGGATATGAAGGAGGAGATGATGAATGATGCCATTGATGATGCCATGGGTGATGAGGAAGATGAAGAGGAGAGTGATGCTGTGGTGTCCCAGGTTCTGGATGAGCTGGGACTTAGCCTAACAGATGAGCTGTCGAACCTCCCCTCAACTGGGGGCTCGCTTAGTGTGGCTGCTGGTGGGAAAAAAGCAGAGGCCGCAGCCTCAGCCCTAGCTGATGCTGATGCAGACCTGGAGGAACGGCTTAAGAACCTGCGGAGGGACTGAGTGCCCCTGCCACTCCGAGATAACCAGTGGATGCCCAGGATCTTTTACCACAACCCCTCTGTAATAAAAGAGATTTGACACTAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
             cls.zipped_seqs = list(zip(observed_seq, expected_seq))
-
-    @classmethod
-    def tearDownClass(cls):
-        """Tear down for TestFastaToFastq."""
-
-        fu.safe_remove((cls.test_fasta,))
 
     def test_fasta_to_fastq_proportion_error(self):
         """Tests correct error proportion."""

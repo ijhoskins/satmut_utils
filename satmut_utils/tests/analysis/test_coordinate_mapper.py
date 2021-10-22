@@ -62,7 +62,7 @@ class TestAminoAcidMapper(unittest.TestCase):
         cls.pknox1_ref = os.path.join(cls.test_data_dir, cls.PKNOX1_REF)
 
         with gzip.open(cls.appris_ref_gz) as appris_ref_in, \
-                tempfile.NamedTemporaryFile(suffix=".fa", delete=False) as appris_ref_out:
+                tempfile.NamedTemporaryFile(suffix=".fa", delete=False, dir=cls.tempdir) as appris_ref_out:
 
             for line in appris_ref_in:
                 appris_ref_out.write(line)
@@ -97,7 +97,7 @@ class TestAminoAcidMapper(unittest.TestCase):
     def tearDownClass(cls):
         """Tear down for TestAminoAcidMapper."""
 
-        fu.safe_remove((cls.tempdir, cls.temp_ref_fa), force_remove=True)
+        fu.safe_remove((cls.tempdir,), force_remove=True)
 
     def test_add_cds_info(self):
         """Tests that transcript information is added to the CDS info dict."""

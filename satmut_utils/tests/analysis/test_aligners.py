@@ -33,17 +33,17 @@ class TestAligners(unittest.TestCase):
         fasta_lines = [">WT", cls.wt_seq, ">SNPs", cls.snp_seq, ">InDels", cls.indel_seq]
         fasta_string = fu.FILE_NEWLINE.join(fasta_lines) + fu.FILE_NEWLINE
 
-        cls.test_fasta = tempfile.NamedTemporaryFile(suffix=".test.fa", delete=False).name
+        cls.test_fasta = tempfile.NamedTemporaryFile(suffix=".test.fa", delete=False, dir=cls.tempdir).name
         with open(cls.test_fasta, "w") as test_fa_fh:
             test_fa_fh.write(fasta_string)
 
-        cls.test_bam = tempfile.NamedTemporaryFile(suffix=".test.bam", delete=False).name
+        cls.test_bam = tempfile.NamedTemporaryFile(suffix=".test.bam", delete=False, dir=cls.tempdir).name
 
     @classmethod
     def tearDownClass(cls):
         """Tear down for TestAligners."""
 
-        fu.safe_remove((cls.test_fasta, cls.test_bam,))
+        fu.safe_remove((cls.tempdir,), force_remove=True)
 
 
 class TestBowtie2(TestAligners):

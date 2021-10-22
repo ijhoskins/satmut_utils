@@ -97,9 +97,11 @@ class TestReadEditor(unittest.TestCase):
         shutil.copyfile(cls.cbs_ref, cls.cbs_ref_copy)
         index_reference(cls.cbs_ref_copy)
 
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".test.sam") as test_sam, \
-                tempfile.NamedTemporaryFile(mode="w", suffix=".test.vcf", delete=False) as test_vcf, \
-                tempfile.NamedTemporaryFile(mode="w", suffix=".test.primers.bed", delete=False) as test_primers:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".test.sam", dir=cls.tempdir) as test_sam, \
+                tempfile.NamedTemporaryFile(
+                    mode="w", suffix=".test.vcf", delete=False, dir=cls.tempdir) as test_vcf, \
+                tempfile.NamedTemporaryFile(
+                    mode="w", suffix=".test.primers.bed", delete=False, dir=cls.tempdir) as test_primers:
 
             test_sam.write(TEST_SAM)
             fu.flush_files((test_sam,))
@@ -145,7 +147,7 @@ class TestReadEditor(unittest.TestCase):
     def tearDownClass(cls):
         """Tear down for TestReadEditor."""
 
-        fu.safe_remove((cls.tempdir, cls.test_bam, cls.test_vcf, cls.test_primers), force_remove=True)
+        fu.safe_remove((cls.tempdir, cls.test_bam,), force_remove=True)
 
     def test_get_variant_configs(self):
         """Test that variant configurations are extracted from the input VCF."""

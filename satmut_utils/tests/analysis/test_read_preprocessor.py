@@ -208,7 +208,7 @@ class TestQnameVerification(unittest.TestCase):
         self.assertEqual(expected, observed)
 
 
-class TestFastqPreprocessor():
+class TestFastqPreprocessor(unittest.TestCase):
     """Tests for FastqPreprocessor."""
 
     @classmethod
@@ -216,12 +216,12 @@ class TestFastqPreprocessor():
         """Set up for TestFastqPreprocessor."""
 
         cls.tempdir = tempfile.mkdtemp()
-        cls.tileseq_r1_fastq = tempfile.NamedTemporaryFile(suffix=".tileseq.R1.fastq", delete=False).name
-        cls.tileseq_r2_fastq = tempfile.NamedTemporaryFile(suffix=".tileseq.R2.fastq", delete=False).name
-        cls.tileseq_r1_umi_fastq = tempfile.NamedTemporaryFile(suffix=".tileseq.umi.R1.fastq", delete=False).name
-        cls.tileseq_r2_umi_fastq = tempfile.NamedTemporaryFile(suffix=".tileseq.umi.R2.fastq", delete=False).name
-        cls.amp_r1_fastq = tempfile.NamedTemporaryFile(suffix=".amp.umi.R1.fastq", delete=False).name
-        cls.amp_r2_fastq = tempfile.NamedTemporaryFile(suffix=".amp.umi.R2.fastq", delete=False).name
+        cls.tileseq_r1_fastq = tempfile.NamedTemporaryFile(suffix=".tileseq.R1.fastq", delete=False, dir=cls.tempdir).name
+        cls.tileseq_r2_fastq = tempfile.NamedTemporaryFile(suffix=".tileseq.R2.fastq", delete=False, dir=cls.tempdir).name
+        cls.tileseq_r1_umi_fastq = tempfile.NamedTemporaryFile(suffix=".tileseq.umi.R1.fastq", delete=False, dir=cls.tempdir).name
+        cls.tileseq_r2_umi_fastq = tempfile.NamedTemporaryFile(suffix=".tileseq.umi.R2.fastq", delete=False, dir=cls.tempdir).name
+        cls.amp_r1_fastq = tempfile.NamedTemporaryFile(suffix=".amp.umi.R1.fastq", delete=False, dir=cls.tempdir).name
+        cls.amp_r2_fastq = tempfile.NamedTemporaryFile(suffix=".amp.umi.R2.fastq", delete=False, dir=cls.tempdir).name
 
         with open(cls.tileseq_r1_fastq, "w") as tileseq_r1_fh, \
                 open(cls.tileseq_r2_fastq, "w") as tileseq_r2_fh, \
@@ -241,9 +241,7 @@ class TestFastqPreprocessor():
     def tearDownClass(cls):
         """Tear down for TestFastqPreprocessor."""
 
-        fu.safe_remove((cls.tempdir, cls.tileseq_r1_fastq, cls.tileseq_r2_fastq,
-                        cls.tileseq_r1_umi_fastq, cls.tileseq_r2_umi_fastq,
-                        cls.amp_r1_fastq, cls.amp_r2_fastq), force_remove=True)
+        fu.safe_remove((cls.tempdir,), force_remove=True)
 
     def test_run_cutadapt_tileseq_r1_no_adapter(self):
         """Tests lack of adapter trimming of Tile-seq R1 without adapter readthrough."""
@@ -419,11 +417,11 @@ class TestUmiExtractor(unittest.TestCase):
         """Set up for TestUmiExtractor."""
 
         cls.tempdir = tempfile.mkdtemp()
-        cls.tileseq_r1_fastq = tempfile.NamedTemporaryFile(suffix=".tileseq.umi.R1.fastq", delete=False).name
-        cls.tileseq_r2_fastq = tempfile.NamedTemporaryFile(suffix=".tileseq.umi.R2.fastq", delete=False).name
-        cls.amp_r1_fastq = tempfile.NamedTemporaryFile(suffix=".amp.umi.R1.fastq", delete=False).name
-        cls.amp_r2_fastq = tempfile.NamedTemporaryFile(suffix=".amp.umi.R2.fastq", delete=False).name
-        cls.tileseq_primer_1r_fasta = tempfile.NamedTemporaryFile(suffix=".tileseq.primer.1R.fasta", delete=False).name
+        cls.tileseq_r1_fastq = tempfile.NamedTemporaryFile(suffix=".tileseq.umi.R1.fastq", delete=False, dir=cls.tempdir).name
+        cls.tileseq_r2_fastq = tempfile.NamedTemporaryFile(suffix=".tileseq.umi.R2.fastq", delete=False, dir=cls.tempdir).name
+        cls.amp_r1_fastq = tempfile.NamedTemporaryFile(suffix=".amp.umi.R1.fastq", delete=False, dir=cls.tempdir).name
+        cls.amp_r2_fastq = tempfile.NamedTemporaryFile(suffix=".amp.umi.R2.fastq", delete=False, dir=cls.tempdir).name
+        cls.tileseq_primer_1r_fasta = tempfile.NamedTemporaryFile(suffix=".tileseq.primer.1R.fasta", delete=False, dir=cls.tempdir).name
 
         with open(cls.tileseq_r1_fastq, "w") as tileseq_r1_fh, \
                 open(cls.tileseq_r2_fastq, "w") as tileseq_r2_fh, \
@@ -441,9 +439,7 @@ class TestUmiExtractor(unittest.TestCase):
     def tearDownClass(cls):
         """Tear down for TestUmiExtractor."""
 
-        fu.safe_remove((cls.tempdir, cls.tileseq_r1_fastq, cls.tileseq_r2_fastq, cls.amp_r1_fastq, cls.amp_r2_fastq,
-                        cls.tileseq_primer_1r_fasta),
-                       force_remove=True)
+        fu.safe_remove((cls.tempdir,), force_remove=True)
 
     def test_umitools_extract_tileseq(self):
         """Tests proper extraction of UMIs from Tile-seq data."""
@@ -666,7 +662,7 @@ class TestConsensusDeduplicator(unittest.TestCase):
     def tearDownClass(cls):
         """Tear down for TestConsensusDeduplicator."""
 
-        fu.safe_remove((cls.tempdir,), force_remove=True)
+        fu.safe_remove((cls.tempdir, cls.preproc_bam,), force_remove=True)
 
     def test_extract_umi_network(self):
         """Tests the ability to extract the UMI group from BAM tag."""
@@ -938,7 +934,7 @@ class TestReadMasker(unittest.TestCase):
             fu.flush_files((preproc_sam,))
             cls.preproc_bam = su.sam_view(preproc_sam.name, None, "BAM", 0, "b")
 
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".primers.bed", delete=False) as primer_bed:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".primers.bed", delete=False, dir=cls.tempdir) as primer_bed:
             primer_bed.write(MASKING_TEST_PRIMERS)
             cls.primer_bed = primer_bed.name
 
@@ -959,8 +955,8 @@ class TestReadMasker(unittest.TestCase):
         cls.rm_race = rp.ReadMasker(
             in_bam=cls.preproc_bam, feature_file=cls.primer_bed, race_like=True, outdir=cls.tempdir)
 
-        #
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".primers2.bed", delete=False) as primer_bed2:
+        with tempfile.NamedTemporaryFile(
+                mode="w", suffix=".primers2.bed", delete=False, dir=cls.tempdir) as primer_bed2:
             primer_bed2.write(TEST_PRIMERS)
             cls.primer_bed2 = primer_bed2.name
 
@@ -971,7 +967,7 @@ class TestReadMasker(unittest.TestCase):
     def tearDownClass(cls):
         """Tear down for TestReadMasker."""
 
-        fu.safe_remove((cls.tempdir, cls.preproc_bam, cls.primer_bed, cls.primer_bed2,), force_remove=True)
+        fu.safe_remove((cls.tempdir, cls.preproc_bam,), force_remove=True)
 
     def test_get_mask_base_indices_tileseq_r1(self):
         """Test that we return the read indices to mask for a Tile-seq R1 starting and ending at a primer start."""

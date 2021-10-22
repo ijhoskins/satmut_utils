@@ -17,7 +17,7 @@ class TestBedIntersect(TestSeqUtilsSetup, unittest.TestCase):
     def test_intersect_features(self):
         """Test intersection of BED, GFF/GTF files."""
 
-        with tempfile.NamedTemporaryFile(suffix=".test.intersect.bed", delete=False) as intersect_bed:
+        with tempfile.NamedTemporaryFile(suffix=".test.intersect.bed", delete=False, dir=self.tempdir) as intersect_bed:
             output_fn = intersect_bed.name
             ffu.intersect_features(self.test_bed_a, self.test_bed_b, output_fn)
 
@@ -30,7 +30,7 @@ class TestBedIntersect(TestSeqUtilsSetup, unittest.TestCase):
     def test_intersect_features_kwarg(self):
         """Test intersection of BED, GFF/GTF files with curry of kwarg."""
 
-        with tempfile.NamedTemporaryFile(suffix=".test.intersect.bed", delete=False) as intersect_bed:
+        with tempfile.NamedTemporaryFile(suffix=".test.intersect.bed", delete=False, dir=self.tempdir) as intersect_bed:
             output_fn = intersect_bed.name
             ffu.intersect_features(self.test_bed_a, self.test_bed_b, output_fn, v=True)
 
@@ -78,7 +78,8 @@ chr19	59066354	59066491	gi|571026644|ref|NM_014453.3|:1-137	0	-
 
         observed = ffu.store_coords(self.test_bed_b)
         expected = collections.OrderedDict({"gi|571026644|ref|NM_014453.3|:1-137": ffu.COORD_TUPLE(
-            "chr19", 59066354, 59066491, "gi|571026644|ref|NM_014453.3|:1-137", Strand("-"), 0.0, frozenset(range(59066488, 59066494 + 1)))
+            "chr19", 59066354, 59066491, "gi|571026644|ref|NM_014453.3|:1-137",
+            Strand("-"), 0.0, frozenset(range(59066488, 59066494 + 1)))
                                            }.items())
 
         self.assertEqual(observed, expected)
@@ -88,7 +89,8 @@ chr19	59066354	59066491	gi|571026644|ref|NM_014453.3|:1-137	0	-
 
         observed = ffu.store_coords(self.test_bed_b, primer_allowable=True)
         expected = collections.OrderedDict({"gi|571026644|ref|NM_014453.3|:1-137": ffu.COORD_TUPLE(
-            "chr19", 59066354, 59066491, "gi|571026644|ref|NM_014453.3|:1-137", Strand("-"), 0.0, frozenset(range(59066354, 59066494 + 1)))
+            "chr19", 59066354, 59066491, "gi|571026644|ref|NM_014453.3|:1-137",
+            Strand("-"), 0.0, frozenset(range(59066354, 59066494 + 1)))
                                            }.items())
 
         self.assertEqual(observed, expected)
@@ -98,7 +100,8 @@ chr19	59066354	59066491	gi|571026644|ref|NM_014453.3|:1-137	0	-
 
         observed = ffu.store_coords(self.test_bed_b, use_name=False)
         expected = collections.OrderedDict({COORD_FORMAT_STRAND.format("chr19", 59066354, 59066491, "-"): ffu.COORD_TUPLE(
-            "chr19", 59066354, 59066491, "gi|571026644|ref|NM_014453.3|:1-137", Strand("-"), 0.0, frozenset(range(59066488, 59066494 + 1)))
+            "chr19", 59066354, 59066491, "gi|571026644|ref|NM_014453.3|:1-137",
+            Strand("-"), 0.0, frozenset(range(59066488, 59066494 + 1)))
                                            }.items())
 
         self.assertEqual(observed, expected)
