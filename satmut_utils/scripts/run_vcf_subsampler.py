@@ -48,7 +48,7 @@ def parse_commandline_params(args):
 
     parser.add_argument("-d", "--output_dir", type=str, default=".", help='Output directory.')
 
-    parser.add_argument("-o", "--output_vcf", type=none_or_str, help='Optional output VCF name.')
+    parser.add_argument("-o", "--output_vcf", type=none_or_str, default="None", help='Optional output VCF name.')
 
     parsed_args = vars(parser.parse_args(args))
     return parsed_args

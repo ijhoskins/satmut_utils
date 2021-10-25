@@ -21,7 +21,7 @@ from core_utils.feature_file_utils import intersect_features
 import core_utils.file_utils as fu
 import core_utils.vcf_utils as vu
 
-from definitions import PROJECT_ROOT, PROJECT_LAB, PROJECT_AUTHOR
+from definitions import PROJECT_ROOT, PROJECT_LAB, PROJECT_AUTHOR, DEFAULT_MUT_SIG, VALID_MUT_SIGS
 
 __author__ = "Ian_Hoskins"
 __credits__ = ["Ian Hoskins"]
@@ -75,8 +75,6 @@ class VariantCaller(object):
     VARIANT_CALL_COV_EXT = "cov.bedgraph"
     VARIANT_CALL_REF_CANDIDATE_EXT = "var.cand.vcf"
     VARIANT_CALL_MAX_MNP_WINDOW = 3
-    VARIANT_CALL_MUT_SIG = "NNK"
-    VARIANT_CALL_VALID_MUT_SIGS = {"NNN", "NNK", "NNS"}
 
     DEFAULT_NTHREADS = 0
     _STATS_DELIM = ","
@@ -91,8 +89,7 @@ class VariantCaller(object):
     R_NM_INDEX = 3
 
     def __init__(self, am, ref, trx_gff, gff_ref, targets=VARIANT_CALL_TARGET, primers=VARIANT_CALL_PRIMERS,
-                 output_dir=VARIANT_CALL_OUTDIR, nthreads=DEFAULT_NTHREADS, exclude_n=VARIANT_CALL_EXCLUDE_N,
-                 mut_sig=VARIANT_CALL_MUT_SIG):
+                 output_dir=VARIANT_CALL_OUTDIR, nthreads=DEFAULT_NTHREADS, mut_sig=DEFAULT_MUT_SIG):
         r"""Constructor for VariantCaller.
 
         :param str am: SAM/BAM file to enumerate variants in

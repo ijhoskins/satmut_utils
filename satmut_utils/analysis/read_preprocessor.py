@@ -98,7 +98,7 @@ class QnameVerification(object):
             open_func = open
             file_mode = "r"
 
-        with open_func(self.fastq, file_mode) as fh:
+        with open_func(self.fastq, mode=file_mode) as fh:
             for i, line in enumerate(fh):
                 if i == 0:
                     compatible, format_index = self.verify_qname_format(line.split(ILLUMINA_QNAME_INDEX_DELIM)[0])
@@ -155,7 +155,7 @@ class FastqPreprocessor(object):
     TRIM_QUALITY = 15
     OVERLAP_LEN = 8
     NCORES = 0
-    NTRIMMED = 2
+    NTRIMMED = 3
     MIN_LENGTH = 16
     TRIM_EXT = "trimmed.fq"
     TRIM_FLAG = False
@@ -174,7 +174,7 @@ class FastqPreprocessor(object):
         :param str outdir: Output directory to write preprocessed FASTQs to
         :param int ncores: Number of CPU cores to use in trimming. Default 0, autodetect.
         :param int trim_bq: quality score for quality trimming at the 3' end. Default 15.
-        :param int ntrimmed: Max number of adapters to trim from each read. Default 2.
+        :param int ntrimmed: Max number of adapters to trim from each read. Default 3.
         :param int overlap_len: number of bases to match in read to trim. Default 8.
         :param bool no_trim: flag to turn off adapter and 3' base quality trimming. Default False.
         :param bool validate: Validate FASTQs with FastQC? Default True.

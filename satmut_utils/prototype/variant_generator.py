@@ -27,19 +27,16 @@ __status__ = "Development"
 tempfile.tempdir = os.getenv("SCRATCH", "/tmp")
 _logger = logging.getLogger(__name__)
 
-NNK_PROB_TUPLE = collections.namedtuple("NNK_PROB_TUPLE", "nnk_match, nnk_mismatch")
-VAR_ID_TUPLE = collections.namedtuple("VAR_ID_TUPLE", "pos, ref, alt, aa_change, nnk_match")
-
-# TODO: annotate parameters in the VCF header
+VAR_ID_TUPLE = collections.namedtuple("VAR_ID_TUPLE", "pos, ref, alt, aa_change, mut_sig_match")
 
 
 class VariantGenerator(object):
     """Class for generating all variant permutations of each codon in a transcript's CDS."""
 
+    DEFAULT_RACE_LIKE = False
     DEFAULT_EXT = "codon.permuts.vcf"
     DEFAULT_VAR_TYPE = "total"
     DEFAULT_MNP_BASES = 3
-    DEFAULT_TRANSCRIPT = "ENST00000398165.7"  # CBS
     DEFAULT_HAPLO = False
     DEFAULT_HAPLO_LEN = 150
     DEFAULT_HAPLO_SEED = 9
@@ -47,12 +44,13 @@ class VariantGenerator(object):
     DEFAULT_SNP_WEIGHT = 0.5
     DEFAULT_MUTAGENESIS_PRIMER_LEN = 25
 
-    def __init__(self, gff, ref, haplotypes=DEFAULT_HAPLO, haplotype_len=DEFAULT_HAPLO_LEN, outdir=".",
-                 random_seed=DEFAULT_HAPLO_SEED):
-        """Constructor for VariantGenerator.
+    def __init__(self, gff, ref, haplotypes=DEFAULT_HAPLO, haplotype_len=DEFAULT_HAPLO_LEN,
+                 outdir=".", random_seed=DEFAULT_HAPLO_SEED):
+        r"""Constructor for VariantGenerator.
 
-        :param str gff: GFF/GTF to create a mapper for; must have "transcript_id" and "CDS", "stop_codon" features
-        :param str ref: transcript reference FASTA with contigs matching those in the GTF
+        :param str gff: transcript GFF; must have "transcript_id" metafeature and "exon", "CDS", "start_codon", \
+        and "stop_codon" features
+        :param str ref: reference FASTA with contigs matching those in the GFF seqname field
         :param bool haplotypes: should haplotypes be created with uniform number to codon variants? Default True.
         :param int haplotype_len: max length to create haplotypes. No longer than read length.
         :param str outdir: Output directory to write results
@@ -162,7 +160,7 @@ class VariantGenerator(object):
 
         aa_change = self.DEFAULT_INFO_DELIM.join([min_var.aa_change, max_var.aa_change])
 
-        var_id_tup = VAR_ID_TUPLE(pos=min_var.pos, ref=base_seq, alt=var_seq, aa_change=aa_change, nnk_match=None)
+        var_id_tup = VAR_ID_TUPLE(pos=min_var.pos, ref=base_seq, alt=var_seq, aa_change=aa_change, mut_sig_match=None)
 
         return var_id_tup
 
@@ -300,18 +298,15 @@ class CodonPermuts(object):
     ALL_CODONS = tuple(["".join((e1, e2, e3)) for e1 in su.DNA_BASES for e2 in su.DNA_BASES for e3 in su.DNA_BASES])
     TABLE_HEADER = ["Codon", "AA_alternates", "AA_changes"]
 
-    def __init__(self, codons=ALL_CODONS, var_type="total", mnp_bases=3):
+    def __init__(self, codons=ALL_CODONS, var_type="total", mnp_bases=3, mut_sig=DEFAULT_MUT_SIG):
         """Ctor for CodonPermuts.
 
         :param tuple codons: tuple of codons to find permutations for
         :param str var_type: one of {"snp", "mnp", "total"}
         :param int mnp_bps: report for di- or tri-nt MNP? Must be either 2 or 3. Default 3.
+        :param str mut_sig: mutagenesis signature- one of {NNN, NNK, NNS}. Default NNK.
         :raises NotImplementedError: if the mnp_bps was not either 2 or 3.
         """
-
-        self.codons = codons
-        self.var_type = var_type
-        self.mnp_bases = mnp_bases
 
         if self.var_type not in {"snp", "mnp", "total"}:
             raise NotImplementedError("Not a valid var_type: %s" % self.var_type)
@@ -319,6 +314,13 @@ class CodonPermuts(object):
         if self.mnp_bases not in {2, 3}:
             raise NotImplementedError("MNP is not within the required span of 2 to 3.")
 
+        if mut_sig not in VALID_MUT_SIGS:
+            raise NotImplementedError("Mutation signature %s not one of NNN, NNK, or NNS" % mut_sig)
+
+        self.codons = codons
+        self.var_type = var_type
+        self.mnp_bases = mnp_bases
+        self.mut_sig = mut_sig
         self.codon_var_alts = self.get_all_codon_var_changes()
         self.codon_aa_alts = self.get_all_codon_aa_changes()
 
@@ -331,13 +333,14 @@ class CodonPermuts(object):
         return self.ALL_CODONS
 
     @property
-    def nnk_proportions(self):
-        """Gets the proportion of REF and ALT codons that match the NNK signature.
+    def mut_sig_proportions(self):
+        """Gets the proportion of REF and ALT codons that match the mutagenesis signature.
 
-        :return tuple: (proportion of REF codons with NNK signature, proportion of ALT codons with NNK signature)
+        :return tuple: (proportion of REF codons with mut_sig, proportion of ALT codons with mut_sig)
         """
 
-        ref_prop = len([codon for codon in self.codons if codon[2] not in cm.MUT_SIG_UNEXPECTED_WOBBLE_BPS]) / len(self.codons)
+        ref_prop = len([codon for codon in self.codons if codon[2] not in
+                        cm.MUT_SIG_UNEXPECTED_WOBBLE_BPS[self.mut_sig]]) / len(self.codons)
 
         matching_codons = 0
         total_codons = 0
@@ -345,15 +348,14 @@ class CodonPermuts(object):
             alt_codons = v[1]
             for alt_codon in alt_codons:
                 total_codons += 1
-                if alt_codon[2] not in MUT_SIG_UNEXPECTED_WOBBLE_BPS:
+                if alt_codon[2] not in cm.MUT_SIG_UNEXPECTED_WOBBLE_BPS[self.mut_sig]:
                     matching_codons += 1
 
         alt_prop = matching_codons / total_codons
 
         return ref_prop, alt_prop
 
-    @staticmethod
-    def get_codon_snp_alts(codon):
+    def get_codon_snp_alts(self, codon):
         """Gets the set of codons that may derive from the input codon by a single SNP.
 
         :param str codon: input codon
@@ -369,13 +371,13 @@ class CodonPermuts(object):
 
             if i == 0:
                 codon_permutations |= {"".join((ba, bps[1], bps[2])) for ba in b_alts
-                                       if bps[2] not in MUT_SIG_UNEXPECTED_WOBBLE_BPS}
+                                       if bps[2] not in cm.MUT_SIG_UNEXPECTED_WOBBLE_BPS[self.mut_sig]}
             elif i == 1:
                 codon_permutations |= {"".join((bps[0], ba, bps[2])) for ba in b_alts
-                                       if bps[2] not in MUT_SIG_UNEXPECTED_WOBBLE_BPS}
+                                       if bps[2] not in cm.MUT_SIG_UNEXPECTED_WOBBLE_BPS[self.mut_sig]}
             elif i == 2:
                 codon_permutations |= {"".join((bps[0], bps[1], ba)) for ba in b_alts
-                                       if ba not in MUT_SIG_UNEXPECTED_WOBBLE_BPS}
+                                       if ba not in cm.MUT_SIG_UNEXPECTED_WOBBLE_BPS[self.mut_sig]}
 
         return codon_permutations
 
@@ -401,8 +403,10 @@ class CodonPermuts(object):
         """
 
         if self.mnp_bases == 3:
-            codons_mismatching_nnk = {c for c in self.all_codons if c[2] in MUT_SIG_UNEXPECTED_WOBBLE_BPS}
-            possible_codons = set(self.all_codons) - {codon} - codons_mismatching_nnk
+            codons_mismatch_mut_sig = {
+                c for c in self.all_codons if c[2] in cm.MUT_SIG_UNEXPECTED_WOBBLE_BPS[self.mut_sig]}
+
+            possible_codons = set(self.all_codons) - {codon} - codons_mismatch_mut_sig
             return possible_codons
 
         bps = tuple([e for e in codon])
@@ -415,13 +419,13 @@ class CodonPermuts(object):
 
             if i == 0:
                 codon_permutations |= {"".join((ba1, ba2, bps[2])) for ba1 in bi1_alts for ba2 in bi2_alts
-                                       if bps[2] not in MUT_SIG_UNEXPECTED_WOBBLE_BPS}
+                                       if bps[2] not in cm.MUT_SIG_UNEXPECTED_WOBBLE_BPS[self.mut_sig]}
             elif i == 1:
                 codon_permutations |= {"".join((ba1, bps[1], ba2)) for ba1 in bi1_alts for ba2 in bi2_alts
-                                       if ba2 not in MUT_SIG_UNEXPECTED_WOBBLE_BPS}
+                                       if ba2 not in cm.MUT_SIG_UNEXPECTED_WOBBLE_BPS[self.mut_sig]}
             elif i == 2:
                 codon_permutations |= {"".join((bps[0], ba1, ba2)) for ba1 in bi1_alts for ba2 in bi2_alts
-                                       if ba2 not in MUT_SIG_UNEXPECTED_WOBBLE_BPS}
+                                       if ba2 not in cm.MUT_SIG_UNEXPECTED_WOBBLE_BPS[self.mut_sig]}
 
         return codon_permutations
 

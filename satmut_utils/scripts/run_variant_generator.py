@@ -5,7 +5,7 @@ import argparse
 import logging
 import sys
 
-from prototype.variant_generator import VariantGenerator, NormalizedVariantGenerator
+from prototype.variant_generator import VariantGenerator
 from analysis.seq_utils import TRANSCRIPTOME_GFF, TRANSCRIPTOME_FASTA
 from core_utils.string_utils import none_or_str
 
@@ -60,14 +60,14 @@ def parse_commandline_params(args):
     parser.add_argument("-a", "--add_haplotypes", action="store_true",
                         help='Flag to add longer range haplotypes up to read length.')
 
-    parser.add_argument("-hl", "--haplotype_length", type=int, default=VariantGenerator.DEFAULT_HAPLO_LEN,
+    parser.add_argument("-l", "--haplotype_length", type=int, default=VariantGenerator.DEFAULT_HAPLO_LEN,
                         help='Maximum length for which to create haplotypes.')
 
     parser.add_argument("-m", "--mnp_bases", type=int, default=VariantGenerator.DEFAULT_MNP_BASES,
-                        help='For var_type==mnp or var_type==total, max bases for MNPs. Must be either 2 or 3. '
+                        help='For var_type==mnp or var_type==total, max number of bases in MNPs. Must be either 2 or 3. '
                              'Default %s.' % VariantGenerator.DEFAULT_MNP_BASES)
 
-    parser.add_argument("-rs", "--random_seed", type=int, default=9, help='Seed for random variant sampling.')
+    parser.add_argument("-s", "--random_seed", type=int, default=9, help='Seed for random variant sampling.')
 
     parsed_args = vars(parser.parse_args(args))
     return parsed_args

@@ -1,8 +1,7 @@
 #!/usr/bin/env/python
-"""Runs in silico read generation."""
+"""Runs basic in silico read generation."""
 
 import argparse
-import logging
 import sys
 
 from analysis.aligners import *
@@ -67,12 +66,12 @@ def parse_commandline_params(args):
     parser.add_argument("-s", "--slop_length", type=int, default=DEFAULT_BP_SLOP,
                         help='Slop length around exon features for DNA read generation. Default %i.' % DEFAULT_BP_SLOP)
 
-    parser.add_argument("-ma", "--make_amplicons", action="store_true",
+    parser.add_argument("-m", "--make_amplicons", action="store_true",
                         help='Flag to generate reads from the termini of the targets. Consider setting slop_length to 0.')
 
-    parser.add_argument("-as", "--add_snps", action="store_true", help='Add SNP errors to reads.')
+    parser.add_argument("-s", "--add_snps", action="store_true", help='Add SNP errors to reads.')
 
-    parser.add_argument("-ai", "--add_indels", action="store_true", help='Add InDel errors to reads.')
+    parser.add_argument("-i", "--add_indels", action="store_true", help='Add InDel errors to reads.')
 
     parsed_args = vars(parser.parse_args(args))
     return parsed_args
@@ -85,7 +84,7 @@ def workflow(feature_file, output_dir, output_prefix, ref, nreads=DEFAULT_NREADS
 
     :param str feature_file: Feature file containing features to make reads for. Target BED for DNA, transcript GTF for RNA
     :param str output_dir: Optional output directory to store generated FASTQs and BAM
-    :param str output_prefix: Optional output prefix for the FASTQ(s) and BAM; if None, will use same prefix as feature file
+    :param str output_prefix: Optional output prefix for the FASTQ(s) and BAM; if None, use same prefix as feature file
     :param str ref: reference FASTA corresponding to the features
     :param int nreads: number of reads to generate. This overrides scores present in the feature file.
     :param bool paired: should paired-end reads be created? Default True.

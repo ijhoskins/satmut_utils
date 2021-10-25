@@ -46,6 +46,7 @@ VAR_REF = "REF"
 VAR_ALT = "ALT"
 VARIANT_FORMAT = "{}:{}:{}:{}"
 VCF_SUMMARY_EXT = "vcf.summary.txt"
+VCF_HEADER_FIELDS = ("#CHROM", "POS", "ID", "REF", "ALT", "QUAL", "FILTER")
 
 # VCF field indices
 VCF_CONTIG_INDEX = 0
@@ -274,7 +275,7 @@ def table_from_vcf(vcf, output_filename=None):
         for i, variant in enumerate(in_vf):
 
             if i == 0:
-                table_header = ["#CHROM", "POS", "ID", "REF", "ALT", "QUAL", "FILTER"]
+                table_header = list(VCF_HEADER_FIELDS)
                 table_header += variant.info.keys()
                 out_fh.write(fu.FILE_DELIM.join(table_header) + fu.FILE_NEWLINE)
 
@@ -441,48 +442,28 @@ class VcfPreprocessor(object):
     DEFAULT_OMIT_TYPES = (VariantType.INS, VariantType.DEL, VariantType.COMPLEX, VariantType.INV)
     INFO_TAG_CONFIG_TUPLE = collections.namedtuple("info_tag_config", "tag_value, tag_header_fields")
     VAR_COORDS_FORMAT = "{}:{}"
-    CBS_POS_BLACKLIST = tuple([261, 262, 263])
 
-    def __init__(self, in_vcf, caf_estimates, ref, outdir=".", ie=DEFAULT_IE, ir=DEFAULT_IR, overwrite_existing=False,
-                 omit_types=DEFAULT_OMIT_TYPES, omit_positions=CBS_POS_BLACKLIST):
+    def __init__(self, in_vcf, caf_estimates, ref, outdir=".", overwrite_existing=False, omit_types=DEFAULT_OMIT_TYPES):
         r"""Constructor for VcfPreprocessor.
 
         :param str in_vcf: input VCF, likely with multiple variants at a number of coordinates
         :param dict caf_estimates: dict keyed by VARTYPE and valued by two-tuple of (median log10 CAF, SD log10 CAF)
         :param str ref: reference FASTA corresponding to the VCF
         :param str outdir: optional output directory to write the split VCFs. Default current directory
-        :param str | None ie: Add INFO IE tags to the variants to induce on specific strands. \
-        Either "+" or "-" may be provided. Default None, no strand-specific induction.
-        :param str | None ir: Add INFO IR tags to the variants to induce on specific reads. \
-        Either "R1" or "R2" may be provided. Default None, no read-specific induction.
         :param bool overwrite_existing: Should existing INFO tags be overwritten by values. Default False.
         :param tuple omit_types: variant types to omit from the output VCF
-        :param tuple omit_positions: int positions to omit from output VCF
         """
 
         self.in_vcf = in_vcf
         self.caf_estimates = caf_estimates
         self.ref = ref
         self.outdir = outdir
-        self.ie = ie
-        self.ir = ir
         self.overwrite_existing = overwrite_existing
         self.omit_types = set(omit_types)
-        self.omit_positions = set(omit_positions)
-
-        if self.ie is not None and self.ie not in {"+", "-"}:
-            raise NotImplementedError("The IE tag must be either '+', '-', or None")
-
-        if self.ir is not None and self.ir not in {"R1", "R2"}:
-            raise NotImplementedError("The IR tag must be either 'R1', 'R2', or None")
 
         self.info_tag_dict = {
-            VCF_AF_ID: self.INFO_TAG_CONFIG_TUPLE(self.DEFAULT_AF,
-                                                  (VCF_AF_ID, 1, "Float", "Allele frequency in range (0,1).")),
-            VCF_IE_ID: self.INFO_TAG_CONFIG_TUPLE(self.ie,
-                                                  (VCF_IE_ID, 1, "String", "Induce error strand, either + or -.")),
-            VCF_IR_ID: self.INFO_TAG_CONFIG_TUPLE(self.ir,
-                                                  (VCF_IR_ID, 1, "String", "Induce read mate, either R1 or R2."))
+            VCF_AF_ID: self.INFO_TAG_CONFIG_TUPLE(
+                self.DEFAULT_AF, (VCF_AF_ID, 1, "Float", "Allele frequency in range (0,1)."))
         }
 
         if not os.path.exists(self.outdir):
@@ -511,7 +492,7 @@ class VcfPreprocessor(object):
 
             in_vf.header.add_line(VCF_METADATA_CHAR + "source=" + class_module_path)
 
-            update_header(in_vf.header, tuple(new_info_ids), tuple([m.value for m in su.HumanContig]))
+            update_header(header=in_vf.header, info_ids=tuple(new_info_ids))
 
             with pysam.VariantFile(self.out_vcf, "w", header=in_vf.header) as out_vf:
 
@@ -519,7 +500,7 @@ class VcfPreprocessor(object):
 
                     var_type = get_variant_type(ref=var.ref, alt=var.alts[0], split_mnps=True)
 
-                    if var_type.value in self.omit_types or var.pos in self.omit_positions:
+                    if var_type.value in self.omit_types:
                         continue
 
                     var_info = var.info
@@ -574,7 +555,7 @@ class VcfPreprocessor(object):
         vn = VcfNormalizer(ref=self.ref)
         normed_vcf = vn.run_norm(in_vcf=sorted_vcf)
 
-        # Third add VCF INFO tags (default read inducer configurations)
+        # Third add VCF INFO tags (default read editor configurations)
         _logger.info("Adding INFO tags to %s and writing to %s" % (normed_vcf, self.out_vcf))
         self.add_info_tags(normed_vcf)
 

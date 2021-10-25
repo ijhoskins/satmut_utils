@@ -16,7 +16,7 @@ from analysis.seq_utils import FASTA_INDEX_SUFFIX
 from analysis.variant_caller import VariantCaller
 import core_utils.file_utils as fu
 from core_utils.string_utils import none_or_str
-from definitions import AMP_UMI_REGEX, GRCH38_FASTA, QNAME_SORTS, INT_FORMAT_INDEX
+from definitions import AMP_UMI_REGEX, GRCH38_FASTA, QNAME_SORTS, INT_FORMAT_INDEX, DEFAULT_MUT_SIG, VALID_MUT_SIGS
 from scripts.run_bowtie2_aligner import workflow as baw
 
 
@@ -130,7 +130,7 @@ def parse_commandline_params(args):
     parser_call.add_argument("-u", "--umi_regex", type=str, default=AMP_UMI_REGEX,
                              help='UMI regular expression to be passed to umi_tools extract command.')
 
-    parser_call.add_argument("-s", "--mutagenesis_signature", type=str, default=VariantCaller.VARIANT_CALL_MUT_SIG,
+    parser_call.add_argument("-s", "--mutagenesis_signature", type=str, default=DEFAULT_MUT_SIG,
                              help='Mutagenesis signature. One of NNN, NNK, or NNS.')
 
     parser_call.add_argument("-q", "--min_bq", type=int, default=VariantCaller.VARIANT_CALL_MIN_BQ,
@@ -174,7 +174,7 @@ def parse_commandline_params(args):
                                   'reasonable reporting of fragment coverage. To avoid this behavior, provide -f.')
 
     parser_call.add_argument("-f", "--primer_fasta", type=none_or_str,
-                             help='If -cd, this may optionally be set to append originating primers to read names.'
+                             help='If -cd, this may optionally be set to append originating R2 primer sequences to read names.'
                                   'Useful for RACE-like (e.g. AMP) libraries to prohibit R2 merging. That is, without '
                                   'this flag, tiled R2s sharing the same R1 will be merged into contigs during '
                                   'consensus deduplication (-cd).')
@@ -271,7 +271,8 @@ def sim_workflow(bam, vcf, race_like,
 
     # Unfortunately sort-order harmony with samtools sort -n requires we know the format of the qname
     # Check to make sure we have either Illumina format or single integer read names
-    _ = QnameVerification(bam=bam)
+    if primers is not None:
+        _ = QnameVerification(bam=bam)
 
     if not os.path.exists(outdir):
         os.mkdir(outdir)
@@ -304,7 +305,7 @@ def call_workflow(fastq1, fastq2, r1_fiveprime_adapters, r1_threeprime_adapters,
                   max_mnp_window=VariantCaller.VARIANT_CALL_MAX_MNP_WINDOW,
                   nthreads=FastqPreprocessor.NCORES, ntrimmed=FastqPreprocessor.NTRIMMED,
                   overlap_len=FastqPreprocessor.OVERLAP_LEN, trim_bq=FastqPreprocessor.TRIM_QUALITY,
-                  omit_trim=FastqPreprocessor.TRIM_FLAG, mut_sig=VariantCaller.VARIANT_CALL_MUT_SIG):
+                  omit_trim=FastqPreprocessor.TRIM_FLAG, mut_sig=DEFAULT_MUT_SIG):
     r"""Runs the satmut_utils call workflow.
 
     :param str fastq1: path of the R1 FASTQ
@@ -331,14 +332,20 @@ def call_workflow(fastq1, fastq2, r1_fiveprime_adapters, r1_threeprime_adapters,
     :param int min_supporting_qnames: min number of fragments with R1-R2 concordant coverage for which to keep a variant
     :param int max_mnp_window: max number of consecutive nucleotides to search for MNPs
     :param int nthreads: Number of threads to use for BAM operations. Default 0 (autodetect).
-    :param int ntrimmed: Max number of adapters to trim from each read
+    :param int ntrimmed: Max number of adapters to trim from each read. Default 4.
     :param int overlap_len: number of bases to match in read to trim. Default 8.
     :param int trim_bq: quality score for cutadapt quality trimming at the 3' end. Default 15.
     :param bool omit_trim: flag to turn off adapter and 3' base quality trimming. Default False.
     :param str mut_sig: mutagenesis signature- one of {NNN, NNK, NNS}. Default NNK.
     :return tuple: (VCF, BED) filepaths
-    :raises RuntimeError: if mut_sig is not one of NNN, NNK, NNS
+    :raises NotImplementedError: if mut_sig is not one of NNN, NNK, NNS; or if not 1 <= max_mnp_window <= 3
     """
+
+    if mut_sig not in VALID_MUT_SIGS:
+        raise NotImplementedError("Mutation signature %s not one of NNN, NNK, or NNS" % mut_sig)
+
+    if max_mnp_window not in {1, 2, 3}:
+        raise NotImplementedError("Mutation signature %s not one of NNN, NNK, or NNS" % mut_sig)
 
     # Unfortunately sort-order harmony with samtools sort -n requires we know the format of the qname
     # Check to make sure we have either Illumina format or single integer read names
@@ -350,9 +357,6 @@ def call_workflow(fastq1, fastq2, r1_fiveprime_adapters, r1_threeprime_adapters,
     ref_fa, gff, gff_ref = get_call_references(
         reference_dir=reference_dir, ensembl_id=ensembl_id, ref=ref, transcript_gff=transcript_gff,
         gff_reference=gff_reference, outdir=os.path.join(outdir, "references"))
-
-    if mut_sig not in VariantCaller.VARIANT_CALL_VALID_MUT_SIGS:
-        raise RuntimeError("Mutation signature %s not one of NNN, NNK, or NNS" % mut_sig)
 
     fqp_r1 = fastq1
     fqp_r2 = fastq2

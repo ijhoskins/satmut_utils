@@ -27,7 +27,7 @@ __email__ = "ianjameshoskins@utexas.edu"
 __status__ = "Development"
 
 HGVS_AA_FORMAT = "p.{}{}{}"
-MUT_SIG_UNEXPECTED_WOBBLE_BPS = {"NNK": {"A", "C"}, "NNS": {"A", "T"}}
+MUT_SIG_UNEXPECTED_WOBBLE_BPS = {"NNN": set(), "NNK": {"A", "C"}, "NNS": {"A", "T"}}
 
 EXON_COORDS_TUPLE = collections.namedtuple("EXON_COORDS_TUPLE", "exon_id, contig, start, stop, exon_len, strand")
 

@@ -47,13 +47,13 @@ class ReadGenerator(object):
     DEFAULT_SNPS = False
     DEFAULT_INDELS = False
 
-    def __init__(self, feature_file, ref=GENOMIC_FASTA, paired=True, rna=False,
+    def __init__(self, feature_file, ref, paired=True, rna=False,
                  read_length=DEFAULT_READ_LEN, frag_length=DEFAULT_FRAG_LEN, slop_length=DEFAULT_BP_SLOP,
                  make_amplicons=False):
         r"""Ctor for ReadGenerator.
 
         :param str feature_file: BED, GFF, GTF file containing features to make reads for; e.g. target BED
-        :param str ref: reference FASTA corresponding to the features
+        :param str ref: genomic reference FASTA corresponding to the features
         :param bool paired: should paired-end reads be created? Default True.
         :param bool rna: should RNA reads be created? Assumes features are exons and metafeatures are transcripts. \
         Default False, make DNA reads.
@@ -231,7 +231,7 @@ class ReadGenerator(object):
 class DnaReadGenerator(ReadGenerator):
     """Class for generation of in silico DNA sequencing reads."""
 
-    def __init__(self, feature_file, ref=GENOMIC_FASTA, paired=True, read_length=DEFAULT_READ_LEN,
+    def __init__(self, feature_file, ref, paired=True, read_length=DEFAULT_READ_LEN,
                  frag_length=DEFAULT_FRAG_LEN, slop_length=75, make_amplicons=False):
         """Ctor for DnaReadGenerator."""
 
@@ -322,7 +322,7 @@ class RnaReadGenerator(ReadGenerator):
     on metafeatures and may need to be modified according to your need. Standard naming is NCBI's gff3 convention.
     """
 
-    def __init__(self, feature_file, ref=GENOMIC_FASTA, paired=True, read_length=DEFAULT_READ_LEN,
+    def __init__(self, feature_file, ref, paired=True, read_length=DEFAULT_READ_LEN,
                  frag_length=DEFAULT_FRAG_LEN, slop_length=DEFAULT_BP_SLOP):
         """Ctor for RnaReadGenerator."""
 

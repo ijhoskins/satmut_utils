@@ -6,10 +6,10 @@ import numpy as np
 import pandas as pd
 import tempfile
 
-import prototype.variant_generator as vg
+from analysis.read_editor import ReadEditor
 import core_utils.file_utils as fu
 import core_utils.vcf_utils as vu
-from scripts.run_read_inducer import workflow as read_inducer_workflow
+import prototype.variant_generator as vg
 
 from definitions import *
 
@@ -24,18 +24,16 @@ __status__ = "Development"
 tempfile.tempdir = os.getenv("SCRATCH", "/tmp")
 _logger = logging.getLogger(__name__)
 
-HGVS_AA_FORMAT = "p.{}{}{}"
-NNK_UNEXPECTED_WOBBLE_BPS = {"A", "C"}
-
 
 class ErrorCorrectionDataGenerator(object):
-    """Generates simulated data for training error correction models. Uses analysis.VariantCaller output."""
+    """Generates datasets for training error correction models. Uses analysis.variant_caller.VariantCaller output."""
 
+    DEFAULT_RACE_LIKE = False
     DEFAULT_NVARS = None
     DEFAULT_CONSERVATIVE_MNPS = False
 
-    def __init__(self, negative_summary, mutant_summary, negative_bam, ref, gff, primers=None, outdir=".",
-                 output_prefix=None, single_end=False, nvars=DEFAULT_NVARS, realign=False, filter_edited=True,
+    def __init__(self, negative_summary, mutant_summary, negative_bam, ref, gff, race_like=DEFAULT_RACE_LIKE,
+                 primers=None, outdir=".", output_prefix=None, nvars=DEFAULT_NVARS,
                  haplotypes=vg.VariantGenerator.DEFAULT_HAPLO, haplotype_len=vg.VariantGenerator.DEFAULT_HAPLO_LEN,
                  random_seed=vu.VcfSubsampler.DEFAULT_SEED, conservative_mnp_estimates=DEFAULT_CONSERVATIVE_MNPS):
         r"""Constructor for ErrorCorrectionDataGenerator.
@@ -45,19 +43,17 @@ class ErrorCorrectionDataGenerator(object):
         :param str negative_bam: endogenous BAM file to induce into
         :param str ref: reference FASTA used in alignment/variant calling
         :param str gff: reference GTF of the transcript that was mutagenized
+        :param bool race_like: is the data produced by RACE-like (e.g. AMP) data? Default False.
         :param str | None primers: feature file of primer locations for read masking and primer detection
-        :param str outdir: Optional output directory to store generated VCFs and induced FASTQs, BAM
+        :param str outdir: Optional output directory to write generated VCFs and edited FASTQs, BAM
         :param str | None output_prefix: Optional output prefix for the FASTQ(s) and BAM; if None, use same prefix as VCF
-        :param bool single_end: does the input SAM/BAM contain single end reads? Default False, paired end reads
-        :param int | None nvars: number of variants requested; set to None for equivalent nvars to the endogenous
-        :param bool realign: realign the induced FASTQs? Needed for visualization of the induced BAM.
-        :param bool filter_edited: filter the induced BAM for those reads/read pairs that were induced? Default True.
+        :param int | None nvars: number of variants requested; set to None for equivalent nbases as in the mutant_summary
         :param bool haplotypes: should haplotypes be created with uniform number to codon variants? Default True.
         :param int haplotype_len: max length to create haplotypes. No longer than read length.
         :param int random_seed: seed for variant sampling
         :param bool conservative_mnp_estimates: Should di-nt MNP AF estimates be modeled after tri-nt MNP estimates? \
-        Default False. This flag may allow more realistic variant induction, as di-nt MNPs may be "contaminated" by \
-        false positive calls and exhibit lower AFs as a result (may occur without UMI-based consensus generation).
+        Default False. This flag may allow more realistic variant editing, as di-nt MNPs may be "contaminated" by \
+        false positive calls and exhibit lower AFs as a result (likely without UMI-based consensus generation).
         """
 
         self.negative_summary = negative_summary
@@ -65,24 +61,21 @@ class ErrorCorrectionDataGenerator(object):
         self.negative_bam = negative_bam
         self.ref = ref
         self.gff = gff
+        self.race_like = race_like
         self.primers = primers
         self.outdir = outdir
         self.output_prefix = output_prefix
-        self.single_end = single_end
-        self.realign = realign
-        self.filter_induced = filter_edited
         self.haplotypes = haplotypes
         self.haplotype_len = haplotype_len
         self.random_seed = random_seed
         self.conservative_mnp_estimates = conservative_mnp_estimates
 
-        if nvars is not None:
-            self.nvars = nvars
-        else:
+        self.nvars = nvars
+        if nvars is None:
             self.nvars = self.get_fp_count()
 
-        self.vg = vg.VariantGenerator(gff=gff, ref=ref, haplotypes=haplotypes, haplotype_len=haplotype_len,
-                                      outdir=outdir, random_seed=random_seed)
+        self.vg = vg.VariantGenerator(
+            gff=gff, ref=ref, haplotypes=haplotypes, haplotype_len=haplotype_len, outdir=outdir, random_seed=random_seed)
 
     def get_fp_count(self):
         """Gets the number of false positive mismatches in the negative control.
@@ -112,7 +105,7 @@ class ErrorCorrectionDataGenerator(object):
         mut_df[vu.VCF_VARTYPE_ID] = mut_df.apply(
             lambda x: str(vu.get_variant_type(ref=x[vu.VAR_REF], alt=x[vu.VAR_ALT], split_mnps=True)), axis=1)
 
-        # We don't want the sample's background SNPs to inflate the estimates; filter out variants with high CAF
+        # We don't want any prexisiting background SNPs to inflate the estimates; filter out variants with high freq
         filter_df = mut_df[mut_df["CAF"] < 0.35]
 
         groupby_df = filter_df[[vu.VCF_VARTYPE_ID, vu.VCF_CAF_ID]].groupby(vu.VCF_VARTYPE_ID)
@@ -127,8 +120,7 @@ class ErrorCorrectionDataGenerator(object):
 
         return caf_dict
 
-    def workflow(self, trx_id=vg.VariantGenerator.DEFAULT_TRANSCRIPT, out_vcf=None,
-                 var_type=vg.VariantGenerator.DEFAULT_VAR_TYPE,
+    def workflow(self, trx_id, out_vcf=None, var_type=vg.VariantGenerator.DEFAULT_VAR_TYPE,
                  mnp_bases=vg.VariantGenerator.DEFAULT_MNP_BASES):
         """Runs the ErrorCorrectionDataGenerator workflow.
 
@@ -136,10 +128,10 @@ class ErrorCorrectionDataGenerator(object):
         :param str | None out_vcf: optional output VCF name for all codon permutation variants
         :param str var_type: one of {"snp", "mnp", "total"}
         :param int mnp_bases: report for di- or tri-nt MNP? Must be either 2 or 3. Default 3.
-        :return tuple: (str, str | None, str, str | None) paths of the truth VCF, induced BAM, R1 FASTQ, and R2 FASTQ
+        :return tuple: (str, str, str, str) paths of the truth VCF, edited BAM, R1 FASTQ, R2 FASTQ
         """
 
-        _logger.info("Starting %s workflow." % __class__.__name__)
+        _logger.info("Starting error correction data generation workflow.")
 
         _logger.info("Estimating truth set parameters from positive and negative control variant calls.")
         fp_nbases = self.get_fp_count()
@@ -159,13 +151,11 @@ class ErrorCorrectionDataGenerator(object):
         _logger.info("Annotating variants using estimated AF parameters for true positives.")
         vp = vu.VcfPreprocessor(in_vcf=subsamp_vcf, caf_estimates=caf_estimates, ref=self.ref, outdir=self.outdir)
 
-        _logger.info("Inducing variants into the negative control background.")
-        outbam, r1_fastq, r2_fastq = read_inducer_workflow(
-            am=self.negative_bam, variants=vp.out_vcf, reference=self.ref, primers=self.primers,
-            output_dir=self.outdir, output_prefix=self.output_prefix,
-            single_end=self.single_end, realign=self.realign,
-            filter_induced=self.filter_induced)
+        _logger.info("Editing variants into the negative control background.")
+        outbam, r1_fastq, r2_fastq = ReadEditor(
+            bam=self.negative_bam, variants=vp.out_vcf, ref=self.ref, race_like=self.race_like, primers=self.primers,
+            output_dir=self.outdir, output_prefix=self.output_prefix).workflow()
 
-        _logger.info("Completed %s workflow." % __class__.__name__)
+        _logger.info("Completed error correction data generation workflow.")
 
         return subsamp_vcf, outbam, r1_fastq, r2_fastq
