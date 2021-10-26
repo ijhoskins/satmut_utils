@@ -103,12 +103,12 @@ class TestFeatureFileUtils(unittest.TestCase):
         unsorted_lines = """chr19	59066354	59066491	gi|571026644|ref|NM_014453.3|:1-137	0	-
 chr19	59065411	59065603	gi|571026644|ref|NM_014453.3|:138-329	0	-
 """
-        with tempfile.NamedTemporaryFile("w", suffix=".test.unsorted.bed", delete=False) as unsorted:
-            unsorted.write(unsorted_lines)
-            unsorted_fn = unsorted.name
+        with tempfile.NamedTemporaryFile("w", suffix=".test.unsorted.bed", delete=False) as unsorted_fh:
+            unsorted_fh.write(unsorted_lines)
+            unsorted_fn = unsorted_fh.name
 
-        with tempfile.NamedTemporaryFile("w+", suffix=".test.sorted.bed", delete=False) as sorted:
-            sorted_fn = sorted.name
+        with tempfile.NamedTemporaryFile("w", suffix=".test.sorted.bed", delete=False) as sorted_fh:
+            sorted_fn = sorted_fh.name
             ffu.sort_feature_file(unsorted_fn, sorted_fn)
 
         with open(sorted_fn, "r") as output_fh:
@@ -122,22 +122,10 @@ chr19	59066354	59066491	gi|571026644|ref|NM_014453.3|:1-137	0	-
     def test_store_coords(self):
         """Test that we can store coordinates from a feature file."""
 
-        observed = ffu.store_coords(self.test_bed_b)
+        observed = ffu.store_coords(self.test_bed_b, use_name=True)
         expected = collections.OrderedDict({"gi|571026644|ref|NM_014453.3|:1-137": ffu.COORD_TUPLE(
             "chr19", 59066354, 59066491, "gi|571026644|ref|NM_014453.3|:1-137",
-            Strand("-"), 0.0, frozenset(range(59066488, 59066494 + 1)))
-                                           }.items())
-
-        self.assertEqual(observed, expected)
-
-    def test_store_coords_primer_allowable(self):
-        """Test that we can store coordinates from a feature file, including the feature length in the allowable starts."""
-
-        observed = ffu.store_coords(self.test_bed_b, primer_allowable=True)
-        expected = collections.OrderedDict({"gi|571026644|ref|NM_014453.3|:1-137": ffu.COORD_TUPLE(
-            "chr19", 59066354, 59066491, "gi|571026644|ref|NM_014453.3|:1-137",
-            Strand("-"), 0.0, frozenset(range(59066354, 59066494 + 1)))
-                                           }.items())
+            Strand("-"), 0.0, frozenset(range(59066355, 59066492)))}.items())
 
         self.assertEqual(observed, expected)
 
@@ -145,9 +133,9 @@ chr19	59066354	59066491	gi|571026644|ref|NM_014453.3|:1-137	0	-
         """Test that we can store coordinates from a feature file, keying by coordinate instead of name."""
 
         observed = ffu.store_coords(self.test_bed_b, use_name=False)
-        expected = collections.OrderedDict({COORD_FORMAT_STRAND.format("chr19", 59066354, 59066491, "-"): ffu.COORD_TUPLE(
-            "chr19", 59066354, 59066491, "gi|571026644|ref|NM_014453.3|:1-137",
-            Strand("-"), 0.0, frozenset(range(59066488, 59066494 + 1)))
-                                           }.items())
+        expected = collections.OrderedDict({COORD_FORMAT_STRAND.format("chr19", 59066354, 59066491, "-"):
+            ffu.COORD_TUPLE(
+                "chr19", 59066354, 59066491, "gi|571026644|ref|NM_014453.3|:1-137",
+                Strand("-"), 0.0, frozenset(range(59066355, 59066492)))}.items())
 
         self.assertEqual(observed, expected)

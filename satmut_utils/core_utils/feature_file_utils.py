@@ -156,13 +156,10 @@ class DuplicateFeatureException(Exception):
     pass
 
 
-def store_coords(feature_file, feature_slop=0, primer_allowable=False, use_name=True):
+def store_coords(feature_file, use_name=True):
     r"""Stores primer coordinates from a feature file in a consistent dictionary format.
 
     :param str feature_file: BED, GFF, or GTF
-    :param int feature_slop: Bases to slop the start or stop coordinates for allowable_starts attr of coord_tuple
-    :param bool primer_allowable: Make the allowable_starts attribute contain up to the 3' end of the primer. \
-    Default False. Keep at False for primer enumeration, and set to True to determine primer region bases to mask.
     :param bool use_name: Should the feature name field be used as the key? Default True. Otherwise, use the contig \
     and coordinate range as the key.
     :return collections.OrderedDict: {"contig:start-stop" | name: COORD_TUPLE}
@@ -179,7 +176,9 @@ def store_coords(feature_file, feature_slop=0, primer_allowable=False, use_name=
         feature_coords = su.COORD_FORMAT_STRAND.format(str(feature.chrom), feature.start, feature.stop, feature.strand)
 
         if feature_coords in observed_features:
-            raise DuplicateFeatureException("Please provide a feature file with duplicate features removed.")
+            raise DuplicateFeatureException(
+                "%s is duplicated in %s. Please provide a feature file with unique features." %
+                (feature_coords, feature_file))
 
         # Get some other basic attrs if they exist
         feature_name = str(feature.name) if feature.name not in PYBEDTOOLS_NULL_CHARS else None
@@ -187,18 +186,15 @@ def store_coords(feature_file, feature_slop=0, primer_allowable=False, use_name=
         feature_score = float(feature.score) if feature.score not in PYBEDTOOLS_NULL_CHARS else 1.0
         feature_len = len(feature)
 
-        # Compute allowable start coordinates for enumerating primers.
-        downstream_offset = feature_len if primer_allowable else feature_slop
-
-        # Allowable coordinates will contain 1-based coordinates;
+        # Allowable coordinates will contain 1-based coordinates
         # Note +1 on the 1-based stop coords includes the terminal base to be in the set (given python range behavior)
         if feature_strand is None:
             # If we don't know the strand of the primer, do not proceed
             raise RuntimeError("Absent strand information for %s" % FILE_DELIM.join(feature.fields))
         elif feature_strand == su.Strand.PLUS:
-            allowable_coords = frozenset(range(feature.start - feature_slop + 1, feature.start + downstream_offset + 1))
+            allowable_coords = frozenset(range(feature.start + 1, feature.start + feature_len + 1))
         elif feature_strand == su.Strand.MINUS:
-            allowable_coords = frozenset(range(feature.stop - downstream_offset + 1, feature.stop + feature_slop + 1))
+            allowable_coords = frozenset(range(feature.stop - feature_len + 1, feature.stop + 1))
         else:
             raise RuntimeError("Unrecognized strand for feature %s" % FILE_DELIM.join(feature.fields))
 

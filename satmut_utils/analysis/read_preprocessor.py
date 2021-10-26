@@ -1225,8 +1225,7 @@ class ReadMasker(object):
             else ffu.BED_INTERSECT_WB_B_GFF_STRAND_OFFSET
 
         # Store primer coordinates
-        self.primer_info = ffu.store_coords(
-            feature_file=feature_file, feature_slop=0, primer_allowable=True, use_name=False)
+        self.primer_info = ffu.store_coords(feature_file=feature_file, use_name=False)
 
     def _get_read_primer_intersection(self):
         """Applies a custom bedtools sort pipeline to get primers associated with each read.

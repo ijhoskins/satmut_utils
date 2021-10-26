@@ -104,8 +104,11 @@ class TestReferences(unittest.TestCase):
         # Just compare the non-attr fields
         with open(extracted_gff, "r") as observed_gff, \
                 open(self.cbs_gff, "r") as expected_gff:
-            observed = observed_gff.readlines()
-            expected = expected_gff.readlines()
+
+            # For now just check the non-attribute fields are equivalent
+            # pybedtools seems to uniquify attributes that start with the same keyname (e.g. "tag")
+            observed = [fu.FILE_DELIM.join(e.split(fu.FILE_DELIM)[0:8]) for e in observed_gff.readlines()]
+            expected = [fu.FILE_DELIM.join(e.split(fu.FILE_DELIM)[0:8]) for e in expected_gff.readlines()]
 
         self.assertEqual(expected, observed)
 

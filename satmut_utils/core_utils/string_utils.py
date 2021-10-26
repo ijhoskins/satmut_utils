@@ -20,7 +20,7 @@ def make_random_str(str_len=10, prefix="", letters=DEFAULT_RANDOMER_DIGITS):
     :return str: randomer string
     """
 
-    randomer = prefix + "_".join(random.choice(letters) for _ in range(str_len))
+    randomer = prefix + "_" + "".join(random.choice(letters) for _ in range(str_len))
     return randomer
 
 

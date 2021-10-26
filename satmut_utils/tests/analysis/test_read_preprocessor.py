@@ -174,21 +174,21 @@ class TestQnameVerification(unittest.TestCase):
         """Test that a standard Illumina qname format is verified."""
 
         expected = (True, ILLUMINA_FORMAT_INDEX)
-        observed = rp.QnameVerification.verify_qname_format("MG01HS02:1483:HG7MTBCX3:1:1107:1230:2106")
+        observed = rp.QnameVerification().verify_qname_format("MG01HS02:1483:HG7MTBCX3:1:1107:1230:2106")
         self.assertEqual(expected, observed)
 
     def test_verify_qname_format_int(self):
         """Test that an int qname format is verified."""
 
         expected = (True, INT_FORMAT_INDEX)
-        observed = rp.QnameVerification.verify_qname_format("1")
+        observed = rp.QnameVerification().verify_qname_format("1")
         self.assertEqual(expected, observed)
 
     def test_verify_qname_format_invalid(self):
         """Test that an unrecognized qname format is not verified."""
 
         expected = (False, None)
-        observed = rp.QnameVerification.verify_qname_format("strange_qname")
+        observed = rp.QnameVerification().verify_qname_format("strange_qname")
         self.assertEqual(expected, observed)
 
     def test_verify_fastq(self):
