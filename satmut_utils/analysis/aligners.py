@@ -67,7 +67,7 @@ class BowtieConfig(object):
 
         :param str ref: reference FASTA
         """
-        build_call = ("bowtie2-build", self.ref, self.ref)
+        build_call = ("bowtie2-build", "--quiet", self.ref, self.ref)
         subprocess.call(build_call)
 
 

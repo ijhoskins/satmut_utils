@@ -265,7 +265,8 @@ def sim_workflow(bam, vcf, race_like,
     :param str | None primers: feature file of primer locations for read masking and primer detection
     :param str outdir: Optional output directory to store generated FASTQs and BAM
     :param int random_seed: seed for random qname sampling
-    :param int nthreads: Number of threads to use for BAM operations. Default 0 (autodetect).
+    :param int nthreads: Number of threads to use for SAM/BAM operations and alignment. Default 0 (autodetect) \
+    for samtools operations. If 0, will pass 1 to bowtie2 --threads.
     :return tuple: (str | None, str, str | None) paths of the edited BAM, R1 FASTQ, R2 FASTQ
     """
 

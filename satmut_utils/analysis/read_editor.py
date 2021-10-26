@@ -140,7 +140,8 @@ class ReadEditor(object):
         :param str output_dir: Optional output directory to store generated FASTQs and BAM. Default current directory.
         :param str | None output_prefix: Optional output prefix for the FASTQ(s) and BAM
         :param int random_seed: seed for random qname sampling
-        :param int nthreads: Number of threads to use for SAM/BAM operations. Default 0 (autodetect).
+        :param int nthreads: Number of threads to use for SAM/BAM operations and alignment. Default 0 (autodetect) \
+        for samtools operations. If 0, will pass 1 to bowtie2 --threads.
 
         Note: Reads that have been edited will be tagged with an IN alignment tag.
         """
@@ -167,13 +168,13 @@ class ReadEditor(object):
             self.output_prefix = fu.remove_extension(os.path.basename(self.bam))
 
         self.out_path = os.path.join(self.output_dir, self.output_prefix)
-        self.temp_edit_bam = tempfile.NamedTemporaryFile(mode="wb", suffix=".temp.edit.bam").name
+        self.temp_edit_bam = tempfile.NamedTemporaryFile(mode="wb", suffix=".temp.edit.bam", delete=False).name
         self.output_bam = fu.add_extension(self.out_path, self.EDIT_BAM_SUFFIX)
         self.truth_vcf = fu.add_extension(self.out_path, self.TRUTH_VCF_SUFFIX)
 
         _logger.info("Pre-processing input files for editing.")
         self.editor_preprocessor = ReadEditorPreprocessor(
-            bam=self.bam, primers=primers, ref=ref, race_like=race_like, outdir=output_dir)
+            bam=self.bam, primers=primers, ref=ref, race_like=race_like, outdir=output_dir, nthreads=nthreads)
 
         _logger.info("Getting variant configs.")
         self.variant_configs = self._get_variant_configs()
@@ -475,7 +476,7 @@ class ReadEditor(object):
         :param dict edit_configs: dict with list of variants to edit at a specific read and position."""
 
         with pysam.AlignmentFile(self.editor_preprocessor.qname_sorted_bam, "rb") as in_af, \
-                pysam.AlignmentFile(self.temp_edit_bam, "wb", header=in_af.header) as out_af:
+                pysam.AlignmentFile(self.temp_edit_bam, mode="wb", header=in_af.header) as out_af:
 
             # Iterate over the qname-sorted reads, that way we write the BAM in that order for FASTQ conversion
             for align_seg in in_af.fetch(until_eof=True):
@@ -546,8 +547,9 @@ class ReadEditor(object):
 
         # We need to realign to re-generate CIGAR and MD tags and for proper visualization of alignments in browsers
         _logger.info("Locally realigning all reads.")
+        nthreads = self.nthreads if self.nthreads != 0 else 1
         align_workflow(f1=zipped_r1_fastq, f2=zipped_r2_fastq, ref=self.ref, outdir=self.output_dir,
-                       outbam=self.output_bam, local=True, nthreads=self.nthreads)
+                       outbam=self.output_bam, local=True, nthreads=nthreads)
 
         return self.output_bam, zipped_r1_fastq, zipped_r2_fastq
 

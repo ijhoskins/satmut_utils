@@ -58,12 +58,12 @@ class QnameVerification(object):
 
         self.fastq = fastq
         self.bam = bam
+        self.illumina_regex = "^@[a-zA-Z]" if self.fastq else "^[a-zA-Z]"
         self.error_msg = """The QNAME format is incompatible with the primer masking workflow. A work-around is to \
         replace qnames (read names) with unique integers and provide."""
         self.compatible, self.format_index = self.workflow()
 
-    @staticmethod
-    def verify_qname_format(qname):
+    def verify_qname_format(self, qname):
         """Determine if the qname is compatible with primer masking (Illumina standard format or a single integer).
 
         :param str qname: example read name
@@ -74,7 +74,7 @@ class QnameVerification(object):
         qname_split_len = len(qname_split)
 
         # Illumina format has 7 fields and the first field normally has a non-numeric character
-        if qname_split_len == ILLUMINA_QNAME_NFIELDS and regex.match("^[a-zA-Z]", qname_split[0]):
+        if qname_split_len == ILLUMINA_QNAME_NFIELDS and regex.match(self.illumina_regex, qname_split[0]):
             return True, ILLUMINA_FORMAT_INDEX
 
         if qname_split_len == 1:
@@ -105,7 +105,7 @@ class QnameVerification(object):
 
                     if not compatible:
                         fh.seek(0)
-                        raise NotImplementedError("The QNAME format is incompatible with primer masking.")
+                        raise NotImplementedError(self.error_msg)
 
                     fh.seek(0)
                     return compatible, format_index
@@ -113,7 +113,7 @@ class QnameVerification(object):
     def _verify_bam(self):
         """Verifies qname format for a BAM.
 
-        :return tuple: (bool, int | None) whether or not the qname matches a compatible format, and the index of the format
+        :return tuple: (bool, int | None) whether or not the qname is a compatible format, and the index of the format
         :raises NotImplementedError: if the read name is not a recognizable format.
         """
 
@@ -124,7 +124,7 @@ class QnameVerification(object):
 
                     if not compatible:
                         af.reset()
-                        raise NotImplementedError()
+                        raise NotImplementedError(self.error_msg)
 
                     af.reset()
                     return compatible, format_index
@@ -1200,7 +1200,7 @@ class ReadMasker(object):
         :param str in_bam: BAM file to mask
         :param str feature_file: BED or GTF/GFF file of primer locations
         :param bool race_like: is the data produced by RACE-like (e.g. AMP) data? Default False.
-        :param list sort_cmd: sort key dependent on the qname format
+        :param tuple sort_cmd: sort key dependent on the qname format
         :param str outdir: optional output dir for the results
         :param int nthreads: number threads to use for SAM/BAM file manipulations. Default 0 (autodetect).
         """
@@ -1234,7 +1234,7 @@ class ReadMasker(object):
         :return str: path of the output tempfile
         """
 
-        intersect_cmd = ["bedtools", "intersect", "-bed", "-wa", "-wb", "-abam", self.in_bam, "-b", self.feature_file]
+        intersect_cmd = ("bedtools", "intersect", "-bed", "-wa", "-wb", "-abam", self.in_bam, "-b", self.feature_file)
 
         # Determine which fields of the intersected BED to summarize based on the feature file type and expected number
         # of fields from the read portion (-wa) of the results
@@ -1247,8 +1247,8 @@ class ReadMasker(object):
         primer_coord_fields = [str(e + 1) for e in primer_coord_fields]
 
         # Use groupby to collapse the intersecting primer coordinates for each read
-        groupby_cmd = ["bedtools", "groupby", "-g", str(ffu.BED_INTERSECT_WB_B_BED_NAME_OFFSET + 1),
-                       "-c", ",".join(primer_coord_fields), "-o", "collapse"]
+        groupby_cmd = ("bedtools", "groupby", "-g", str(ffu.BED_INTERSECT_WB_B_BED_NAME_OFFSET + 1),
+                       "-c", ",".join(primer_coord_fields), "-o", "collapse")
 
         # WARNING: determine if the number of fields in the read name can vary, as this could affect the sort
         # Often if we encounter improperly paired R1s/R2s during iteration in the VariantCaller, it is because

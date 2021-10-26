@@ -4,11 +4,15 @@ satmut_utils is a Python package for simulation and variant calling of saturatio
 1. sim
 2. call
 
-satmut_utils is designed to simulate and call low-frequency variants (<1:1000) in paired-end, targeted RNA-sequencing datasets. Alignments to a single transcript are expected: there is not support for whole transcriptome or whole genome datasets.
+satmut_utils is designed to simulate and call low-frequency variants (<1:1000) in paired-end, targeted RNA-sequencing datasets. Alignments to a single transcript are expected; whole transcriptome or whole genome datasets are currently not supported.
 
-sim and call support two different types of paired-end read chemistries. The first is a common tiled PCR approach with interleaved sets of PCR amplicons. The second is a RACE-like PCR approach (for example, Anchored Multiplex PCR), where R1 starts at a variable fragment end and R2 starts at a primer.
+sim and call support two different types of paired-end read chemistries. The first supported chemistry is a tiled PCR approach with interleaved sets of PCR amplicons. In this mode, R1 and R2 start at primer ends.
 
-call allows for unique molecular indices (UMIs) at the start of R1 in either library preparation chemistry. Currently, it does not support analysis of UMIs on both reads. It also does not support "barcode sequencing", wherein sequencing is first used to link a variant with a barcode and then followed by readout of the barcodes.
+The second supported chemistry is a RACE-like PCR approach (for example, Anchored Multiplex PCR), where R1 starts at a variable fragment end and R2 starts at a primer.
+
+call allows for unique molecular indices (UMIs) at the start of R1 in either library preparation chemistry. Currently, it does not support analysis of UMIs on both reads.
+
+Furthermore, satmut_utils does not support "barcode sequencing", wherein sequencing is  used to link a variant with a barcode, followed by readout of the linked barcodes.
 
 
 ## Reference files

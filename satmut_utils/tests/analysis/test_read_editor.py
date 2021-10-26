@@ -461,7 +461,7 @@ class TestReadEditor(unittest.TestCase):
 
         tests = []
         # Test that we actually edited the reads with a specific ALT at the expected read position
-        with pysam.AlignmentFile(self.ed.output_bam, "rb") as af:
+        with pysam.AlignmentFile(self.ed.temp_edit_bam, "rb") as af:
             for align_seg in af.fetch(until_eof=True):
                 if align_seg.query_name == "0000224875":
                     if align_seg.is_read1:

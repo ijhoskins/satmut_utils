@@ -20,7 +20,7 @@ def make_random_str(str_len=10, prefix="", letters=DEFAULT_RANDOMER_DIGITS):
     :return str: randomer string
     """
 
-    randomer = prefix + "".join(random.choice(letters) for _ in range(str_len))
+    randomer = prefix + "_".join(random.choice(letters) for _ in range(str_len))
     return randomer
 
 
@@ -36,7 +36,7 @@ def make_unique_ids(n_ids, str_len=10, prefix="", letters=DEFAULT_RANDOMER_DIGIT
 
     uniq_ids = set()
     while len(uniq_ids) < n_ids:
-        uniq_ids.add([make_random_str(str_len, prefix, letters)])
+        uniq_ids.add(make_random_str(str_len, prefix, letters))
     uniq_ids = list(uniq_ids)
 
     return uniq_ids
