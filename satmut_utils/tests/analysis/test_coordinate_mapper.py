@@ -61,11 +61,11 @@ class TestAminoAcidMapper(unittest.TestCase):
         cls.cbs_ref = os.path.join(cls.test_data_dir, cls.CBS_REF)
         cls.pknox1_ref = os.path.join(cls.test_data_dir, cls.PKNOX1_REF)
 
-        with gzip.open(cls.appris_ref_gz, mode="r") as appris_ref_in, \
+        with gzip.open(cls.appris_ref_gz) as appris_ref_in, \
                 tempfile.NamedTemporaryFile(mode="w", suffix=".fa", delete=False, dir=cls.tempdir) as appris_ref_out:
 
             for line in appris_ref_in:
-                appris_ref_out.write(line)
+                appris_ref_out.write(line.decode())
 
             cls.temp_ref_fa = appris_ref_out.name
 

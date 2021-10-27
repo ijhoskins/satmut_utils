@@ -69,11 +69,11 @@ class TestSeqUtils(unittest.TestCase):
         cls.test_data_dir = os.path.abspath(os.path.join(cls.test_dir, "..", "test_data"))
         cls.appris_ref_gz = os.path.join(cls.test_data_dir, cls.APPRIS_REF)
 
-        with gzip.open(cls.appris_ref_gz, mode="r") as appris_ref_in, \
+        with gzip.open(cls.appris_ref_gz) as appris_ref_in, \
                 tempfile.NamedTemporaryFile(mode="w", suffix=".fa", delete=False, dir=cls.tempdir) as appris_ref_out:
 
             for line in appris_ref_in:
-                appris_ref_out.write(line)
+                appris_ref_out.write(line.decode())
 
             cls.GRCH38_chr21 = appris_ref_out.name
 

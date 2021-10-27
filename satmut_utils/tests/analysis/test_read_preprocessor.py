@@ -929,14 +929,19 @@ class TestReadMasker(unittest.TestCase):
         cls.test_dir = os.path.dirname(__file__)
         cls.test_data_dir = os.path.join(os.path.split(cls.test_dir)[0], "test_data")
 
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".preprocess.sam") as preproc_sam:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".preprocess.sam") as preproc_sam, \
+                tempfile.NamedTemporaryFile(mode="w", suffix=".primers.bed", delete=False, dir=cls.tempdir) as primer_bed, \
+                tempfile.NamedTemporaryFile(mode="w", suffix=".primers2.bed", delete=False, dir=cls.tempdir) as primer_bed2:
+
             preproc_sam.write(PREPROC_TEST_SAM)
             fu.flush_files((preproc_sam,))
             cls.preproc_bam = su.sam_view(preproc_sam.name, None, "BAM", 0, "b")
 
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".primers.bed", delete=False, dir=cls.tempdir) as primer_bed:
             primer_bed.write(MASKING_TEST_PRIMERS)
             cls.primer_bed = primer_bed.name
+
+            primer_bed2.write(TEST_PRIMERS)
+            cls.primer_bed2 = primer_bed2.name
 
         # Select reads for various method testing
         with pysam.AlignmentFile(cls.preproc_bam, "rb") as test_af:
@@ -954,14 +959,6 @@ class TestReadMasker(unittest.TestCase):
 
         cls.rm_race = rp.ReadMasker(
             in_bam=cls.preproc_bam, feature_file=cls.primer_bed, race_like=True, outdir=cls.tempdir)
-
-        with tempfile.NamedTemporaryFile(
-                mode="w", suffix=".primers2.bed", delete=False, dir=cls.tempdir) as primer_bed2:
-            primer_bed2.write(TEST_PRIMERS)
-            cls.primer_bed2 = primer_bed2.name
-
-        cls.rm_normal = rp.ReadMasker(
-            in_bam=cls.preproc_bam, feature_file=cls.primer_bed2, race_like=True, outdir=cls.tempdir)
 
     @classmethod
     def tearDownClass(cls):
@@ -1077,10 +1074,23 @@ class TestReadMasker(unittest.TestCase):
         # 10000001_R1 and 10015877_R1 duplicates should not have been masked with the true set of primers
         expected = {"10000004_R1", "10000004_R2", "10015877_R2"}
 
-        self.rm_normal.workflow()
+        # The proprocess BAM qname format is not compatible with masking
+        # Remove the UMIs from the qnames so that it is compatible and does not raise a RuntimeError in _mask_reads()
+        with tempfile.NamedTemporaryFile(mode="wb", suffix=".test.bam", delete=False, dir=self.tempdir) as test_bam, \
+                pysam.AlignmentFile(self.preproc_bam, mode="rb") as in_af, \
+                pysam.AlignmentFile(test_bam, mode="wb", header=in_af.header) as out_af:
+
+            for align_seg in in_af.fetch(until_eof=True):
+                align_seg.query_name = align_seg.query_name.split("_")[0]
+                out_af.write(align_seg)
+
+            test_bam_fn = test_bam.name
+
+        rm_normal = rp.ReadMasker(in_bam=test_bam_fn, feature_file=self.primer_bed2, race_like=True, outdir=self.tempdir)
+        rm_normal.workflow()
 
         observed = set()
-        with pysam.AlignmentFile(self.rm_normal.out_bam, "rb") as test_af:
+        with pysam.AlignmentFile(rm_normal.out_bam, "rb") as test_af:
             for align_seg in test_af.fetch(until_eof=True):
                 if 0 in set(align_seg.query_qualities):
                     observed.add(align_seg.get_tag(rp.UMITOOLS_UG_TAG))

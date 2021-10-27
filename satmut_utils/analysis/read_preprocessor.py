@@ -147,6 +147,9 @@ class QnameVerification(object):
             return compatible, format_index
 
         _logger.info("Completed qname verification workflow.")
+        return False, None
+
+
 
 
 class FastqPreprocessor(object):

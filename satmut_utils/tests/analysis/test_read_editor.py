@@ -504,8 +504,8 @@ class TestReadEditor(unittest.TestCase):
         test_1 = [os.path.exists(e) for e in (edit_bam, r1_fq, r2_fq,)]
 
         with gzip.open(r1_fq) as r1, gzip.open(r2_fq) as r2:
-            r1_qnames = [e for e in r1.readlines() if e.starts(FASTQ_QNAME_CHAR)]
-            r2_qnames = [e for e in r2.readlines() if e.starts(FASTQ_QNAME_CHAR)]
+            r1_qnames = [e for e in r1 if e.decode().startswith(FASTQ_QNAME_CHAR)]
+            r2_qnames = [e for e in r2 if e.decode().startswith(FASTQ_QNAME_CHAR)]
             test_2 = r1_qnames == r2_qnames
 
         test_res = (test_1, test_2,)
