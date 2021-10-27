@@ -119,8 +119,22 @@ def gzip_file(filename):
     """
 
     if os.path.exists(filename):
-        subprocess.call(["gzip", filename])
+        subprocess.call(("gzip", filename))
         return add_extension(filename, GZ_EXTENSION)
+    else:
+        raise RuntimeError("Filename %s not found." % filename)
+
+
+def gunzip_file(filename):
+    """Gzips a file.
+
+    :param str filename: file path
+    :return str: path of the unzipped file
+    """
+
+    if os.path.exists(filename):
+        subprocess.call(("gunzip", "--keep", filename))
+        return remove_extension(filename)
     else:
         raise RuntimeError("Filename %s not found." % filename)
 

@@ -1,10 +1,10 @@
 #!/usr/bin/env/python
 """Tests for analysis.seq_utils."""
 
-import gzip
 import os
 import pysam
 import random
+from shutil import copyfile
 import tempfile
 import unittest
 
@@ -68,18 +68,15 @@ class TestSeqUtils(unittest.TestCase):
         cls.test_dir = os.path.dirname(__file__)
         cls.test_data_dir = os.path.abspath(os.path.join(cls.test_dir, "..", "test_data"))
         cls.appris_ref_gz = os.path.join(cls.test_data_dir, cls.APPRIS_REF)
+        cls.GRCH38_chr21_gz = os.path.join(cls.tempdir, cls.APPRIS_REF)
+        cls.GRCH38_chr21 = os.path.join(cls.tempdir, fu.remove_extension(cls.APPRIS_REF))
 
-        with gzip.open(cls.appris_ref_gz) as appris_ref_in, \
-                tempfile.NamedTemporaryFile(mode="w", suffix=".fa", delete=False, dir=cls.tempdir) as appris_ref_out:
-
-            for line in appris_ref_in:
-                appris_ref_out.write(line.decode())
-
-            cls.GRCH38_chr21 = appris_ref_out.name
+        # Unfortunately we must test with an entire human chromosome, but it is relatively small
+        copyfile(cls.appris_ref_gz, cls.GRCH38_chr21_gz)
+        fu.gunzip_file(cls.GRCH38_chr21_gz)
 
         pysam.faidx(cls.GRCH38_chr21)
         al.BowtieConfig(ref=cls.GRCH38_chr21).build_fm_index()
-
         cls.seq = "ATCGATTACG"
 
     @classmethod
@@ -115,14 +112,14 @@ class TestSeqUtils(unittest.TestCase):
         wt_seq = "GGAGAAGGGCTTCGACCAGGCGCCCGTGGTGGATGAGGCGGGGGTAATCCTGGGAATGGTGACGCTTGGGAACATGCTCTCGTCCCTGCTTGCCGGGAAGGTGCA"
         indel_seq = su.introduce_indels(wt_seq, 0.03)
         fasta_lines = [">WT", wt_seq, ">InDels", indel_seq]
-
         has_indels = False
 
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".test.fa") as test_fasta:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".test.fa", delete=False, dir=self.tempdir) as test_fasta:
             test_fasta.write(fu.FILE_NEWLINE.join(fasta_lines) + fu.FILE_NEWLINE)
-            fu.flush_files((test_fasta,))
-            ba = al.Bowtie2(
-                f1=test_fasta.name, output_dir=self.tempdir, config=al.BowtieConfig(self.GRCH38_chr21, False, 0, "f"))
+            test_fasta_fn = test_fasta.name
+
+        ba = al.Bowtie2(
+            f1=test_fasta_fn, output_dir=self.tempdir, config=al.BowtieConfig(self.GRCH38_chr21, False, 1, "f"))
 
         with pysam.AlignmentFile(ba.output_bam, "rb") as af:
             for align_seg in af.fetch():
