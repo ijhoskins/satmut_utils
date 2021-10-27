@@ -8,6 +8,7 @@ import os
 import pysam
 import random
 import tempfile
+import warnings
 
 from analysis.read_preprocessor import QnameVerification, ReadMasker
 from analysis import seq_utils as su
@@ -104,6 +105,16 @@ class ReadEditorPreprocessor(object):
         fu.safe_remove(tuple(temp_files))
 
 
+class NonconfiguredVariant(NotImplementedError):
+    """Exception to handle cases of missing configurations."""
+    pass
+
+
+class InvalidVariantConfig(NotImplementedError):
+    """Exception to handle cases of invalid variant configurations."""
+    pass
+
+
 class ReadEditor(object):
     """Class for editing concordant variants into paired-end sequencing alignments."""
 
@@ -120,6 +131,7 @@ class ReadEditor(object):
     MAX_DP = 100000000
     MIN_BQ = 1  # omit primer-masked bases where BQ = 0
     VAR_TAG_DELIM = "_"
+    DEFAULT_MAX_ERROR_RATE = 0.03
 
     TRUTH_VCF_SUFFIX = "truth.vcf"
     NORM_VCF_SUFFIX = "norm.vcf"
@@ -156,6 +168,9 @@ class ReadEditor(object):
         self.random_seed = random_seed
         self.nthreads = nthreads
 
+        _logger.info("Validating variant configurations.")
+        self._verify_variant_freqs()
+
         _logger.info("Left-normalizing variants, splitting any multi-allelic records, and sorting.")
         self.norm_sort_vcf = os.path.join(output_dir, fu.replace_extension(
             os.path.basename(variants), self.NORM_VCF_SUFFIX))
@@ -189,6 +204,33 @@ class ReadEditor(object):
 
         random.seed(self.random_seed)
 
+    def _verify_variant_freqs(self):
+        """Tests if the variant frequency sum exceeds 1 and if so, raises an exception.
+
+        :raises analysis.read_editor.NonconfiguredVariant: if the frequency sum across all positions exceeds 1
+        """
+
+        with pysam.VariantFile(self.variants) as vf:
+
+            af_sum = 0.0
+            for var in vf.fetch():
+                # Get the configurations for the variant to be edited
+                if vu.VCF_AF_ID not in var.info:
+                    var_id = "".join((var.contig, var.pos, var.ref, var.alts[0],))
+                    raise NonconfiguredVariant("Please provide an %s tag for variant %s." % (vu.VCF_AF_ID, var_id))
+
+                af_sum += var.info[vu.VCF_AF_ID]
+
+            if af_sum > 1.0:
+                raise InvalidVariantConfig(
+                    "Sum of all variant frequencies exceeds 1. Due to sim design constraints, all variants cannot be edited.")
+
+            if af_sum > (1.0 - self.DEFAULT_MAX_ERROR_RATE):
+                warnings.warn("Sum of all variant frequencies exceeds (1 - the default max error rate of %f). Some variants "
+                              "may not be edited due to preservation of errors." % self.DEFAULT_MAX_ERROR_RATE)
+
+            vf.reset()
+
     def _get_qname_alias(self, qname):
         """Maps qnames to integers for reduced memory footprint.
 
@@ -219,9 +261,7 @@ class ReadEditor(object):
             for var in vf.fetch():
 
                 # Get the configurations for the variant to be edited
-                af_val = 1.0
-                if vu.VCF_AF_ID in var.info:
-                    af_val = var.info[vu.VCF_AF_ID]
+                af_val = var.info[vu.VCF_AF_ID]
 
                 vct = VARIANT_CONFIG_TUPLE(
                     type=vu.get_variant_type(var.ref, var.alts[0]), contig=var.contig, pos=var.pos,

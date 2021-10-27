@@ -41,7 +41,6 @@ chr19	59062932	59063143	gi|571026644|ref|NM_014453.3|:703-913	500	-
 TEST_SAM = """@HD	VN:1.0	SO:coordinate
 @SQ	SN:chr19	LN:59128983
 @RG	ID:20Feb2019.08:11PM.read_gen.dna
-@PG	ID:bowtie2	PN:bowtie2	VN:2.3.4.3	CL:"/Users/ianhoskins/.conda/envs/Cenik_lab/bin/bowtie2-align-s --wrapper basic-0 --local --rg-id 20Feb2019.08:11PM.read_gen.dna -x /usr/local/bin/hg19.fa -1 read_gen_results/20Feb2019.08:11PM.read_gen.dna.r1.fq -2 read_gen_results/20Feb2019.08:11PM.read_gen.dna.r2.fq"
 chr19:59063248-59063359_657LTC3T6CFQ	163	chr19	59063256	44	103M1S	=	59063256	-104	GGATTTGGAGCACTCACTCGACAGCTCATCTGTTAGGCTAAGTCCCAGCTCATCCAGAACCTGGGACACCACAGCATCACTAGGGAAGAGAGAGAACTCAGTGT	IRLRQKLQSSMQKIJOKLOSKSPQISJKQSJMJJIOPMKQISLSPIKMPSQOMLQMMIORJQQLOPLIOSIQIOPNSQKMMSSJQNMPOSRIMMKJRRSOLOOL	AS:i:206	XN:i:0	XM:i:0	XO:i:0	XG:i:0	NM:i:0	MD:Z:103	YS:i:200	YT:Z:CP	RG:Z:20Feb2019.08:11PM.read_gen.dna
 chr19:59063248-59063359_657LTC3T6CFQ	83	chr19	59063256	44	104M	=	59063256	-104	GGATTTGGAGCACTCACTCGACAGCTCATCTGTTAGGCTAAGTCCCAGCTCTTCCAGAACCTGGGACACCACAGCATCACTAGGGAAGAGAGAGAACTCAGTGA	IRKJKORRNKRMRIMQSKINRPJMOLMSLROOQSMJKNSQKSIOLQKJNMJOOPLPKKLMSPMOMQROQJKKRPSPLNRLNMNSRMOSNNMQJQJOMSIRLKPR	AS:i:200	XN:i:0	XM:i:1	XO:i:0	XG:i:0	NM:i:1	MD:Z:51A52	YS:i:206	YT:Z:CP	RG:Z:20Feb2019.08:11PM.read_gen.dna
 chr19:59063248-59063359_KOQWXDQ80WB2	99	chr19	59063268	44	77M	=	59063268	-77	CTCACTCGACAGCTCATCGGTTAGGCTAAGTCCCAGCTCATCCAGAACCTGGGACACCACAGCATCACTAGGGAAGA	MILPPRLKINQJPQLMRLRMJOPLNPPJSKPPIIRJRSRJKOIQQMRLRKKSPNKMNIJPLSSRRMLOQLORSNKMN	AS:i:146	XN:i:0	XM:i:1	XO:i:0	XG:i:0	NM:i:1	MD:Z:18T58	YS:i:146	YT:Z:CP	RG:Z:20Feb2019.08:11PM.read_gen.dna
@@ -59,6 +58,7 @@ class TestSeqUtils(unittest.TestCase):
     """Tests for TestSeqUtils."""
 
     APPRIS_REF = "GRCh38.chr21.fa.gz"
+    CBS_REF = "CBS_pEZY3.fa"
 
     @classmethod
     def setUpClass(cls):
@@ -67,16 +67,12 @@ class TestSeqUtils(unittest.TestCase):
         cls.tempdir = tempfile.mkdtemp()
         cls.test_dir = os.path.dirname(__file__)
         cls.test_data_dir = os.path.abspath(os.path.join(cls.test_dir, "..", "test_data"))
-        cls.appris_ref_gz = os.path.join(cls.test_data_dir, cls.APPRIS_REF)
-        cls.GRCH38_chr21_gz = os.path.join(cls.tempdir, cls.APPRIS_REF)
-        cls.GRCH38_chr21 = os.path.join(cls.tempdir, fu.remove_extension(cls.APPRIS_REF))
+        cls.cbs_ref = os.path.join(cls.test_data_dir, cls.CBS_REF)
+        cls.cbs_ref_copy = os.path.join(cls.tempdir, cls.CBS_REF)
+        copyfile(cls.cbs_ref, cls.cbs_ref_copy)
 
-        # Unfortunately we must test with an entire human chromosome, but it is relatively small
-        copyfile(cls.appris_ref_gz, cls.GRCH38_chr21_gz)
-        fu.gunzip_file(cls.GRCH38_chr21_gz)
-
-        pysam.faidx(cls.GRCH38_chr21)
-        al.BowtieConfig(ref=cls.GRCH38_chr21).build_fm_index()
+        pysam.faidx(cls.cbs_ref_copy)
+        al.BowtieConfig(ref=cls.cbs_ref_copy).build_fm_index()
         cls.seq = "ATCGATTACG"
 
     @classmethod
@@ -119,7 +115,7 @@ class TestSeqUtils(unittest.TestCase):
             test_fasta_fn = test_fasta.name
 
         ba = al.Bowtie2(
-            f1=test_fasta_fn, output_dir=self.tempdir, config=al.BowtieConfig(self.GRCH38_chr21, False, 1, "f"))
+            f1=test_fasta_fn, output_dir=self.tempdir, config=al.BowtieConfig(self.cbs_ref_copy, False, 1, "f"))
 
         with pysam.AlignmentFile(ba.output_bam, "rb") as af:
             for align_seg in af.fetch():
@@ -132,8 +128,8 @@ class TestSeqUtils(unittest.TestCase):
     def test_extract_seq(self):
         """Test that we properly extract sequences from the genome."""
 
-        observed = su.extract_seq("21", 43053185, 43053195, self.GRCH38_chr21).upper()
-        expected = "CCACAATTGTG"
+        observed = su.extract_seq("CBS_pEZY3", 3200, 3204, self.cbs_ref_copy).upper()
+        expected = "TTCAC"
         self.assertEqual(observed, expected)
 
 
