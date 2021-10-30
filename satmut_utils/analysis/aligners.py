@@ -154,10 +154,10 @@ class Bowtie2(object):
 
             align_p = subprocess.Popen(call, stdout=subprocess.PIPE, stderr=bowtie2_stderr)
 
-            tobam_p = subprocess.Popen(["samtools", "view", "-u", "-"],
+            tobam_p = subprocess.Popen(("samtools", "view", "-u", "-"),
                                        stdin=align_p.stdout, stdout=subprocess.PIPE, stderr=bowtie2_stderr)
 
-            sort_p = subprocess.Popen(["samtools", "sort", "-"],
+            sort_p = subprocess.Popen(("samtools", "sort", "-"),
                                       stdin=tobam_p.stdout, stdout=out_file, stderr=bowtie2_stderr)
             sort_p.wait()
 

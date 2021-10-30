@@ -114,11 +114,15 @@ def parse_commandline_params(args):
 
     parser_call.add_argument("-2", "--fastq2", required=True, type=str, help='R2 FASTQ.')
 
-    parser_call.add_argument("-5", "--r1_fiveprime_adapters", required=True, type=str,
-                             help='Comma-delimited R1 5\' adapters.')
+    group2 = parser_call.add_mutually_exclusive_group(required=True)
+    group2.add_argument("-v", "--omit_trim", action="store_true",
+                        help='Flag to turn off adapter and 3\' base quality trimming. Useful for simulated data '
+                             'that has no adapters or has already been adapter-trimmed.')
 
-    parser_call.add_argument("-3", "--r1_threeprime_adapters", required=True, type=str,
-                             help='Comma-delimited R1 3\' adapters.')
+    group2.add_argument("-5", "--r1_fiveprime_adapters", type=str,
+                        help='Comma-delimited R1 5\' adapters.')
+
+    parser_call.add_argument("-3", "--r1_threeprime_adapters", type=str, help='Comma-delimited R1 3\' adapters.')
 
     parser_call.add_argument("-g", "--transcript_gff", type=str,
                              help='GFF file containing transcript metafeatures and exon features. The GFF must be from 5\' '
@@ -168,10 +172,6 @@ def parse_commandline_params(args):
 
     parser_call.add_argument("-b", "--trim_bq", type=int, default=FastqPreprocessor.TRIM_QUALITY,
                              help='Base quality for 3\' trimming. Default %i.' % FastqPreprocessor.TRIM_QUALITY)
-
-    parser_call.add_argument("-v", "--omit_trim", action="store_true",
-                             help='Flag to turn off adapter and 3\' base quality trimming. Useful for simulated data '
-                                  'that has already been adapter-trimmed.')
 
     parser_call.add_argument("-c", "--contig_del_threshold", type=int, default=ConsensusDeduplicator.CONTIG_DEL_THRESH,
                              help='If -z (RACE-like chemistry) and -cd (consensus deduplicate) are provided, '

@@ -86,50 +86,40 @@ It is recommended that the user create a new output directory for each job.
 Common arguments to both sim and call subcommands are provided first, then the subcommand, and then subcommand-specific arguments.
 
 
-Run the sim workflow on a test dataset:
+### Run sim
+
+Run sim on *in silico* alignments to generate SNPs, MNPs, and InDels:
 
 ```
 TEST_DIR="tests/test_data"
 
-python satmut_utils.py -i ENST00000398165.7 -x $REF_DIR -o $OUTPUT_DIR -p $TEST_DIR/CBS_insilico_primers.bed sim -f -a $TEST_DIR/CBS_sim.bam -v $TEST_DIR/CBS_sim.vcf
+python satmut_utils.py -i ENST00000398165.7 -x $REF_DIR -o $OUTPUT_DIR -p $TEST_DIR/CBS_sim_primers.bed sim -f -a $TEST_DIR/CBS_sim.bam -v $TEST_DIR/CBS_sim.vcf
 ```
 
-## sim outputs
+### sim outputs
 
 The sim workflow outputs paired FASTQs and a truth VCF containing expected variants and their frequencies. Optionally, edited reads may be filtered and realigned for further investigation.
 
 
-Run the call workflow:
+### Run call
 
-Run call by specifying an Ensembl transcript ID and the directory containing curated reference files:
+Run call on our simulated data by specifying an Ensembl transcript or gene ID and the directory containing curated reference files:
 ```
-python satmut_utils.py -i ENST00000398165.7 -x $REF_DIR -o $OUTPUT_DIR call -1 R1.fq.gz -2 R2.fq.gz -5 TACACGACGCTCTTCCGATCT -3 AGATCGGAAGAGCACACGTCT
-```
+TEST_DIR="tests/test_data"
 
-The Ensembl ID may also specify a gene:
-```
-python satmut_utils.py -i ENSG00000160200.17 -x $REF_DIR -o $OUTPUT_DIR call -1 R1.fq.gz -2 R2.fq.gz -5 TACACGACGCTCTTCCGATCT -3 AGATCGGAAGAGCACACGTCT
+python satmut_utils.py -i ENST00000398165.7 -x $REF_DIR -o $OUTPUT_DIR call -1 $TEST_DIR/CBS_sim.R1.fq.gz -2 $TEST_DIR/CBS_sim.R2.fq.gz -v
 ```
 
-If an Ensembl gene ID has more than one transcript isoform, satmut_utils will select the first transcript in the gencode.v29.annotation.gtf. IH TODO: select the only transcript available in the transcriptome GTF.
+Here, we call variants on a simulated dataset with no adapter sequences, so we pass -v. However, in typical cases, the user should provide 5' and 3' adapters for trimming.
 
-If the Ensembl ID is not in the curated set of primary transcripts, the user must provide their own reference files:
-```
-python satmut_utils.py -r CBS.fa -o $OUTPUT_DIR call -1 R1.fq.gz -2 R2.fq.gz -5 TACACGACGCTCTTCCGATCT -3 AGATCGGAAGAGCACACGTCT -g CBS.gtf -k GRCh38.fa
-```
 
-Additional files may be passed, such as a primer and target BED file:
-```
-python satmut_utils.py -i ENST00000398165.7 -x $REF_DIR -p primers.bed -o $OUTPUT_DIR call -1 R1.fq.gz -2 R2.fq.gz -5 TACACGACGCTCTTCCGATCT -3 AGATCGGAAGAGCACACGTCT -t target.bed
-```
-
-More than one 5' adapter and more than one 3' adapter are often needed to additionally trim vector sequences (e.g. attB sites) from reads of terminal PCR tiles that span the vector-CDS junctions. In this case, provide multiple comma-delimited adapters:
+If the Ensembl ID is not in the curated set of primary transcripts, or if the user wishes to align to a custom reference, several reference files most be provided (see Reference Files section):
 
 ```
--5 TACACGACGCTCTTCCGATCT,CAAGTTTGTACAAAAAAGTTGGC -3 AGATCGGAAGAGCACACGTCT,CCAACTTTCTTGTACAAAGTGGT
+python satmut_utils.py -r $TEST_DIR/CBS.fa -o $OUTPUT_DIR call -1 $TEST_DIR/CBS_sim.R1.fq.gz -2 $TEST_DIR/CBS_sim.R2.fq.gz -v -g $TEST_DIR/CBS.gff -k $REF_DIR/GRCh38.fa
 ```
 
-## call outputs
+### call outputs
 
 The call workflow produces a VCF of candidate variant calls as well as a BED file reporting fragment coverage across the reference.
 
