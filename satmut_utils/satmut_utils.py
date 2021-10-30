@@ -290,7 +290,7 @@ def sim_workflow(bam, vcf, race_like,
         os.mkdir(outdir)
 
     ref_fa = get_sim_reference(
-        reference_dir=reference_dir, ensembl_id=ensembl_id, ref=ref, outdir=os.path.join(outdir, "references"))
+        reference_dir=reference_dir, ensembl_id=ensembl_id, ref=ref, outdir=outdir)
 
     out_prefix = fu.remove_extension(os.path.basename(bam))
 
@@ -368,7 +368,7 @@ def call_workflow(fastq1, fastq2, r1_fiveprime_adapters, r1_threeprime_adapters,
     # Get and index the references
     ref_fa, gff, gff_ref = get_call_references(
         reference_dir=reference_dir, ensembl_id=ensembl_id, ref=ref, transcript_gff=transcript_gff,
-        gff_reference=gff_reference, outdir=os.path.join(outdir, "references"))
+        gff_reference=gff_reference, outdir=outdir)
 
     fqp_r1 = fastq1
     fqp_r2 = fastq2
