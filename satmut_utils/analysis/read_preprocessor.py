@@ -150,8 +150,6 @@ class QnameVerification(object):
         return False, None
 
 
-
-
 class FastqPreprocessor(object):
     """Class for pre-processing FASTQs prior to alignment."""
 
@@ -186,11 +184,14 @@ class FastqPreprocessor(object):
         self.f1 = f1
         self.f2 = f2
 
-        self.r1_fiveprime_adapters = tuple(
-            [e.strip(fu.FILE_SPACE) for e in r1_fiveprime_adapters.split(self.ADAPTER_DELIM)])
+        self.r1_fiveprime_adapters = None
+        self.r1_threeprime_adapters = None
+        if not no_trim:
+            self.r1_fiveprime_adapters = tuple(
+                [e.strip(fu.FILE_SPACE) for e in r1_fiveprime_adapters.split(self.ADAPTER_DELIM)])
 
-        self.r1_threeprime_adapters = tuple(
-            [e.strip(fu.FILE_SPACE) for e in r1_threeprime_adapters.split(self.ADAPTER_DELIM)])
+            self.r1_threeprime_adapters = tuple(
+                [e.strip(fu.FILE_SPACE) for e in r1_threeprime_adapters.split(self.ADAPTER_DELIM)])
 
         # No need to provide the R2 adapters as they are the reverse complements of the R1 adapters
         self.r2_fiveprime_adapters = tuple([su.reverse_complement(e) for e in self.r1_threeprime_adapters])
@@ -209,17 +210,18 @@ class FastqPreprocessor(object):
 
         self.log_file = os.path.join(outdir, os.path.basename(os.path.commonpath((f1, f2,))) + self.LOG_SUFFIX)
 
-        self.trimmed_f1 = os.path.join(outdir, fu.replace_extension(os.path.basename(f1), self.TRIM_EXT))
-
         # Ensure trimmed FASTQs contain a gz extension if the input FASTQs were also gzipped,
         # as cutadapt outputs same compression as input FASTQs
+        self.trimmed_f1 = os.path.join(outdir, fu.replace_extension(os.path.basename(f1), self.TRIM_EXT))
         if fu.is_gzipped(f1):
             self.trimmed_f1 = fu.add_extension(self.trimmed_f1, fu.get_extension(f1))
 
         self.trimmed_f2 = os.path.join(outdir, fu.replace_extension(os.path.basename(f2), self.TRIM_EXT))
-
         if fu.is_gzipped(f2):
             self.trimmed_f2 = fu.add_extension(self.trimmed_f2, fu.get_extension(f2))
+
+        if self.validate:
+            self.run_fastqc()
 
         if not self.no_trim:
             self.workflow()
@@ -281,9 +283,6 @@ class FastqPreprocessor(object):
 
     def workflow(self):
         """Runs the FastqPreprocessor workflow."""
-
-        if self.validate:
-            self.run_fastqc()
 
         self.run_cutadapt()
 
