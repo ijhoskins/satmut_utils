@@ -91,7 +91,7 @@ Run the sim workflow on a test dataset:
 ```
 TEST_DIR="tests/test_data"
 
-python satmut_utils.py -i ENST00000398165.7 -x $REF_DIR -o $OUTPUT_DIR -p $TEST_DIR/CBS_insilico_primers.bed sim -f -a $TEST_DIR/CBS_sim.bam -v $TEST_DIR/sim_variants.vcf
+python satmut_utils.py -i ENST00000398165.7 -x $REF_DIR -o $OUTPUT_DIR -p $TEST_DIR/CBS_insilico_primers.bed sim -f -a $TEST_DIR/CBS_sim.bam -v $TEST_DIR/CBS_sim.vcf
 ```
 
 ## sim outputs

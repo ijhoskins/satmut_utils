@@ -96,6 +96,10 @@ def parse_commandline_params(args):
                             help='VCF file specifying variants to edit. Should have an AF INFO field for each variant, '
                                  'specifying the fraction of fragments with overlapping coverage to edit into.')
 
+    parser_sim.add_argument("-b", "--edit_buffer", type=int,
+                            help='Buffer +/- the edit coordinate positions (s) to check for pre-existing errors in reads. '
+                                 'Used to restrict phasing of true variants with errors, leading to false negatives.')
+
     parser_sim.add_argument("-f", "--force_edit", action="store_true",
                             help='Flag to force editing of variants despite invalid variant configurations (AF sum > 1).')
 
@@ -428,10 +432,10 @@ def main():
     if parsed_args.subcommand == SIM_WORKFLOW:
 
         _, _, _ = sim_workflow(
-            bam=args_dict["alignments"], vcf=args_dict["vcf"], race_like=parsed_args["race_like"],
+            bam=args_dict["alignments"], vcf=args_dict["vcf"], race_like=args_dict["race_like"],
             ensembl_id=args_dict["ensembl_id"], reference_dir=args_dict["reference_dir"],
             ref=args_dict["reference"], primers=args_dict["primers"], outdir=args_dict["outdir"],
-            random_seed=args_dict["random_seed"], force_edit=parsed_args["force_edit"],
+            random_seed=args_dict["random_seed"], force_edit=args_dict["force_edit"],
             nthreads=args_dict["nthreads"])
 
     elif parsed_args.subcommand == CALL_WORKFLOW:

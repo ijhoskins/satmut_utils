@@ -386,9 +386,10 @@ class ReadEditor(object):
         indices = (idx_min, idx_max)
         return indices
 
-    def _ref_matches_window(self, query_seq, query_pos, ref_len, ref_pos):
+    def _ref_matches_window(self, contig, query_seq, query_pos, ref_len, ref_pos):
         """Determines if the read sequence matches the reference within a window about the edit position.
 
+        :param str contig: contig reference name
         :param str query_seq: read sequence
         :param int query_pos: position of the edit relative to the read
         :param int ref_len: length of the edited variant REF field
@@ -406,7 +407,7 @@ class ReadEditor(object):
         read_seq_window = query_seq[read_idx_min:read_idx_max]
 
         ref_idx_min, ref_idx_max = self._get_window_indices(ref_pos, ref_len)
-        ref_seq_window = su.extract_seq(contig=self.ref, start=ref_idx_min, stop=ref_idx_max - 1, ref=self.ref)
+        ref_seq_window = su.extract_seq(contig=contig, start=ref_idx_min, stop=ref_idx_max - 1, ref=self.ref)
 
         if read_seq_window == ref_seq_window:
             return True
@@ -486,7 +487,7 @@ class ReadEditor(object):
                     # If the editable read position does not match the reference sequence in a window about the variant
                     # position, do not edit; this preserves existing errors and prohibits variant conversion by phasing
                     # with nearby errors
-                    if not self._ref_matches_window(
+                    if not self._ref_matches_window(contig=pileup_read.alignment.get_reference_name(0),
                             query_seq=pileup_read.alignment.query_sequence, query_pos=pileup_read.query_position,
                             ref_len=len_ref, ref_pos=pileup_read.alignment.reference_start + pileup_read.query_position):
 
