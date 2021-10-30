@@ -5,6 +5,7 @@ import argparse
 import logging
 import os
 import pysam
+from shutil import copy
 import sys
 import tempfile
 
@@ -215,7 +216,8 @@ def get_sim_reference(reference_dir, ensembl_id, ref, outdir=ri.ReadEditor.DEFAU
         ref_fa, _ = get_ensembl_references(reference_dir=reference_dir, ensembl_id=ensembl_id, outdir=outdir)
     else:
         ref_fa = ref
-        index_reference(ref_fa)
+        copy(ref_fa, outdir)
+        index_reference(os.path.join(outdir, os.path.basename(ref_fa)))
 
     return ref_fa
 
@@ -246,7 +248,8 @@ def get_call_references(reference_dir, ensembl_id, ref, transcript_gff, gff_refe
         gff_ref = os.path.join(reference_dir, GRCH38_FASTA)
     else:
         ref_fa = ref
-        index_reference(ref_fa)
+        copy(ref_fa, outdir)
+        index_reference(os.path.join(outdir, os.path.basename(ref_fa)))
 
         # Make sure the GFF reference has a samtools index file
         if not os.path.exists(fu.add_extension(ref, FASTA_INDEX_SUFFIX)):
