@@ -446,7 +446,7 @@ def main():
         _, _ = call_workflow(
             fastq1=args_dict["fastq1"], fastq2=args_dict["fastq2"],
             r1_fiveprime_adapters=args_dict["r1_fiveprime_adapters"],
-            r1_threeprime_adapters=args_dict["r1_threeprime_adapters"], race_like=parsed_args["race_like"],
+            r1_threeprime_adapters=args_dict["r1_threeprime_adapters"], race_like=args_dict["race_like"],
             ensembl_id=args_dict["ensembl_id"], reference_dir=args_dict["reference_dir"], ref=args_dict["reference"],
             transcript_gff=args_dict["transcript_gff"], gff_reference=args_dict["gff_reference"],
             targets=VariantCaller.VARIANT_CALL_TARGET,outdir=args_dict["outdir"], primers=args_dict["primers"],
@@ -455,7 +455,7 @@ def main():
             contig_del_thresh=args_dict["contig_del_threshold"], min_bq=args_dict["min_bq"],
             max_nm=args_dict["max_nm"], min_supporting_qnames=args_dict["min_supporting"],
             max_mnp_window=args_dict["max_mnp_window"], nthreads=args_dict["nthreads"],
-            ntrimmed=args_dict["ntrimmed"], overlap_len=parsed_args["overlap_length"],
+            ntrimmed=args_dict["ntrimmed"], overlap_len=args_dict["overlap_length"],
             trim_bq=args_dict["trim_bq"], omit_trim=args_dict["omit_trim"],
             mut_sig=args_dict["mutagenesis_signature"])
 
