@@ -487,9 +487,10 @@ class ReadEditor(object):
                     # If the editable read position does not match the reference sequence in a window about the variant
                     # position, do not edit; this preserves existing errors and prohibits variant conversion by phasing
                     # with nearby errors
-                    if not self._ref_matches_window(contig=pileup_read.alignment.get_reference_name(0),
-                            query_seq=pileup_read.alignment.query_sequence, query_pos=pileup_read.query_position,
-                            ref_len=len_ref, ref_pos=pileup_read.alignment.reference_start + pileup_read.query_position):
+                    if not self._ref_matches_window(
+                            contig=pileup_read.alignment.reference_name, query_seq=pileup_read.alignment.query_sequence,
+                            query_pos=pileup_read.query_position, ref_len=len_ref,
+                            ref_pos=pileup_read.alignment.reference_start + pileup_read.query_position + 1):
 
                         continue
 
@@ -585,8 +586,8 @@ class ReadEditor(object):
         """
 
         r1_fastq, r2_fastq = su.bam_to_fastq(bam=self.temp_edit_bam, out_prefix=self.out_path)
-        zipped_r1_fastq = fu.gzip_file(r1_fastq)
-        zipped_r2_fastq = fu.gzip_file(r2_fastq)
+        zipped_r1_fastq = fu.gzip_file(r1_fastq, force=True)
+        zipped_r2_fastq = fu.gzip_file(r2_fastq, force=True)
         return zipped_r1_fastq, zipped_r2_fastq
 
     @staticmethod
@@ -602,7 +603,7 @@ class ReadEditor(object):
 
         # start should be 0-based whereas the variant configs have 1-based coordinates
         new_variant_record = truth_vcf_fh.new_record(
-            contig=vc.contig, start=vc.pos - 1, stop=vc.pos - 1 + len(vc.ref), alleles=(vc.ref, vc.alt), info=info_dict)
+            contig=vc.contig, start=vc.pos - 1, alleles=(vc.ref, vc.alt), info=info_dict)
 
         truth_vcf_fh.write(new_variant_record)
 

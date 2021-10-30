@@ -2,7 +2,7 @@
 ##FILTER=<ID=PASS,Description="All filters passed">
 ##contig=<ID=ENST00000398165.7|ENSG00000160200.17|OTTHUMG00000086834.7|OTTHUMT00000195525.1|CBS-204|CBS|2605|protein_coding|>
 ##INFO=<ID=AAM_AA_CHANGE,Number=.,Type=String,Description="Can_Cenik_lab.Ian_Hoskins.satmut_utils.analysis.coordinate_mapper.AminoAcidMapper comma-delimited amino acid changes.">
-##INFO=<ID=VARTYPE,Number=.,Type=String,Description="Variant type. MNPs are confined to a codon. Haplotypes span codons.">
+##INFO=<ID=VARTYPE,Number=.,Type=String,Description="Variant type.">
 ##INFO=<ID=AF,Number=1,Type=Float,Description="Allele frequency in range (0,1).">
 #CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO
 ENST00000398165.7|ENSG00000160200.17|OTTHUMG00000086834.7|OTTHUMT00000195525.1|CBS-204|CBS|2605|protein_coding|	795	.	GAC	ATG	.	.	AAM_AA_CHANGE=p.D179M;VARTYPE=tri_nt_MNP;AF=1.0

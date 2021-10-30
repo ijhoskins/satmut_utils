@@ -58,11 +58,11 @@ def parse_commandline_params(args):
     # Enforce that ensembl_id and reference are mutually exclusive and that at least one is provided
     group = parser.add_mutually_exclusive_group(required=True)
 
-    group.add_argument("-i", "--ensembl_id", type=str,
+    group.add_argument("-i", "--ensembl_id", type=none_or_str, default="None",
                        help='Ensembl gene (ENSG) or transcript (ENST) ID to use to select a transcript reference. '
                             'Include minor version number, e.g. ENST00000398165.7')
 
-    group.add_argument("-r", "--reference", type=str, help='Reference FASTA for alignment.')
+    group.add_argument("-r", "--reference", type=none_or_str, default="None", help='Reference FASTA for alignment.')
 
     parser.add_argument("-x", "--reference_dir", type=str, default="./references",
                         help='Directory containing curated reference files.')
@@ -71,7 +71,7 @@ def parse_commandline_params(args):
                         help='Flag for data generated from a RACE-like chemistry with R1s starting at variable ends '
                              'and R2s starting at primers.')
 
-    parser.add_argument("-p", "--primers", type=none_or_str,
+    parser.add_argument("-p", "--primers", type=none_or_str, default="None",
                         help='Optional primer BED file with a strand field. Recommended for removing synthetic errors '
                              'from alignments.')
 
@@ -268,7 +268,7 @@ def sim_workflow(bam, vcf, race_like,
     :param bool race_like: is the data produced by RACE-like (e.g. AMP) data? Default False.
     :param str | None ensembl_id: Ensembl gene or transcript ID, with version number
     :param str reference_dir: directory containing curated APPRIS reference files. Default ./references.
-    :param str ref: indexed reference FASTA
+    :param str | None ref: indexed reference FASTA; mutually exclusive with ensembl_id
     :param str | None primers: feature file of primer locations for read masking and primer detection
     :param str outdir: Optional output directory to store generated FASTQs and BAM
     :param int random_seed: seed for random qname sampling

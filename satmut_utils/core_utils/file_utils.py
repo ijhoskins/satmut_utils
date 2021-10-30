@@ -100,15 +100,22 @@ def replace_extension(filename, ext, ignore_exts=(".gz", ".bz", ".bz2",)):
     return ext_res
 
 
-def gzip_file(filename):
+def gzip_file(filename, force=False):
     """Gzips a file.
 
     :param str filename: file path
+    :param bool force: force overwrite? Default False.
     :return str: path of the gzipped file
     """
 
     if os.path.exists(filename):
-        subprocess.call(("gzip", filename))
+
+        gzip_call = ["gzip"]
+        if force:
+            gzip_call.append("--force")
+        gzip_call.append(filename)
+
+        subprocess.call(tuple(gzip_call))
         return add_extension(filename, GZ_EXTENSION)
     else:
         raise RuntimeError("Filename %s not found." % filename)

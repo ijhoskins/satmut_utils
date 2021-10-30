@@ -24,8 +24,8 @@ tempfile.tempdir = os.getenv("SCRATCH", "/tmp")
 DEFAULT_ERROR_RATE = 0.01
 DEFAULT_INDEL_RATE = 0.005
 MASKED_BQ = 0
-DEFAULT_MIN_BQ = 40
-DEFAULT_MAX_BQ = 50
+DEFAULT_MIN_BQ = 35
+DEFAULT_MAX_BQ = 40
 DEFAULT_MAPQ = 0
 DEFAULT_READ_LEN = 150
 MIN_ALIGN_LEN = 30
@@ -211,13 +211,16 @@ def extract_seq(contig, start, stop, ref):
     :return str: sequence
     """
 
-    coord_str = COORD_FORMAT.format(*list(map(str, [contig, start, stop])))
+    coord_str = COORD_FORMAT.format(*list(map(str, (contig, start, stop,))))
 
     # Use pysam.faidx for fast random access of seqs
-    seq_fa = pysam.faidx(ref, coord_str)
+    with pysam.FastaFile(ref) as fasta:
+        seq = fasta.fetch(region=coord_str)
+
+    #seq_fa = pysam.faidx(ref, coord_str)
 
     # seq could wrap on many lines, but first is always header
-    seq = "".join([line for line in seq_fa.split(FILE_NEWLINE)[1:]])
+    #seq = "".join([line for line in seq_fa.split(FILE_NEWLINE)[1:]])
 
     return seq
 

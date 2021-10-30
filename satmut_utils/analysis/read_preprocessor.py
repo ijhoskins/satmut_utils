@@ -1213,6 +1213,7 @@ class ReadMasker(object):
         self.race_like = race_like
         self.sort_cmd = sort_cmd
         self.nthreads = nthreads
+        self.outdir = outdir
         self.out_bam = os.path.join(outdir, fu.replace_extension(os.path.basename(in_bam), self.MASKED_SUFFIX))
 
         self.feature_file_type = ffu.BED_FILETYPE if self.feature_file.endswith(ffu.BED_FILETYPE) else ffu.GFF_FILETYPE
@@ -1258,8 +1259,7 @@ class ReadMasker(object):
 
         # Finally run the custom intersect, groupby, and sort pipeline in a subprocess
         with tempfile.NamedTemporaryFile(mode="w", suffix=".read.primer.intersect.bed", delete=False) as out_file, \
-                open(os.path.join(os.path.dirname(os.path.abspath(self.in_bam)),
-                                  "%s.stderr.log" % self.__class__.__name__), "a") as masker_stderr:
+                open(os.path.join(self.outdir, "%s.stderr.log" % self.__class__.__name__), "a") as masker_stderr:
 
             intersect_p = subprocess.Popen(intersect_cmd, stdout=subprocess.PIPE, stderr=masker_stderr)
             groupby_p = subprocess.Popen(groupby_cmd, stdin=intersect_p.stdout, stdout=subprocess.PIPE, stderr=masker_stderr)
