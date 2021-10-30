@@ -124,14 +124,14 @@ class ReadEditor(object):
     DEFAULT_PRIMERS = None
     DEFAULT_OUTDIR = "."
     DEFAULT_PREFIX = None
-    DEFAULT_REALIGN = False
-    DEFAULT_FILTER = True
+    DEFAULT_FORCE = False
     DEFAULT_SEED = 9
     DEFAULT_NTHREADS = 0
     MAX_DP = 100000000
     MIN_BQ = 1  # omit primer-masked bases where BQ = 0
     VAR_TAG_DELIM = "_"
     DEFAULT_MAX_ERROR_RATE = 0.03
+    DEFAULT_MATCH_WINDOW = 3
 
     TRUTH_VCF_SUFFIX = "truth.vcf"
     NORM_VCF_SUFFIX = "norm.vcf"
@@ -139,7 +139,7 @@ class ReadEditor(object):
 
     def __init__(self, bam, variants, ref, race_like=ReadEditorPreprocessor.DEFAULT_RACE_LIKE,
                  primers=DEFAULT_PRIMERS, output_dir=DEFAULT_OUTDIR, output_prefix=DEFAULT_PREFIX,
-                 random_seed=DEFAULT_SEED, nthreads=DEFAULT_NTHREADS):
+                 random_seed=DEFAULT_SEED, force_edit=DEFAULT_FORCE, nthreads=DEFAULT_NTHREADS):
         r"""Constructor for ReadEditor.
 
         :param str bam: alignments to edit into.
@@ -152,6 +152,7 @@ class ReadEditor(object):
         :param str output_dir: Optional output directory to store generated FASTQs and BAM. Default current directory.
         :param str | None output_prefix: Optional output prefix for the FASTQ(s) and BAM
         :param int random_seed: seed for random qname sampling
+        :param bool force_edit: flag to attempt editing of variants despite a NonconfiguredVariant exception.
         :param int nthreads: Number of threads to use for SAM/BAM operations and alignment. Default 0 (autodetect) \
         for samtools operations. If 0, will pass 1 to bowtie2 --threads.
 
@@ -166,6 +167,7 @@ class ReadEditor(object):
         self.output_dir = output_dir
         self.output_prefix = output_prefix
         self.random_seed = random_seed
+        self.force_edit = force_edit
         self.nthreads = nthreads
 
         _logger.info("Validating variant configurations.")
@@ -221,13 +223,14 @@ class ReadEditor(object):
 
                 af_sum += var.info[vu.VCF_AF_ID]
 
-            if af_sum > 1.0:
+            if af_sum > (1.0 - self.DEFAULT_MAX_ERROR_RATE):
+                warnings.warn(
+                    "Sum of all variant frequencies exceeds (1 - the default max error rate of %f). Some variants "
+                    "may not be edited due to preservation of errors." % self.DEFAULT_MAX_ERROR_RATE)
+
+            if af_sum > 1.0 and not self.force_edit:
                 raise InvalidVariantConfig(
                     "Sum of all variant frequencies exceeds 1. Due to sim design constraints, all variants cannot be edited.")
-
-            if af_sum > (1.0 - self.DEFAULT_MAX_ERROR_RATE):
-                warnings.warn("Sum of all variant frequencies exceeds (1 - the default max error rate of %f). Some variants "
-                              "may not be edited due to preservation of errors." % self.DEFAULT_MAX_ERROR_RATE)
 
             vf.reset()
 
@@ -369,6 +372,47 @@ class ReadEditor(object):
 
         return total_qnames, amenable_qnames
 
+    def _get_window_indices(self, pos, ref_len):
+        """Generates slice indices for a window about the position.
+
+        :param int pos: coordinate position of the variant, local to the read or relative to the reference
+        :param int ref_len: span of the variant REF
+        :return tuple: (int, int) min and max indices for the window
+        """
+
+        idx_min = pos - self.DEFAULT_MATCH_WINDOW
+        # idx_max is 1 past the end index to be checked (to accomodate python range behavior)
+        idx_max = pos + ref_len + self.DEFAULT_MATCH_WINDOW
+        indices = (idx_min, idx_max)
+        return indices
+
+    def _ref_matches_window(self, query_seq, query_pos, ref_len, ref_pos):
+        """Determines if the read sequence matches the reference within a window about the edit position.
+
+        :param str query_seq: read sequence
+        :param int query_pos: position of the edit relative to the read
+        :param int ref_len: length of the edited variant REF field
+        :param int ref_pos: 1-based coordinate position of the edited variant
+        :return bool: whether or not the read sequence matches the reference within the window
+        """
+
+        query_seq_len = len(query_seq)
+
+        read_idx_min, read_idx_max = self._get_window_indices(query_pos, ref_len)
+
+        # Handle cases where the read position is near the termini of the read
+        read_idx_min = 0 if read_idx_min < 0 else read_idx_min
+        read_idx_max = query_seq_len if read_idx_max > query_seq_len else read_idx_max
+        read_seq_window = query_seq[read_idx_min:read_idx_max]
+
+        ref_idx_min, ref_idx_max = self._get_window_indices(ref_pos, ref_len)
+        ref_seq_window = su.extract_seq(contig=self.ref, start=ref_idx_min, stop=ref_idx_max - 1, ref=self.ref)
+
+        if read_seq_window == ref_seq_window:
+            return True
+
+        return False
+
     def _get_edit_configs(self):
         """Gets a dictionary of read editing configurations and writes variants to the truth VCF.
 
@@ -439,18 +483,13 @@ class ReadEditor(object):
                     if pileup_read.is_del or pileup_read.is_refskip:
                         continue
 
-                    # If the editable read position does not match the reference sequence, do not edit
-                    # This should handle cases where editing InDels at the termini of read does not raise an IndexError
-                    end_pos = pileup_read.query_position + len_ref
-                    if end_pos > pileup_read.alignment.query_alignment_length:
+                    # If the editable read position does not match the reference sequence in a window about the variant
+                    # position, do not edit; this preserves existing errors and prohibits variant conversion by phasing
+                    # with nearby errors
+                    if not self._ref_matches_window(
+                            query_seq=pileup_read.alignment.query_sequence, query_pos=pileup_read.query_position,
+                            ref_len=len_ref, ref_pos=pileup_read.alignment.reference_start + pileup_read.query_position):
 
-                        # If we match up to the end position of the REF (e.g. in a del at terminus), we may edit
-                        # Otherwise, the slice will create a string that does not match the pc_ref_base
-                        end_pos = pileup_read.alignment.query_alignment_length
-
-                    obs_bps = pileup_read.alignment.query_sequence[pileup_read.query_position:end_pos]
-
-                    if obs_bps != pc_ref_base:
                         continue
 
                     amenable_qnames.append(qname_alias)
@@ -569,11 +608,7 @@ class ReadEditor(object):
     def workflow(self):
         r"""Runs the ReadEditor workflow.
 
-        :return tuple: (str, str, str) paths of the edited BAM, R1 FASTQ, R2 FASTQ
-
-        Note: the edited BAM should not be used for variant calling as its CIGAR and MD tags have not been updated. \
-        I prefer re-alignment rather than CIGAR and MD tag update for simplicity. However alignment incurs a cost so \
-        in the future implement BAM tag updates with samtools.
+        :return tuple: (str, str, str) paths of the edited and realigned BAM, R1 FASTQ, R2 FASTQ
         """
 
         _logger.info("Getting edit configs. This could take time if aligned depth across target positions is high.")

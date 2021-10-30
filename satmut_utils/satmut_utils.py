@@ -96,6 +96,9 @@ def parse_commandline_params(args):
                             help='VCF file specifying variants to edit. Should have an AF INFO field for each variant, '
                                  'specifying the fraction of fragments with overlapping coverage to edit into.')
 
+    parser_sim.add_argument("-f", "--force_edit", action="store_true",
+                            help='Flag to force editing of variants despite invalid variant configurations (AF sum > 1).')
+
     parser_sim.add_argument("-s", "--random_seed", type=int, default=9, help='Seed for random read sampling.')
 
     # call subcommand
@@ -253,7 +256,7 @@ def sim_workflow(bam, vcf, race_like,
                  ensembl_id=ri.ReadEditor.DEFAULT_ENSEMBL_ID, reference_dir=ri.ReadEditor.DEFAULT_REFERENCE_DIR,
                  ref=ri.ReadEditor.DEFAULT_REF, primers=ri.ReadEditor.DEFAULT_PRIMERS,
                  outdir=ri.ReadEditor.DEFAULT_OUTDIR, random_seed=ri.ReadEditor.DEFAULT_SEED,
-                 nthreads=ri.ReadEditor.DEFAULT_NTHREADS):
+                 force_edit=ri.ReadEditor.DEFAULT_FORCE, nthreads=ri.ReadEditor.DEFAULT_NTHREADS):
     """Runs the satmut_utils sim workflow.
 
     :param str bam: BAM file to edit into
@@ -265,6 +268,7 @@ def sim_workflow(bam, vcf, race_like,
     :param str | None primers: feature file of primer locations for read masking and primer detection
     :param str outdir: Optional output directory to store generated FASTQs and BAM
     :param int random_seed: seed for random qname sampling
+    :param bool force_edit: flag to attempt editing of variants despite a NonconfiguredVariant exception.
     :param int nthreads: Number of threads to use for SAM/BAM operations and alignment. Default 0 (autodetect) \
     for samtools operations. If 0, will pass 1 to bowtie2 --threads.
     :return tuple: (str | None, str, str | None) paths of the edited BAM, R1 FASTQ, R2 FASTQ
@@ -286,8 +290,8 @@ def sim_workflow(bam, vcf, race_like,
     # Run the editing workflow
     output_bam, zipped_r1_fastq, zipped_r2_fastq = ri.ReadEditor(
         bam=bam, variants=vcf, ref=ref_fa, race_like=race_like, primers=primers,
-        output_dir=outdir, output_prefix=out_prefix,
-        random_seed=random_seed, nthreads=nthreads).workflow()
+        output_dir=outdir, output_prefix=out_prefix, random_seed=random_seed,
+        force_edit=force_edit, nthreads=nthreads).workflow()
 
     return output_bam, zipped_r1_fastq, zipped_r2_fastq
 
@@ -427,7 +431,8 @@ def main():
             bam=args_dict["alignments"], vcf=args_dict["vcf"], race_like=parsed_args["race_like"],
             ensembl_id=args_dict["ensembl_id"], reference_dir=args_dict["reference_dir"],
             ref=args_dict["reference"], primers=args_dict["primers"], outdir=args_dict["outdir"],
-            random_seed=args_dict["random_seed"], nthreads=args_dict["nthreads"])
+            random_seed=args_dict["random_seed"], force_edit=parsed_args["force_edit"],
+            nthreads=args_dict["nthreads"])
 
     elif parsed_args.subcommand == CALL_WORKFLOW:
 

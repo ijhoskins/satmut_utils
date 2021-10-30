@@ -120,9 +120,10 @@ class TestReadEditor(unittest.TestCase):
                     cls.test_align_seg = align_seg
                 break
 
+        # Force edit of all variants despite their frequency sum exceeding 1
         cls.ed = ed.ReadEditor(
             cls.test_bam, variants=cls.test_vcf, ref=cls.cbs_ref_copy, primers=cls.test_primers,
-            output_dir=cls.tempdir, output_prefix="test_editor")
+            output_dir=cls.tempdir, output_prefix="test_editor", force_edit=True)
 
         cls.observed_edit_configs = cls.ed._get_edit_configs()
 
@@ -290,6 +291,11 @@ class TestReadEditor(unittest.TestCase):
                 edited_background_af.reset()
 
                 self.assertTrue(all(test_res))
+
+    def test_get_window_indices_local(self):
+        """Tests that indices for a window about a local read position are properly returned."""
+
+        self.ed._get_window_indices()
 
     def test_get_edit_configs_trint_mnp_and_masking_detection(self):
         """Tests update of the edit config dictionary for a tri-nt MNP and implicitly tests BQ masking detection."""
@@ -510,3 +516,11 @@ class TestReadEditor(unittest.TestCase):
 
         test_res = (test_1, test_2,)
         self.assertTrue(all(test_res))
+
+    def test_force_edit(self):
+        """Test that a InvalidVariantConfig exception is raised with invalid variant frequency configurations."""
+
+        with self.assertRaises(ed.InvalidVariantConfig):
+            _ = ed.ReadEditor(
+                self.test_bam, variants=self.test_vcf, ref=self.cbs_ref_copy, primers=self.test_primers,
+                output_dir=self.tempdir, output_prefix="test_editor", force_edit=False)

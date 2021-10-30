@@ -32,7 +32,7 @@ conda activate satmut_utils
 
 Create a reference directory:
 ```
-REF_DIR="/path_to_refs"
+REF_DIR="./path_to_refs"
 mkdir $REF_DIR
 ```
 
@@ -81,30 +81,17 @@ python satmut_utils.py call -h
 ```
 
 It is recommended that the user create a new output directory for each job.
-```OUTPUT_DIR="/path_to_output_folder"```
+```OUTPUT_DIR="./satmut_utils_test"```
 
 Common arguments to both sim and call subcommands are provided first, then the subcommand, and then subcommand-specific arguments.
 
 
-Run the sim workflow:
+Run the sim workflow on a test dataset:
 
 ```
-python satmut_utils.py -i ENST00000398165.7 -x $REF_DIR -o $OUTPUT_DIR sim -a negative_control.bam -v sim_variants.vcf
-```
+TEST_DIR="tests/test_data"
 
-Provide a primer BED file for primer-aware selection of reads for editing:
-```
-python satmut_utils.py -i ENST00000398165.7 -x $REF_DIR -o $OUTPUT_DIR -p primers.bed sim -a negative_control.bam -v sim_variants.vcf
-```
-
-Filter edited reads and realign them for investigation of false negatives and positives.
-```
-python satmut_utils.py -i ENST00000398165.7 -x $REF_DIR -o $OUTPUT_DIR -p primers.bed sim -a negative_control.bam -v sim_variants.vcf -f
-```
-
-Use a random seed to select different reads for editing:
-```
-python satmut_utils.py -i ENST00000398165.7 -x $REF_DIR -o $OUTPUT_DIR -p primers.bed sim -a negative_control.bam -v sim_variants.vcf -s 99
+python satmut_utils.py -i ENST00000398165.7 -x $REF_DIR -o $OUTPUT_DIR -p $TEST_DIR/CBS_insilico_primers.bed sim -f -a $TEST_DIR/CBS_sim.bam -v $TEST_DIR/sim_variants.vcf
 ```
 
 ## sim outputs

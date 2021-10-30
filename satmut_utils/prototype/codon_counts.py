@@ -29,7 +29,7 @@ _logger = logging.getLogger(__name__)
 class CodonTrnaCounts(AminoAcidMapper):
     """Class for enumerating codons and tRNA counts for a CDS."""
 
-    HG19_CODON_TRNA_COUNTS_FN = "codon_permutations/hg19-tRNAs-confidence-set.codons.counts.txt"
+    HG19_CODON_TRNA_COUNTS_FN = "nnk_codon_permutations/hg19-tRNAs-confidence-set.codons.counts.txt"
     HG19_CODON_TRNA_COUNTS = collections.defaultdict(int)
 
     with open(HG19_CODON_TRNA_COUNTS_FN, "r") as counts_fh:

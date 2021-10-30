@@ -176,7 +176,7 @@ class TestSamtools(unittest.TestCase):
 
         with open(res, "r") as out_sam:
             # Remove the newly added program header
-            observed = out_sam.readlines()[0:4]
+            observed = out_sam.readlines()[0:3]
             observed = "".join(observed)
 
         # Do not copy the last header line which will have a new line added by samtools
@@ -215,9 +215,9 @@ class TestSamtools(unittest.TestCase):
 
         with open(res, "r") as outsam:
             for i, line in enumerate(outsam):
-                if i == 6:
+                if i == 5:
                     start_pos = int(line.split(fu.FILE_DELIM)[3])
-                if i == 15:
+                if i == 14:
                     end_pos = int(line.split(fu.FILE_DELIM)[3])
 
         fu.safe_remove((out_sam, out_bam, res), force_remove=True)

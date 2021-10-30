@@ -3,6 +3,7 @@
 
 import pysam
 import gzip
+import shutil
 import tempfile
 import unittest
 
@@ -51,8 +52,11 @@ class TestAminoAcidMapper(unittest.TestCase):
 
         cls.cbs_pezy3_cds_seq = cls.cbs_pezy3_trx_seq[973:2629]
 
-        # APPRIS references on both strands
+        # APPRIS transcripts on both strands require a genome reference
         cls.appris_ref_gz = os.path.join(cls.test_data_dir, cls.APPRIS_REF)
+        cls.appris_ref_copy_gz = os.path.join(cls.tempdir, cls.APPRIS_REF)
+        cls.temp_ref_fa = fu.remove_extension(cls.appris_ref_copy_gz)
+        pysam.faidx(cls.temp_ref_fa)
 
         # This just has CBS and PKNOX1 annotations
         cls.appris_gff = os.path.join(cls.test_data_dir, GENCODE_TRX_GFF)
@@ -60,16 +64,6 @@ class TestAminoAcidMapper(unittest.TestCase):
         # For sequence comparison use the sequences extracted from the transcriptome
         cls.cbs_ref = os.path.join(cls.test_data_dir, cls.CBS_REF)
         cls.pknox1_ref = os.path.join(cls.test_data_dir, cls.PKNOX1_REF)
-
-        with gzip.open(cls.appris_ref_gz) as appris_ref_in, \
-                tempfile.NamedTemporaryFile(mode="w", suffix=".fa", delete=False, dir=cls.tempdir) as appris_ref_out:
-
-            for line in appris_ref_in:
-                appris_ref_out.write(line.decode())
-
-            cls.temp_ref_fa = appris_ref_out.name
-
-        pysam.faidx(cls.temp_ref_fa)
 
         cls.appris_aa_mapper = cm.AminoAcidMapper(
             gff=cls.appris_gff, ref=cls.temp_ref_fa, outdir=cls.tempdir, use_pickle=False, make_pickle=False,
