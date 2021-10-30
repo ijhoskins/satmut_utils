@@ -186,6 +186,8 @@ class FastqPreprocessor(object):
 
         self.r1_fiveprime_adapters = None
         self.r1_threeprime_adapters = None
+        self.r2_fiveprime_adapters = None
+        self.r2_threeprime_adapters = None
         if not no_trim:
             self.r1_fiveprime_adapters = tuple(
                 [e.strip(fu.FILE_SPACE) for e in r1_fiveprime_adapters.split(self.ADAPTER_DELIM)])
@@ -193,9 +195,9 @@ class FastqPreprocessor(object):
             self.r1_threeprime_adapters = tuple(
                 [e.strip(fu.FILE_SPACE) for e in r1_threeprime_adapters.split(self.ADAPTER_DELIM)])
 
-        # No need to provide the R2 adapters as they are the reverse complements of the R1 adapters
-        self.r2_fiveprime_adapters = tuple([su.reverse_complement(e) for e in self.r1_threeprime_adapters])
-        self.r2_threeprime_adapters = tuple([su.reverse_complement(e) for e in self.r1_fiveprime_adapters])
+            # No need to provide the R2 adapters as they are the reverse complements of the R1 adapters
+            self.r2_fiveprime_adapters = tuple([su.reverse_complement(e) for e in self.r1_threeprime_adapters])
+            self.r2_threeprime_adapters = tuple([su.reverse_complement(e) for e in self.r1_fiveprime_adapters])
 
         self.outdir = outdir
         self.ncores = ncores
