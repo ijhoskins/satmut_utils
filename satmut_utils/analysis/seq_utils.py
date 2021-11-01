@@ -264,7 +264,7 @@ def sam_view(am, output_am=None, output_format="BAM", nthreads=0, *args, **kwarg
 
 
 def sort_bam(bam, output_am=None, output_format="BAM", by_qname=False, nthreads=0, *args, **kwargs):
-    """samtools sort and alignment file.
+    """samtools sort an alignment file.
 
     :param str bam: alignment file
     :param str output_am: optional output name
@@ -284,7 +284,7 @@ def sort_bam(bam, output_am=None, output_format="BAM", by_qname=False, nthreads=
     if output_am is None:
         outname = tempfile.NamedTemporaryFile(file_mode, suffix="." + output_format.lower(), delete=False).name
 
-    call_args = ["-o", outname, "-O", output_format, "-@", str(nthreads)]
+    call_args = ["samtools", "sort", "-o", outname, "-O", output_format, "-@", str(nthreads)]
 
     if by_qname:
         call_args += ["-n"]
@@ -297,7 +297,11 @@ def sort_bam(bam, output_am=None, output_format="BAM", by_qname=False, nthreads=
 
     call_args += [bam]
 
-    pysam.sort(*call_args, catch_stdout=False)
+    subprocess.run(call_args)
+
+    # This caused issues in the context of running many TestCases at once
+    # pysam.sort(*call_args, catch_stdout=False)
+    # sort -n was not working in ReadMasker workflow when running test_read_preprocessor.TestReadMasker.test_workflow()
 
     return outname
 
