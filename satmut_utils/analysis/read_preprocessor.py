@@ -1204,7 +1204,7 @@ class ReadMasker(object):
         :param str in_bam: BAM file to mask
         :param str feature_file: BED or GTF/GFF file of primer locations
         :param bool race_like: is the data produced by RACE-like (e.g. AMP) data? Default False.
-        :param tuple sort_cmd: sort key dependent on the qname format
+        :param tuple sort_cmd: sort command and key dependent on the qname format
         :param str outdir: optional output dir for the results
         :param int nthreads: number threads to use for SAM/BAM file manipulations. Default 0 (autodetect).
         """
@@ -1259,18 +1259,16 @@ class ReadMasker(object):
         # this sort is not working properly.
 
         # Finally run the custom intersect, groupby, and sort pipeline in a subprocess
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".read.primer.intersect.bed", delete=False) as out_file, \
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".read.primer.intersect.sort.bed", delete=False) as sort_out, \
                 open(os.path.join(self.outdir, "%s.stderr.log" % self.__class__.__name__), "a") as masker_stderr:
 
             intersect_p = subprocess.Popen(intersect_cmd, stdout=subprocess.PIPE, stderr=masker_stderr)
             groupby_p = subprocess.Popen(groupby_cmd, stdin=intersect_p.stdout, stdout=subprocess.PIPE, stderr=masker_stderr)
-            sort_p = subprocess.Popen(self.sort_cmd, stdin=groupby_p.stdout, stdout=out_file, stderr=masker_stderr)
-
-            _ = sort_p.wait()
+            sort_p = subprocess.Popen(self.sort_cmd, stdin=groupby_p.stdout, stdout=sort_out, stderr=masker_stderr)
+            sort_p.wait()
             intersect_p.stdout.close()
             groupby_p.stdout.close()
-
-            return out_file.name
+            return sort_out.name
 
     def _get_read_primer_associations(self, align_seg, groupby_res):
         """Determines originating primer(s) for each read, excluding primers where the alignment reads-through the primer.
@@ -1299,17 +1297,12 @@ class ReadMasker(object):
             primer_coord_str = su.COORD_FORMAT_STRAND.format(*intersecting_primer)
             primer_tuple = self.primer_info[primer_coord_str]
 
-            # For opposing primer amplicons, we should get no more than two matching primers.
-            # Primers in which the read has "read-through" should not be associated, as we only want to mask the
-            # synthetic sequences underlying each amplicon.
+            # We should get no more than two matching primers. Primers in which the read has "read-through" should
+            # not be associated, as we only want to mask the synthetic sequences underlying each amplicon.
             # AlignedSegment.reference_start is 0-based, whereas allowable_coords is a set of 1-based positions
-
             # Make sure we compare the right read coordinate with the primer coordinates
-            read_comp_coord = align_seg.reference_end
-            if primer_tuple.strand == su.Strand.PLUS:
-                read_comp_coord = align_seg.reference_start + 1
-
-            if read_comp_coord in primer_tuple.allowable_coords:
+            if align_seg.reference_start + 1 in primer_tuple.allowable_coords or \
+                    align_seg.reference_end in primer_tuple.allowable_coords:
                 primer_assocs.add(primer_coord_str)
 
         return intersecting_qname, primer_assocs

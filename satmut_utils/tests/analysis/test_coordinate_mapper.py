@@ -1,6 +1,7 @@
 #!/usr/bin/env/python
 """Tests for analysis.coordinate_mapper"""
 
+from shutil import copyfile
 import tempfile
 import unittest
 
@@ -53,6 +54,8 @@ class TestAminoAcidMapper(unittest.TestCase):
         # APPRIS transcripts on both strands require a genome reference
         cls.appris_ref_gz = os.path.join(cls.test_data_dir, cls.APPRIS_REF)
         cls.appris_ref_copy_gz = os.path.join(cls.tempdir, cls.APPRIS_REF)
+        copyfile(cls.appris_ref_gz, cls.appris_ref_copy_gz)
+        fu.gunzip_file(cls.appris_ref_copy_gz)
         cls.temp_ref_fa = fu.remove_extension(cls.appris_ref_copy_gz)
         faidx_ref(cls.temp_ref_fa)
 

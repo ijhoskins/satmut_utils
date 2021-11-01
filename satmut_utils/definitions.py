@@ -59,9 +59,9 @@ ILLUMINA_QNAME_NFIELDS = 7
 ILLUMINA_FORMAT_INDEX = 0
 ILLUMINA_QNAME_INDEX_DELIM = " "
 INT_FORMAT_INDEX = 1
-ILLUMINA_QNAME_SORT = ("sort", "-t:", "-k1,1", "-k2,2", "-k3,3", "-k4,4n", "-k5,5n", "-k6,6n", "-k7,7n")
+ILLUMINA_QNAME_SORT = ("sort", "-t:", "-k1,1", "-k2,2n", "-k3,3", "-k4,4n", "-k5,5n", "-k6,6n", "-k7,7n")
 INT_QNAME_SORT = ("sort", "-k1,1n")
-QNAME_SORTS = (ILLUMINA_QNAME_SORT, INT_QNAME_SORT)
+QNAME_SORTS = (ILLUMINA_QNAME_SORT, INT_QNAME_SORT  )
 
 DEFAULT_MUT_SIG = "NNN"
 VALID_MUT_SIGS = {"NNN", "NNK", "NNS"}
