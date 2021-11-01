@@ -58,7 +58,7 @@ class QnameVerification(object):
 
         self.fastq = fastq
         self.bam = bam
-        self.illumina_regex = "^@[a-zA-Z]" if self.fastq else "^[a-zA-Z]"
+        self.illumina_regex = "^[a-zA-Z]"
         self.error_msg = """The QNAME format is incompatible with the primer masking workflow. A work-around is to \
         replace qnames (read names) with unique integers and provide."""
         self.compatible, self.format_index = self.workflow()
@@ -91,17 +91,17 @@ class QnameVerification(object):
         :raises NotImplementedError: if the read name is not a recognizable format.
         """
 
+        open_func = open
+        file_mode = "r"
         if self.fastq.endswith(fu.GZ_EXTENSION):
             open_func = gzip.open
-            file_mode = "rb"
-        else:
-            open_func = open
-            file_mode = "r"
+            file_mode = "rt"
 
         with open_func(self.fastq, mode=file_mode) as fh:
             for i, line in enumerate(fh):
                 if i == 0:
-                    compatible, format_index = self.verify_qname_format(line.split(ILLUMINA_QNAME_INDEX_DELIM)[0])
+                    compatible, format_index = self.verify_qname_format(
+                        line.strip(su.SAM_HEADER_CHAR + fu.FILE_NEWLINE).split(ILLUMINA_QNAME_INDEX_DELIM)[0])
 
                     if not compatible:
                         fh.seek(0)
