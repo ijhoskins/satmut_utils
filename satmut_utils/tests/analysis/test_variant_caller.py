@@ -709,19 +709,22 @@ class TestVariantCaller(unittest.TestCase):
         self.assertEqual(0, len(observed))
 
     def test_workflow(self):
-        """Tests that output files are generated from the whole workflow. This is a smoke test."""
+        """Tests that output files are generated from the whole workflow."""
 
-        vcf, bed = self.vc.workflow(min_bq=30, max_nm=5, min_supporting_qnames=1, max_mnp_window=3)
+        vcf, bed = self.vc.workflow(min_bq=30, max_nm=5, min_supporting_qnames=1, max_mnp_window=3,
+                                    out_prefix=os.path.join(self.tempdir, "test"))
         self.assertTrue(all((os.path.exists(vcf), os.path.exists(bed),)))
 
     def test_workflow_primers_and_min_bq(self):
         """Tests that a NotImplementedError is raised if primers are provided and min_bq is 0."""
 
         with self.assertRaises(NotImplementedError):
-            _, _ = self.vc.workflow(min_bq=0, max_nm=5, min_supporting_qnames=1, max_mnp_window=3)
+            _, _ = self.vc.workflow(min_bq=0, max_nm=5, min_supporting_qnames=1, max_mnp_window=3,
+                                    out_prefix=os.path.join(self.tempdir, "test"))
 
     def test_workflow_max_mnp_window(self):
         """Tests that a NotImplementedError is raised if max_mnp_window > 3."""
 
         with self.assertRaises(NotImplementedError):
-            _, _ = self.vc.workflow(min_bq=30, max_nm=5, min_supporting_qnames=1, max_mnp_window=4)
+            _, _ = self.vc.workflow(min_bq=30, max_nm=5, min_supporting_qnames=1, max_mnp_window=4,
+                                    out_prefix=os.path.join(self.tempdir, "test"))

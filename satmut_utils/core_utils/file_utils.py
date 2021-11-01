@@ -55,7 +55,7 @@ def add_extension(filename, ext):
     :param str ext: extension to add
     """
 
-    ext_res = ".".join([filename, ext])
+    ext_res = ".".join((filename, ext,))
     return ext_res
 
 
@@ -96,7 +96,7 @@ def replace_extension(filename, ext, ignore_exts=(".gz", ".bz", ".bz2",)):
     if split[1] in set(ignore_exts):
         split = os.path.splitext(split[0])
 
-    ext_res = "{}.{}".format(split[0], ext)
+    ext_res = add_extension(split[0], ext)
     return ext_res
 
 

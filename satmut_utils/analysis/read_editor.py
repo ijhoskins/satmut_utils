@@ -65,6 +65,7 @@ class ReadEditorPreprocessor(object):
         self.primers = primers
         self.outdir = outdir
         self.nthreads = nthreads
+        self.tempdir = tempfile.mkdtemp(suffix=".editor.preprocessor.tmp")
 
         # We consider masking synthetic primer regions to enable facile detection of variants "under" primers. In these
         # cases we want to ensure we don't edit into a read such that the variant appears to be a synthesis error
@@ -76,7 +77,7 @@ class ReadEditorPreprocessor(object):
             sort_cmd = QNAME_SORTS[qv.format_index]
 
             rm = ReadMasker(in_bam=self.input_bam, feature_file=self.primers, race_like=race_like, sort_cmd=sort_cmd,
-                            outdir=self.outdir, nthreads=self.nthreads)
+                            outdir=self.tempdir, nthreads=self.nthreads)
             rm.workflow()
             input_masked_bam = rm.out_bam
 
@@ -91,12 +92,12 @@ class ReadEditorPreprocessor(object):
             input_masked_bam, None, "BAM", self.nthreads, F=su.SAM_FLAG_SUPPL + su.SAM_FLAG_SECONDARY)
 
         # We will need a coordinate- and qname- sorted BAM for the pileup and then the editing
-        self.edit_background = os.path.join(outdir, fu.replace_extension(am_basename, self.EDIT_INPUT_SUFFIX))
+        self.edit_background = os.path.join(self.tempdir, fu.replace_extension(am_basename, self.EDIT_INPUT_SUFFIX))
         su.sort_and_index(am=preprocessed_input_bam, output_am=self.edit_background, nthreads=nthreads)
 
-        qname_bam = os.path.join(outdir, fu.replace_extension(am_basename, self.QNAME_INPUT_SUFFIX))
+        self.qname_bam = os.path.join(self.tempdir, fu.replace_extension(am_basename, self.QNAME_INPUT_SUFFIX))
         self.qname_sorted_bam = su.sort_bam(
-            bam=self.edit_background, output_am=qname_bam, by_qname=True, nthreads=nthreads)
+            bam=self.edit_background, output_am=self.qname_bam, by_qname=True, nthreads=nthreads)
 
         temp_files = [preprocessed_input_bam]
         if self.primers is not None:
@@ -134,8 +135,8 @@ class ReadEditor(object):
     DEFAULT_BUFFER = 3
 
     TRUTH_VCF_SUFFIX = "truth.vcf"
-    NORM_VCF_SUFFIX = "norm.vcf"
-    EDIT_BAM_SUFFIX = "edit.output.bam"
+    NORM_VCF_SUFFIX = "norm.sort.vcf"
+    EDIT_BAM_SUFFIX = "edit.realign.bam"
 
     def __init__(self, bam, variants, ref, race_like=ReadEditorPreprocessor.DEFAULT_RACE_LIKE,
                  primers=DEFAULT_PRIMERS, output_dir=DEFAULT_OUTDIR, output_prefix=DEFAULT_PREFIX,
@@ -183,14 +184,7 @@ class ReadEditor(object):
         norm_vcf = vu.VcfNormalizer(ref=ref, split_multiallelics=True).run_norm(in_vcf=variants)
         vu.VcfSorter(in_vcf=norm_vcf, out_vcf=self.norm_sort_vcf)
         self.variant_tbi = vu.tabix_index(self.norm_sort_vcf)
-
-        if self.output_prefix is None:
-            self.output_prefix = fu.remove_extension(os.path.basename(self.bam))
-
-        self.out_path = os.path.join(self.output_dir, self.output_prefix)
-        self.temp_edit_bam = tempfile.NamedTemporaryFile(mode="wb", suffix=".temp.edit.bam", delete=False).name
-        self.output_bam = fu.add_extension(self.out_path, self.EDIT_BAM_SUFFIX)
-        self.truth_vcf = fu.add_extension(self.out_path, self.TRUTH_VCF_SUFFIX)
+        fu.safe_remove((norm_vcf,))
 
         _logger.info("Pre-processing input files for editing.")
         self.editor_preprocessor = ReadEditorPreprocessor(
@@ -208,6 +202,14 @@ class ReadEditor(object):
         self.qname_lookup = collections.defaultdict(int)
 
         random.seed(self.random_seed)
+
+        if self.output_prefix is None:
+            self.output_prefix = fu.remove_extension(os.path.basename(self.bam))
+
+        self.out_path = os.path.join(self.output_dir, self.output_prefix)
+        self.temp_edit_bam = tempfile.NamedTemporaryFile(mode="wb", suffix=".temp.edit.bam", delete=False).name
+        self.output_bam = fu.add_extension(self.out_path, self.EDIT_BAM_SUFFIX)
+        self.truth_vcf = fu.add_extension(self.out_path, self.TRUTH_VCF_SUFFIX)
 
     def _verify_variant_freqs(self):
         """Tests if the variant frequency sum exceeds 1 and if so, raises an exception.
@@ -629,6 +631,9 @@ class ReadEditor(object):
         nthreads = self.nthreads if self.nthreads != 0 else 1
         align_workflow(f1=zipped_r1_fastq, f2=zipped_r2_fastq, ref=self.ref, outdir=self.output_dir,
                        outbam=self.output_bam, local=True, nthreads=nthreads)
+
+        # Remove temp files
+        fu.safe_remove((self.editor_preprocessor.tempdir, self.temp_edit_bam,), force_remove=True)
 
         return self.output_bam, zipped_r1_fastq, zipped_r2_fastq
 

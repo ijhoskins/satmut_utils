@@ -65,6 +65,7 @@ class VariantCaller(object):
     VARIANT_CALL_DEDUP = rp.DEDUP_FLAG
     VARIANT_CALL_CDEDUP = rp.CDEDUP_FLAG
     VARIANT_CALL_OUTDIR = "."
+    VARIANT_CALL_PREFIX = "./out"
     VARIANT_CALL_STATS = False
 
     VARIANT_CALL_MIN_BQ = 30
@@ -138,8 +139,6 @@ class VariantCaller(object):
 
         # Divide the mapped reads by 2 to approximate pairs
         self.norm_factor = self.VARIANT_CALL_NORM_DP / (self.total_mapped / 2)
-
-        self.prefix = os.path.join(self.output_dir, fu.remove_extension(os.path.basename(self.am)))
 
         _logger.info("Loading transcript CDS annotations for AA change determination.")
         self.amino_acid_mapper = cm.AminoAcidMapper(
@@ -975,13 +974,15 @@ class VariantCaller(object):
         return vcf_header
 
     def workflow(self, min_bq=VARIANT_CALL_MIN_BQ, max_nm=VARIANT_CALL_MAX_NM,
-                 min_supporting_qnames=VARIANT_CALL_MIN_DP, max_mnp_window=VARIANT_CALL_MAX_MNP_WINDOW):
+                 min_supporting_qnames=VARIANT_CALL_MIN_DP, max_mnp_window=VARIANT_CALL_MAX_MNP_WINDOW,
+                 out_prefix=VARIANT_CALL_PREFIX):
         """Executes the variant calling workflow with specified quality parameters and count thresholds.
 
         :param int min_bq: min base quality
         :param int max_nm: max edit distance (NM tag) to consider a read for variant calls
         :param int min_supporting_qnames: min number of fragments with R1-R2 concordant coverage to keep a variant
-        :param int max_mnp_window: max number of consecutive nucleotides to search for MNPs; must be >= 3
+        :param int max_mnp_window: max number of consecutive nucleotides to search for MNPs; must be >= 3.
+        :param str out_prefix: output directory and filename prefix to write results to.
         :return tuple: (VCF, BED) filepaths
         :raises NotImplementedError: if min_bq is 0 while primers are provided, or the max_mnp_window is < 3
         """
@@ -997,14 +998,14 @@ class VariantCaller(object):
                 "The max_mnp_window must be <= 3 so that all possible AA-changing MNPs are discovered.")
 
         # Create some temp vcfs to use in patch for removing pysam's obligatory END INFO tag addition,
-        # which interferes with IGV visualization.
+        # which interferes with IGV visualization and is only applicable for structural variants in VCF.
         patch_reference = tempfile.NamedTemporaryFile(suffix=".patch.ref.vcf", delete=False).name
 
         # We want to write a VCF in both the reference and genomic space; the genomic space variant will have AAs
         # annotated whereas the reference will not. If variants are called using a genomic reference, the reference
         # VCF should be the same as the genomic VCF. However, each will have different INFO data.
-        reference_vcf = fu.add_extension(self.prefix, self.VARIANT_CALL_REF_CANDIDATE_EXT)
-        reference_bed = fu.add_extension(self.prefix, self.VARIANT_CALL_COV_EXT)
+        reference_vcf = fu.add_extension(out_prefix, self.VARIANT_CALL_REF_CANDIDATE_EXT)
+        reference_bed = fu.add_extension(out_prefix, self.VARIANT_CALL_COV_EXT)
 
         # The headers are specific to the type because they include the contig names.
         reference_vcf_header = self._create_vcf_header()

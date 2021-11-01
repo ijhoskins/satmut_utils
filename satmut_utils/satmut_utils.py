@@ -355,10 +355,10 @@ def call_workflow(fastq1, fastq2, r1_fiveprime_adapters, r1_threeprime_adapters,
     """
 
     if mut_sig not in VALID_MUT_SIGS:
-        raise NotImplementedError("Mutation signature %s not one of NNN, NNK, or NNS" % mut_sig)
+        raise NotImplementedError("Mutation signature %s must be one of {NNN, NNK, NNS}." % mut_sig)
 
     if max_mnp_window not in {1, 2, 3}:
-        raise NotImplementedError("Mutation signature %s not one of NNN, NNK, or NNS" % mut_sig)
+        raise NotImplementedError("max_mnp_window must be one of {1,2,3}.")
 
     # Unfortunately sort-order harmony with samtools sort -n requires we know the format of the qname
     # Check to make sure we have either Illumina format or single integer read names
@@ -366,10 +366,13 @@ def call_workflow(fastq1, fastq2, r1_fiveprime_adapters, r1_threeprime_adapters,
         qv = QnameVerification(fastq=fastq1)
         sort_cmd = QNAME_SORTS[qv.format_index]
 
+    # Create a temp dir for all intermediate files
+    tempdir = tempfile.mkdtemp(suffix=".call.tmp")
+
     # Get and index the references
     ref_fa, gff, gff_ref = get_call_references(
         reference_dir=reference_dir, ensembl_id=ensembl_id, ref=ref, transcript_gff=transcript_gff,
-        gff_reference=gff_reference, outdir=outdir)
+        gff_reference=gff_reference, outdir=tempdir)
 
     fqp_r1 = fastq1
     fqp_r2 = fastq2
@@ -377,28 +380,28 @@ def call_workflow(fastq1, fastq2, r1_fiveprime_adapters, r1_threeprime_adapters,
         # Run the first part of umi_tools based deduplication: UMI extraction. Note this should take place
         # before we have trimmed adapters as for umi_tools the adapter is used for "anchoring" the UMI.
         ue = UMIExtractor(r1_fastq=fastq1, r2_fastq=fastq2, umi_regex=umi_regex,
-                          primer_fasta=primer_fa, primer_nm_allow=primer_nm_allowance, outdir=outdir)
+                          primer_fasta=primer_fa, primer_nm_allow=primer_nm_allowance, outdir=tempdir)
         fqp_r1 = ue.r1_out_fastq
         fqp_r2 = ue.r2_out_fastq
 
     # Run the FASTQ preprocessing workflow which includes adapter trimming and 3' BQ trimming
     fqp = FastqPreprocessor(
         f1=fqp_r1, f2=fqp_r2, r1_fiveprime_adapters=r1_fiveprime_adapters, r1_threeprime_adapters=r1_threeprime_adapters,
-        outdir=outdir, ncores=nthreads, trim_bq=trim_bq, ntrimmed=ntrimmed, overlap_len=overlap_len, no_trim=omit_trim,
-        validate=True)
+        outdir=tempdir, ncores=nthreads, trim_bq=trim_bq, ntrimmed=ntrimmed, overlap_len=overlap_len, no_trim=omit_trim,
+        validate=False)
 
     # Run local alignment; handle the ncores/nthreads option for cutadapt versus bowtie2 options
     bowtie2_nthreads = 1 if nthreads == 0 else nthreads
-    bta = baw(f1=fqp.trimmed_f1, ref=ref_fa, f2=fqp.trimmed_f2, outdir=outdir, outbam=None, local=True,
+    bta = baw(f1=fqp.trimmed_f1, ref=ref_fa, f2=fqp.trimmed_f2, outdir=tempdir, outbam=None, local=True,
               nthreads=bowtie2_nthreads)
 
     # Run deduplication which may be done in at least two ways (standard and consensus)
     preproc_in_bam = bta.output_bam
     if consensus_dedup:
         # Run consensus deduplication (majority vote for each base call within a read's UMI network/group)
-        rg = ReadGrouper(in_bam=bta.output_bam, outdir=outdir)
-        cdp = ConsensusDeduplicatorPreprocessor(group_bam=rg.group_bam, outdir=outdir, nthreads=nthreads)
-        cd = ConsensusDeduplicator(in_bam=cdp.preprocess_bam, ref=ref_fa, outdir=outdir, out_bam=None,
+        rg = ReadGrouper(in_bam=bta.output_bam, outdir=tempdir)
+        cdp = ConsensusDeduplicatorPreprocessor(group_bam=rg.group_bam, outdir=tempdir, nthreads=nthreads)
+        cd = ConsensusDeduplicator(in_bam=cdp.preprocess_bam, ref=ref_fa, outdir=tempdir, out_bam=None,
                                    nthreads=nthreads, contig_del_thresh=contig_del_thresh)
         cd.workflow()
         preproc_in_bam = cd.out_bam
@@ -412,17 +415,18 @@ def call_workflow(fastq1, fastq2, r1_fiveprime_adapters, r1_threeprime_adapters,
             sort_cmd = QNAME_SORTS[INT_FORMAT_INDEX]
 
         rm = ReadMasker(
-            in_bam=preproc_in_bam, feature_file=primers, race_like=race_like, sort_cmd=sort_cmd, outdir=outdir)
+            in_bam=preproc_in_bam, feature_file=primers, race_like=race_like, sort_cmd=sort_cmd, outdir=tempdir)
         rm.workflow()
         vc_in_bam = rm.out_bam
 
     # Initialize the VariantCaller and prepare the alignments
     vc = VariantCaller(
         am=vc_in_bam, targets=targets, ref=ref_fa, trx_gff=gff, gff_ref=gff_ref, primers=primers,
-        output_dir=outdir, nthreads=nthreads, mut_sig=mut_sig)
+        output_dir=tempdir, nthreads=nthreads, mut_sig=mut_sig)
 
     # Run variant calling
-    output_vcf, output_bed = vc.workflow(min_bq, max_nm, min_supporting_qnames, max_mnp_window)
+    out_prefix = os.path.join(outdir, fu.remove_extension(os.path.basename(os.path.commonprefix((fastq1, fastq2)))))
+    output_vcf, output_bed = vc.workflow(min_bq, max_nm, min_supporting_qnames, max_mnp_window, out_prefix)
 
     return output_vcf, output_bed
 
