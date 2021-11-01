@@ -140,8 +140,7 @@ class ReadEditor(object):
 
     def __init__(self, bam, variants, ref, race_like=ReadEditorPreprocessor.DEFAULT_RACE_LIKE,
                  primers=DEFAULT_PRIMERS, output_dir=DEFAULT_OUTDIR, output_prefix=DEFAULT_PREFIX,
-                 buffer=DEFAULT_BUFFER, random_seed=DEFAULT_SEED,
-                 force_edit=DEFAULT_FORCE, nthreads=DEFAULT_NTHREADS):
+                 buffer=DEFAULT_BUFFER, random_seed=DEFAULT_SEED, force_edit=DEFAULT_FORCE, nthreads=DEFAULT_NTHREADS):
         r"""Constructor for ReadEditor.
 
         :param str bam: alignments to edit into.

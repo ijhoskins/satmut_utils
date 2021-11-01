@@ -96,9 +96,10 @@ def parse_commandline_params(args):
                             help='VCF file specifying variants to edit. Should have an AF INFO field for each variant, '
                                  'specifying the fraction of fragments with overlapping coverage to edit into.')
 
-    parser_sim.add_argument("-b", "--edit_buffer", type=int,
+    parser_sim.add_argument("-b", "--edit_buffer", type=int, default=ri.ReadEditor.DEFAULT_BUFFER,
                             help='Buffer +/- the edit coordinate positions (s) to check for pre-existing errors in reads. '
-                                 'Used to restrict phasing of true variants with errors, leading to false negatives.')
+                                 'Used to restrict phasing of true variants with errors, leading to false negatives. '
+                                 'Default %i' % ri.ReadEditor.DEFAULT_BUFFER)
 
     parser_sim.add_argument("-f", "--force_edit", action="store_true",
                             help='Flag to force editing of variants despite invalid variant configurations (AF sum > 1).')
