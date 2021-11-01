@@ -107,17 +107,19 @@ For compatibility with the call subcommand, which requires mate concordance for 
 
 2. *sim relies on heuristics to select fragments for editing*
 
-To enable editing of multiple variants at a single position and at nearby positions, sim employs heuristics to enforce several rules. A side-effect is that **variants must be edited at low frequencies (<1:1000)**.
+To enable editing of multiple variants at a single position, as well as prohibit unintentional phasing of variants, sim employs a heuristic to enforce several rules. A side-effect of this design choice is that **variants must be edited at low frequencies (<1:1000)**. If the user seeks to edit variants at higher frequencies, the pool of fragments that are amenable for editing rapidly dwindles. This is particularly problematic if the user seeks to edit even a few variants at germline-like frequencies (0.5 - 1). sim will raise a InvalidVariantConfig exception if the sum of variant frequencies across all variants in the input VCF exceeds 1. To ignore this exception and edit as many variants as possible, pass --force_edit.
 
-If the user seeks to edit variants at higher frequencies, the pool of fragments that are amenable for editing rapidly dwindles. This is particularly problematic if the user seeks to edit a handful of variants at germline-like frequencies. sim will issue a warning if the sum of configured frequencies across all variants and positions exceeds 1 - error rate.
+The heuristic for selecting reads enforces the following rules:
 
-1) Any fragment selected for editing has not previously been selected for editing of another variant. This requirement ensures variants edited at nearby positions are never phased, which may lead to simultaneous false negative and false positive calls. Note this applies to variants that are different records in the VCF.
+1) Any fragment selected for editing has not previously been selected for editing of another variant. This requirement ensures variants edited at nearby positions are never phased, which may lead to simultaneous false negative and false positive calls. Note this applies to variants that are different records in the VCF. To create phased variants (e.g. MNPs, haplotypes) up to read length, input single variant records with REF and ALT fields that span multiple bases.
 
 2) Any fragment selected for editing must have error-free coverage in both mates at the variant position. This ensures native errors in the dataset are preserved.
 
-3) Any fragment selected for editing must have error-free coverage in both mates within a window spanning the variant position. This prohibits editing a true variant adjacent to an error, which would convert the variant to higher order (for example, SNP to di-nucleotide MNP).
+3) Any fragment selected for editing must have error-free coverage in both mates within a buffer spanning the variant position. This prohibits editing a true variant adjacent to an error, which would convert the variant to higher order (for example, SNP to di-nucleotide MNP).
 
-4) If a primer feature file has been provided, sim enforces that no part of the variant span intersects a synthetic primer sequence. This does *not* mean variants cannot be edited within or overlapping primer regions. It instead requires read-through coverage for such editing, which is typically provided by an adjacent, interleaved PCR amplicon.
+4) If a primer BED file has been provided, sim enforces that no part of the variant span (POS + REF field length) intersects a read segment arising from synthetic primer. This does *not* mean variants cannot be edited within or overlapping primer regions. It instead requires read-through coverage, which is typically provided by an adjacent, interleaved PCR amplicon.
+
+Collectively, these rules ensure high fidelity of variant editing at ultra-low frequencies.
 
 ### sim code examples
 
@@ -177,10 +179,10 @@ E. If D), determine if there is third mismatch downstream within the window. If 
 
 F. If D), and the next two mismatches are not adjacent, call a di-nucleotide MNP.
 
-G. After all MNPs within pair have been called, remaining mismatches are called as SNPs.
+G. After all MNPs within pair have been called, call remaining mismatches as SNPs.
 
 
-This algorithm leads to specific calling expectations for consecutive mismatch runs/tracts with nearby isolated mismatches. In these cases, consecutive mismatch runs are called as compact MNPs as opposed to including the isolated mismatch as part of the MNP call.
+This algorithm leads to specific calling expectations for consecutive mismatch runs/tracts with nearby isolated mismatches. In these cases, consecutive mismatch runs are called as compact MNPs, as opposed to including the isolated mismatch as part of the MNP call.
 
 
 ### call code examples
@@ -217,7 +219,6 @@ python satmut_utils.py -i ENST00000398165.7 -x $REF_DIR -p primers.bed -o $OUTPU
 
 The primer BED must have a strand field. See tests/test\_data/CBS\_insilico_primers.bed for an example BED.
 
-
 ### call outputs
 
 The call workflow produces a VCF of candidate variant calls as well as a BED file reporting fragment coverage across the reference.
@@ -228,6 +229,8 @@ A number of useful R functions exist in prototype.summarization_utils.r for pars
 
 
 ## satmut_utils command-line interface
+
+satmut_utils provides the sim and call workflow as subcommands, which have common and unique options.
 
 ### Common options
 
@@ -268,9 +271,19 @@ This is a BAM file containing paired-end alignments to a single contig. If a BAM
 
 2. -v, --vcf
 
-Variant Call Format file that contains an in-line INFO tag (AF) specifying the desired variant frequency.
+Variant Call Format file that contains an in-line INFO tag (AF) specifying the desired variant frequency. See tests/tests_data/CBS_sim.vcf for an example.
 
-3. -s, --random_seed
+3. -b, --edit_buffer
+
+When selecting reads to edit, verify the absence of errors within this buffer about the edit position/span. The read segment must match the references within the span (POS - edit_buffer, POS + REF length + edit_buffer). Increasing this value prevents variant conversion and/or unexpected clipping of the variant from the aligned read. Decreasing this value may be needed in cases where variants are being edited near read termini.
+
+4. -f, --force_edit
+
+By default, sim will raise a InvalidVariantConfig Exception if the sum of variant frequencies across all variants in the input VCF exceed 1. Invalid configurations indicate that all variants may not be edited due to insufficient read coverage. In this case, to edit as many variants as possible, provide this flag.
+
+InvalidVariantConfig exceptions are guaranteed to result in unedited variants if alignments from a single PCR tile are being edited into. However, if variants are to be edited into alignments across multiple PCR tiles, all variants *may* be edited despite an InvalidVariantConfig exception. This flag is particularly useful for maximizing the number of variants edited for multi-tile alignments.
+
+5. -s, --random_seed
 
 Integer seed to use for pseudorandom qname (read name) sampling. This may be used to select different reads for editing of variants. Default 9.
 

@@ -189,7 +189,6 @@ def parse_commandline_params(args):
     parser_call.add_argument("-a", "--primer_nm_allowance", type=int, default=UMIExtractor.PRIMER_NM_ALLOW,
                              help='If -f, find primers in R2 with up to this many edit operations.')
 
-
     parsed_args = parser.parse_args(args)
     return parsed_args
 
@@ -443,8 +442,8 @@ def main():
             bam=args_dict["alignments"], vcf=args_dict["vcf"], race_like=args_dict["race_like"],
             ensembl_id=args_dict["ensembl_id"], reference_dir=args_dict["reference_dir"],
             ref=args_dict["reference"], primers=args_dict["primers"], outdir=args_dict["outdir"],
-            buffer=args_dict["buffer"], random_seed=args_dict["random_seed"], force_edit=args_dict["force_edit"],
-            nthreads=args_dict["nthreads"])
+            buffer=args_dict["edit_buffer"], random_seed=args_dict["random_seed"],
+            force_edit=args_dict["force_edit"], nthreads=args_dict["nthreads"])
 
     elif parsed_args.subcommand == CALL_WORKFLOW:
 
