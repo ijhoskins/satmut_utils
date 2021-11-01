@@ -5,6 +5,7 @@ import logging
 import pybedtools
 import pysam
 import re
+import subprocess
 
 from analysis.aligners import BowtieConfig
 import analysis.seq_utils as su
@@ -152,6 +153,16 @@ def extract_gff_reference(reference_dir, ensembl_id, outdir="."):
     return output_gff
 
 
+def faidx_ref(ref):
+    """samtools faidx a reference file.
+
+    :param str ref: reference FASTA
+    """
+
+    # Occasional issues with pysam.faidx(ref)
+    subprocess.call(("samtools", "faidx", ref))
+
+
 def index_reference(ref):
     """samtools and bowtie2-indexes the reference FASTA.
 
@@ -161,7 +172,7 @@ def index_reference(ref):
     # Need to index the reference with samtools and create a FM-index with bowtie2 if it has not been done
     if not os.path.exists(fu.add_extension(ref, su.FASTA_INDEX_SUFFIX)):
         _logger.info("Indexing FASTA %s." % ref)
-        pysam.faidx(ref)
+        faidx_ref(ref)
 
     # Build the bowtie2 index if it doesn't exist
     try:

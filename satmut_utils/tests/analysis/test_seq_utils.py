@@ -9,6 +9,7 @@ import tempfile
 import unittest
 
 import analysis.aligners as al
+from analysis.references import index_reference
 import analysis.seq_utils as su
 import core_utils.file_utils as fu
 
@@ -70,9 +71,7 @@ class TestSeqUtils(unittest.TestCase):
         cls.cbs_ref = os.path.join(cls.test_data_dir, cls.CBS_REF)
         cls.cbs_ref_copy = os.path.join(cls.tempdir, cls.CBS_REF)
         copyfile(cls.cbs_ref, cls.cbs_ref_copy)
-
-        pysam.faidx(cls.cbs_ref_copy)
-        al.BowtieConfig(ref=cls.cbs_ref_copy).build_fm_index()
+        index_reference(cls.cbs_ref_copy)
         cls.seq = "ATCGATTACG"
 
     @classmethod

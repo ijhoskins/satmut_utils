@@ -60,7 +60,6 @@ class BowtieConfig(object):
         fasta_basename = os.path.basename(self.ref)
         dir_files = os.listdir(fasta_dir)
         matches = [self.INDEX_EXTENSIONS_RE.search(f) for f in dir_files if re.match(fasta_basename, f)]
-        matches = [self.INDEX_EXTENSIONS_RE.search(f) for f in dir_files if re.match(fasta_basename, f)]
         if not any(matches):
             raise RuntimeError("No FM-index files found for the reference FASTA")
 

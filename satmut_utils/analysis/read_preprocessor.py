@@ -292,9 +292,9 @@ class FastqPreprocessor(object):
 class UMIExtractor(object):
     """Object for extracting UMIs from reads, and optionally appending primer tags for RACE-like (e.g. AMP) data"""
 
-    UMI_FQ_SUFFIX = "umi.fastq"
-    R1_PRIMER_SUFFIX = ".r1.gsp2.fastq"
-    R2_PRIMER_SUFFIX = ".r2.gsp2.fastq"
+    UMI_FQ_SUFFIX = "umi.fq"
+    R1_PRIMER_SUFFIX = ".r1.gsp2.fq"
+    R2_PRIMER_SUFFIX = ".r2.gsp2.fq"
     STDERR_SUFFIX = "umitools_extract.stderr"
     PRIMER_SEQ_LEN = 16
     PRIMER_NM_ALLOW = 3  # NM allowance for string matching the primer sequence at the beginning of R2

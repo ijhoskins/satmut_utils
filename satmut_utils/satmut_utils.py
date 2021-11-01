@@ -4,7 +4,6 @@
 import argparse
 import logging
 import os
-import pysam
 from shutil import copy
 import sys
 import tempfile
@@ -12,7 +11,7 @@ import tempfile
 from analysis.read_preprocessor import FastqPreprocessor, UMIExtractor, ReadGrouper, \
     ConsensusDeduplicatorPreprocessor, ConsensusDeduplicator, ReadMasker, QnameVerification
 import analysis.read_editor as ri
-from analysis.references import get_ensembl_references, index_reference
+from analysis.references import get_ensembl_references, index_reference, faidx_ref
 from analysis.seq_utils import FASTA_INDEX_SUFFIX
 from analysis.variant_caller import VariantCaller
 import core_utils.file_utils as fu
@@ -254,7 +253,7 @@ def get_call_references(reference_dir, ensembl_id, ref, transcript_gff, gff_refe
         # Make sure the GFF reference has a samtools index file
         if not os.path.exists(fu.add_extension(gff_reference, FASTA_INDEX_SUFFIX)):
             _logger.info("Indexing GFF reference FASTA %s." % gff_reference)
-            pysam.faidx(gff_reference)
+            faidx_ref(gff_reference)
 
     return ref_fa, gff, gff_ref
 
@@ -262,8 +261,9 @@ def get_call_references(reference_dir, ensembl_id, ref, transcript_gff, gff_refe
 def sim_workflow(bam, vcf, race_like,
                  ensembl_id=ri.ReadEditor.DEFAULT_ENSEMBL_ID, reference_dir=ri.ReadEditor.DEFAULT_REFERENCE_DIR,
                  ref=ri.ReadEditor.DEFAULT_REF, primers=ri.ReadEditor.DEFAULT_PRIMERS,
-                 outdir=ri.ReadEditor.DEFAULT_OUTDIR, random_seed=ri.ReadEditor.DEFAULT_SEED,
-                 force_edit=ri.ReadEditor.DEFAULT_FORCE, nthreads=ri.ReadEditor.DEFAULT_NTHREADS):
+                 outdir=ri.ReadEditor.DEFAULT_OUTDIR, buffer=ri.ReadEditor.DEFAULT_BUFFER,
+                 random_seed=ri.ReadEditor.DEFAULT_SEED, force_edit=ri.ReadEditor.DEFAULT_FORCE,
+                 nthreads=ri.ReadEditor.DEFAULT_NTHREADS):
     """Runs the satmut_utils sim workflow.
 
     :param str bam: BAM file to edit into
@@ -274,6 +274,7 @@ def sim_workflow(bam, vcf, race_like,
     :param str | None ref: indexed reference FASTA; mutually exclusive with ensembl_id
     :param str | None primers: feature file of primer locations for read masking and primer detection
     :param str outdir: Optional output directory to store generated FASTQs and BAM
+    :param int buffer: buffer about the edit span (position + REF len) to ensure lack of error before editing. Default 3.
     :param int random_seed: seed for random qname sampling
     :param bool force_edit: flag to attempt editing of variants despite a NonconfiguredVariant exception.
     :param int nthreads: Number of threads to use for SAM/BAM operations and alignment. Default 0 (autodetect) \
@@ -297,7 +298,7 @@ def sim_workflow(bam, vcf, race_like,
     # Run the editing workflow
     output_bam, zipped_r1_fastq, zipped_r2_fastq = ri.ReadEditor(
         bam=bam, variants=vcf, ref=ref_fa, race_like=race_like, primers=primers,
-        output_dir=outdir, output_prefix=out_prefix, random_seed=random_seed,
+        output_dir=outdir, output_prefix=out_prefix, buffer=buffer, random_seed=random_seed,
         force_edit=force_edit, nthreads=nthreads).workflow()
 
     return output_bam, zipped_r1_fastq, zipped_r2_fastq
@@ -438,7 +439,7 @@ def main():
             bam=args_dict["alignments"], vcf=args_dict["vcf"], race_like=args_dict["race_like"],
             ensembl_id=args_dict["ensembl_id"], reference_dir=args_dict["reference_dir"],
             ref=args_dict["reference"], primers=args_dict["primers"], outdir=args_dict["outdir"],
-            random_seed=args_dict["random_seed"], force_edit=args_dict["force_edit"],
+            buffer=args_dict["buffer"], random_seed=args_dict["random_seed"], force_edit=args_dict["force_edit"],
             nthreads=args_dict["nthreads"])
 
     elif parsed_args.subcommand == CALL_WORKFLOW:

@@ -131,15 +131,16 @@ class ReadEditor(object):
     MIN_BQ = 1  # omit primer-masked bases where BQ = 0
     VAR_TAG_DELIM = "_"
     DEFAULT_MAX_ERROR_RATE = 0.03
-    DEFAULT_MATCH_WINDOW = 3
+    DEFAULT_BUFFER = 3
 
     TRUTH_VCF_SUFFIX = "truth.vcf"
     NORM_VCF_SUFFIX = "norm.vcf"
-    EDIT_BAM_SUFFIX = "edit.bam"
+    EDIT_BAM_SUFFIX = "edit.output.bam"
 
     def __init__(self, bam, variants, ref, race_like=ReadEditorPreprocessor.DEFAULT_RACE_LIKE,
                  primers=DEFAULT_PRIMERS, output_dir=DEFAULT_OUTDIR, output_prefix=DEFAULT_PREFIX,
-                 random_seed=DEFAULT_SEED, force_edit=DEFAULT_FORCE, nthreads=DEFAULT_NTHREADS):
+                 buffer=DEFAULT_BUFFER, random_seed=DEFAULT_SEED,
+                 force_edit=DEFAULT_FORCE, nthreads=DEFAULT_NTHREADS):
         r"""Constructor for ReadEditor.
 
         :param str bam: alignments to edit into.
@@ -151,6 +152,7 @@ class ReadEditor(object):
         Set to None for no masking.
         :param str output_dir: Optional output directory to store generated FASTQs and BAM. Default current directory.
         :param str | None output_prefix: Optional output prefix for the FASTQ(s) and BAM
+        :param int buffer: buffer about the edit span (position + REF len) to ensure lack of error before editing. Default 3.
         :param int random_seed: seed for random qname sampling
         :param bool force_edit: flag to attempt editing of variants despite a NonconfiguredVariant exception.
         :param int nthreads: Number of threads to use for SAM/BAM operations and alignment. Default 0 (autodetect) \
@@ -166,6 +168,7 @@ class ReadEditor(object):
         self.primers = primers
         self.output_dir = output_dir
         self.output_prefix = output_prefix
+        self.buffer = buffer
         self.random_seed = random_seed
         self.force_edit = force_edit
         self.nthreads = nthreads
@@ -380,9 +383,9 @@ class ReadEditor(object):
         :return tuple: (int, int) min and max indices for the window
         """
 
-        idx_min = pos - self.DEFAULT_MATCH_WINDOW
+        idx_min = pos - self.buffer
         # idx_max is 1 past the end index to be checked (to accomodate python range behavior)
-        idx_max = pos + ref_len + self.DEFAULT_MATCH_WINDOW
+        idx_max = pos + ref_len + self.buffer
         indices = (idx_min, idx_max)
         return indices
 
@@ -398,7 +401,6 @@ class ReadEditor(object):
         """
 
         query_seq_len = len(query_seq)
-
         read_idx_min, read_idx_max = self._get_window_indices(query_pos, ref_len)
 
         # Handle cases where the read position is near the termini of the read

@@ -123,7 +123,7 @@ class TestReadEditor(unittest.TestCase):
         # Force edit of all variants despite their frequency sum exceeding 1
         cls.ed = ed.ReadEditor(
             cls.test_bam, variants=cls.test_vcf, ref=cls.cbs_ref_copy, primers=cls.test_primers,
-            output_dir=cls.tempdir, output_prefix="test_editor", force_edit=True)
+            output_dir=cls.tempdir, output_prefix="test_editor", buffer=3, force_edit=True)
 
         cls.observed_edit_configs = cls.ed._get_edit_configs()
 
@@ -292,10 +292,44 @@ class TestReadEditor(unittest.TestCase):
 
                 self.assertTrue(all(test_res))
 
-    def test_get_window_indices_local(self):
-        """Tests that indices for a window about a local read position are properly returned."""
+    def test_get_window_indices(self):
+        """Tests that indices for a window about a position are properly returned."""
 
-        self.ed._get_window_indices()
+        expected = (2, 11)
+        test_pos = 5
+        test_len = 3
+        observed = self.ed._get_window_indices(test_pos, test_len)
+        self.assertEqual(expected, observed)
+
+    def test_ref_matches_window_snp(self):
+        """Test that a read segment about a SNP matches the corresponding reference segment."""
+
+        mock_read = "CTGCGGG"
+
+        observed = self.ed._ref_matches_window(
+            contig=self.contig, query_seq=mock_read, query_pos=3, ref_len=1, ref_pos=804)
+
+        self.assertTrue(observed)
+
+    def test_ref_matches_window_snp_nomatch(self):
+        """Test that a read segment about a SNP does not match the corresponding reference segment."""
+
+        mock_read = "CTGCGAG"
+
+        observed = self.ed._ref_matches_window(
+            contig=self.contig, query_seq=mock_read, query_pos=3, ref_len=1, ref_pos=804)
+
+        self.assertFalse(observed)
+
+    def test_ref_matches_window_mnp(self):
+        """Test that a read segment about a MNP matches the corresponding reference segment."""
+
+        mock_read = "GTGGACGTG"
+
+        observed = self.ed._ref_matches_window(
+            contig=self.contig, query_seq=mock_read, query_pos=3, ref_len=3, ref_pos=795)
+
+        self.assertTrue(observed)
 
     def test_get_edit_configs_trint_mnp_and_masking_detection(self):
         """Tests update of the edit config dictionary for a tri-nt MNP and implicitly tests BQ masking detection."""

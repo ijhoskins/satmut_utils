@@ -1,13 +1,11 @@
 #!/usr/bin/env/python
 """Tests for analysis.coordinate_mapper"""
 
-import pysam
-import gzip
-import shutil
 import tempfile
 import unittest
 
 import analysis.coordinate_mapper as cm
+from analysis.references import faidx_ref
 import core_utils.file_utils as fu
 from definitions import *
 
@@ -56,7 +54,7 @@ class TestAminoAcidMapper(unittest.TestCase):
         cls.appris_ref_gz = os.path.join(cls.test_data_dir, cls.APPRIS_REF)
         cls.appris_ref_copy_gz = os.path.join(cls.tempdir, cls.APPRIS_REF)
         cls.temp_ref_fa = fu.remove_extension(cls.appris_ref_copy_gz)
-        pysam.faidx(cls.temp_ref_fa)
+        faidx_ref(cls.temp_ref_fa)
 
         # This just has CBS and PKNOX1 annotations
         cls.appris_gff = os.path.join(cls.test_data_dir, GENCODE_TRX_GFF)
