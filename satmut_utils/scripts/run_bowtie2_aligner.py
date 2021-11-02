@@ -6,8 +6,8 @@ import logging
 import os
 import sys
 
-from ..analysis.aligners import BowtieConfig, Bowtie2, DEFAULT_TEMPDIR
-from ..core_utils.string_utils import none_or_str
+from analysis.aligners import BowtieConfig, Bowtie2, DEFAULT_TEMPDIR
+from core_utils.string_utils import none_or_str
 
 
 __author__ = "Ian Hoskins"

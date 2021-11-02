@@ -4,9 +4,9 @@
 import argparse
 import sys
 
-from ..analysis.aligners import *
-from ..analysis.seq_utils import BAM_SUFFIX
-from ..prototype.read_generators import *
+from analysis.aligners import *
+from analysis.seq_utils import BAM_SUFFIX
+from prototype.read_generators import *
 from scripts.run_bowtie2_aligner import workflow as ba_workflow
 
 __author__ = "Ian Hoskins"

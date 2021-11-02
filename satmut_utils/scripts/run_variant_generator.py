@@ -5,8 +5,8 @@ import argparse
 import logging
 import sys
 
-from ..prototype.variant_generator import VariantGenerator
-from ..core_utils.string_utils import none_or_str
+from prototype.variant_generator import VariantGenerator
+from core_utils.string_utils import none_or_str
 
 __author__ = "Ian Hoskins"
 __credits__ = ["Ian Hoskins"]
