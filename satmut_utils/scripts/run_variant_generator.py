@@ -5,9 +5,8 @@ import argparse
 import logging
 import sys
 
-from prototype.variant_generator import VariantGenerator
-from analysis.seq_utils import TRANSCRIPTOME_GFF, TRANSCRIPTOME_FASTA
-from core_utils.string_utils import none_or_str
+from ..prototype.variant_generator import VariantGenerator
+from ..core_utils.string_utils import none_or_str
 
 __author__ = "Ian Hoskins"
 __credits__ = ["Ian Hoskins"]
@@ -38,20 +37,18 @@ def parse_commandline_params(args):
     parser = argparse.ArgumentParser(description="%s arguments" % __name__)
 
     # Add new arguments for command line passing of files, options, etc; see argparse docs
-    parser.add_argument("-g", "--transcript_gff", required=True, type=str, default=TRANSCRIPTOME_GFF,
+    parser.add_argument("-t", "--trx_id", type=str, required=True,
+                        help='Full Ensembl transcript contig ID for which to generate variants.')
+
+    parser.add_argument("-g", "--transcript_gff", required=True, type=str,
                         help='GFF file containing transcript metafeatures and exon, CDS, and stop_codon features, '
-                             'from 5\' to 3\', regardless of strand. Default %s.' % TRANSCRIPTOME_GFF)
+                             'from 5\' to 3\', regardless of strand.')
 
-    parser.add_argument("-r", "--reference", type=str, default=TRANSCRIPTOME_FASTA,
-                        help='Corresponding reference FASTA. Default %s.' % TRANSCRIPTOME_FASTA)
+    parser.add_argument("-r", "--reference", type=str, required=True, help='Corresponding reference FASTA.')
 
-    parser.add_argument("-o", "--out_vcf", type=none_or_str, help='Optional output VCF name.')
+    parser.add_argument("-o", "--out_vcf", type=none_or_str, default="None", help='Optional output VCF name.')
 
     parser.add_argument("-d", "--outdir", type=str, default=".", help='Optional output directory.')
-
-    parser.add_argument("-t", "--trx_id", type=str, default=VariantGenerator.DEFAULT_TRANSCRIPT,
-                        help='Transcript ID for which to generate variants. Default %s.' %
-                             VariantGenerator.DEFAULT_TRANSCRIPT)
 
     parser.add_argument("-v", "--var_type", type=str, default=VariantGenerator.DEFAULT_VAR_TYPE,
                         help='Variant types to generate. One of {snp, mnp, total}. Default %s.' %
@@ -73,7 +70,7 @@ def parse_commandline_params(args):
     return parsed_args
 
 
-def workflow(trx_id, transcript_gff=TRANSCRIPTOME_GFF, ref=TRANSCRIPTOME_FASTA, out_vcf=None, outdir=".",
+def workflow(trx_id, transcript_gff, ref, out_vcf=None, outdir=".",
              var_type=VariantGenerator.DEFAULT_VAR_TYPE, haplotypes=VariantGenerator.DEFAULT_HAPLO,
              haplotype_len=VariantGenerator.DEFAULT_HAPLO_LEN, random_seed=VariantGenerator.DEFAULT_HAPLO_SEED,
              mnp_bases=VariantGenerator.DEFAULT_MNP_BASES):

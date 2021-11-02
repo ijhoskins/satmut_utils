@@ -281,16 +281,15 @@ def table_from_vcf(vcf, output_filename=None):
 
             var_id = variant.id if variant.id is not None else su.R_COMPAT_NA
             var_qual = variant.qual if variant.qual is not None else su.R_COMPAT_NA
-            var_filter = ",".join([k + "=" + v for k, v in variant.filter.items()]) \
-                if variant.filter is not None else su.R_COMPAT_NA
+            var_filter = su.R_COMPAT_NA
 
             output_fields = [
-                variant.contig, variant.pos, var_id, variant.ref, ",".join(variant.alts), var_qual, var_filter
-            ]
+                variant.contig, variant.pos, var_id, variant.ref, ",".join(variant.alts), var_qual, var_filter]
 
             output_fields += [",".join(v) if isinstance(v, tuple) else v for v in variant.info.values()]
             output_fields = list(map(str, output_fields))
-            out_fh.write(fu.FILE_DELIM.join(output_fields) + fu.FILE_NEWLINE)
+            output_res = fu.FILE_DELIM.join(output_fields) + fu.FILE_NEWLINE
+            out_fh.write(output_res)
 
     return outname
 

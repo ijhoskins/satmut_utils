@@ -428,6 +428,8 @@ def call_workflow(fastq1, fastq2, r1_fiveprime_adapters, r1_threeprime_adapters,
     out_prefix = os.path.join(outdir, fu.remove_extension(os.path.basename(os.path.commonprefix((fastq1, fastq2)))))
     output_vcf, output_bed = vc.workflow(min_bq, max_nm, min_supporting_qnames, max_mnp_window, out_prefix)
 
+    fu.safe_remove((tempdir,), force_remove=True)
+
     return output_vcf, output_bed
 
 

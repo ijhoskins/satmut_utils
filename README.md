@@ -58,7 +58,7 @@ cd satmut_utils
 
 ## Reference files
 
-For convenience, a curated transcriptome of primary transcripts from APPRIS is provided, allowing the user to pass an Ensembl gene or transcript ID to satmut_utils. However, if the requested Ensembl ID is not found in this set, the user must pass their own reference files. These include:
+For convenience, a curated transcriptome of primary human transcripts from APPRIS is provided, allowing the user to pass an Ensembl gene or transcript ID to satmut_utils. However, if the requested Ensembl ID is not found in this set, the user must pass their own reference files. These include:
 
 A. Transcript reference (FASTA)
 
@@ -68,7 +68,7 @@ C. GFF reference (FASTA)
 
 Common transcript annotations in GFF format map coordinates in the genome. For this typical case, file A should specify a transcript FASTA and file C should specify the genome FASTA.
 
-In typical saturation mutagenesis datasets, an intron-less coding sequence, often lacking endogenous untranslated (UTR) regions, is expressed from a vector. With the three reference files noted above, the user can set A and C to the composite (vector and target CDS) reference FASTA, then make a custom GFF annotation (file B). See documentation for more information on creating reference files.
+In typical saturation mutagenesis datasets, an intron-less coding sequence, often lacking endogenous untranslated (UTR) regions, is expressed from a vector. With the three reference files above, the user can set A and C to the composite (vector + target CDS) reference FASTA, then make a custom GFF annotation (file B). See documentation for more information on creating reference files.
 
 
 ## Code examples

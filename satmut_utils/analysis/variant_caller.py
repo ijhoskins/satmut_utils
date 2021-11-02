@@ -962,9 +962,7 @@ class VariantCaller(object):
              "%s comma-delimited amino acid change(s). NA if the variant is out of CDS bounds." % aa_mapper_module_path),
             (vu.VCF_AAM_AA_POS_ID, ".", "String",
              "%s comma-delimited amino acid position(s). NA if the variant is out of CDS bounds." % aa_mapper_module_path),
-            (vu.VCF_MUT_SIG_MATCH, ".", "String",
-             "Whether or not the variant matches the mutagensis signature. If False, the variant may still be real but "
-             "could have arisen from a mutagenesis primer synthesis error."),
+            (vu.VCF_MUT_SIG_MATCH, ".", "String", "Whether or not the variant matches the mutagenesis signature."),
         ]
 
         # Add the INFO fields to be populated in the variant records

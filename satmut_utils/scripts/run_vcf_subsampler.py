@@ -5,8 +5,8 @@ import argparse
 import logging
 import sys
 
-from core_utils.string_utils import none_or_str
-from core_utils.vcf_utils import VcfSubsampler
+from ..core_utils.string_utils import none_or_str
+from ..core_utils.vcf_utils import VcfSubsampler
 
 __author__ = "Ian Hoskins"
 __credits__ = ["Ian Hoskins"]

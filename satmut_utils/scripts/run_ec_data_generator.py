@@ -6,9 +6,9 @@ import datetime
 import logging
 import sys
 
-from core_utils.string_utils import none_or_str
-from prototype.variant_generator import VariantGenerator
-from prototype.error_correction import ErrorCorrectionDataGenerator
+from ..core_utils.string_utils import none_or_str
+from ..prototype.variant_generator import VariantGenerator
+from ..prototype.error_correction import ErrorCorrectionDataGenerator
 
 __author__ = "Ian Hoskins"
 __credits__ = ["Ian Hoskins"]
