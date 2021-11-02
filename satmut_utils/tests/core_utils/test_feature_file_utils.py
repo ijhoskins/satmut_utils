@@ -139,3 +139,65 @@ chr19	59066354	59066491	gi|571026644|ref|NM_014453.3|:1-137	0	-
                 Strand("-"), 0.0, frozenset(range(59066355, 59066492)))}.items())
 
         self.assertEqual(observed, expected)
+
+
+class TestSlopFeatures(unittest.TestCase):
+    """Tests for core_utils.feature_file_utils.slop_features."""
+
+    @classmethod
+    def setUpClass(cls):
+        """Setup for TestFeatureFileUtils."""
+
+        cls.tempdir = tempfile.mkdtemp()
+        cls.test_bed_b_str = "".join(TEST_BED.split("\n")[0]) + fu.FILE_NEWLINE
+
+        with tempfile.NamedTemporaryFile("w", suffix=".test.b.bed", delete=False, dir=cls.tempdir) as test_bed_b:
+            test_bed_b.write(cls.test_bed_b_str)
+            cls.test_bed_b = test_bed_b.name
+
+        with tempfile.NamedTemporaryFile("w", suffix=".genome_file.txt", delete=False, dir=cls.tempdir) as genome_file:
+            genome_file_str = fu.FILE_DELIM.join(("chr19", str(58617616),)) + fu.FILE_NEWLINE
+            genome_file.write(genome_file_str)
+            cls.genome_file = genome_file.name
+
+    @classmethod
+    def tearDownClass(cls):
+        """Tear down for TestFeatureFileUtils."""
+
+        fu.safe_remove((cls.tempdir,), force_remove=True)
+
+    def test_slop_features(self):
+        """Test that features can be slopped in both directions."""
+
+        with tempfile.NamedTemporaryFile(suffix=".test.slop.bed", delete=False) as slop_bed:
+            output_fn = slop_bed.name
+            ffu.slop_features(self.test_bed_b, genome_file=self.genome_file, bp_left=10, bp_right=5,
+                              by_strand=True, output=output_fn)
+
+        with open(output_fn, "r") as output_fh:
+            observed = output_fh.read()
+
+            slopped_test_bed_b_fields = self.test_bed_b_str.split(fu.FILE_DELIM)
+            slopped_test_bed_b_fields[1] = str(int(slopped_test_bed_b_fields[1]) - 5)
+            slopped_test_bed_b_fields[2] = str(int(slopped_test_bed_b_fields[2]) + 10)
+            expected = fu.FILE_DELIM.join(slopped_test_bed_b_fields)
+
+            self.assertEqual(observed, expected)
+
+    def test_slop_features_strand_unaware(self):
+        """Test that features can be slopped in both directions."""
+
+        with tempfile.NamedTemporaryFile(suffix=".test.slop.bed", delete=False) as slop_bed:
+            output_fn = slop_bed.name
+            ffu.slop_features(self.test_bed_b, genome_file=self.genome_file, bp_left=10, bp_right=5,
+                              by_strand=False, output=output_fn)
+
+        with open(output_fn, "r") as output_fh:
+            observed = output_fh.read()
+
+            slopped_test_bed_b_fields = self.test_bed_b_str.split(fu.FILE_DELIM)
+            slopped_test_bed_b_fields[1] = str(int(slopped_test_bed_b_fields[1]) - 10)
+            slopped_test_bed_b_fields[2] = str(int(slopped_test_bed_b_fields[2]) + 5)
+            expected = fu.FILE_DELIM.join(slopped_test_bed_b_fields)
+
+            self.assertEqual(observed, expected)

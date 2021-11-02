@@ -10,15 +10,14 @@ import random
 import re
 import tempfile
 
-from analysis.seq_utils import fasta_to_fastq, extract_seq, reverse_complement, FASTA_HEADER_CHAR, GENOMIC_FASTA, \
+from analysis.seq_utils import fasta_to_fastq, extract_seq, reverse_complement, FASTA_HEADER_CHAR, \
     DEFAULT_READ_LEN, DEFAULT_FRAG_LEN, MIN_FRAG_LENGTH, SD_FROM_MEAN_FACTOR, COORD_FORMAT, Strand, HumanContig
 
-from core_utils.feature_file_utils import slop_features, DEFAULT_BP_SLOP, PYBEDTOOLS_NULL_CHARS, GTF_FILETYPE, \
-    GFF_FILETYPE, GFF_ATTR_GENE_ID, GFF_ATTR_TRANSCRIPT_ID, GFF_FEATURE_TYPE_FIELD
+from core_utils.feature_file_utils import slop_features, get_genome_file, DEFAULT_BP_SLOP, PYBEDTOOLS_NULL_CHARS, \
+    GTF_FILETYPE, GFF_FILETYPE, GFF_ATTR_GENE_ID, GFF_ATTR_TRANSCRIPT_ID, GFF_FEATURE_TYPE_FIELD
 
 from core_utils.file_utils import safe_remove, FILE_NEWLINE, replace_extension
 from core_utils.string_utils import make_unique_ids, is_number
-from core_utils.structure_utils import OrderedDefaultdict
 
 __author__ = "Ian Hoskins"
 __credits__ = ["Ian Hoskins"]
@@ -242,9 +241,18 @@ class DnaReadGenerator(ReadGenerator):
         # Assuming the features are exons, slop the region to include intronic sequences, the defining feature of DNA
         # emulates hybrid capture based enrichment
         # Use larger slop to deal with logic of generate_random_ends(), which picks a random frag point in the feature
-        slopped_features = slop_features(self.feature_file, bp_left=self.slop_length, bp_right=self.slop_length)
+        with tempfile.NamedTemporaryFile(suffix=".genome_file.txt", mode="w", delete=False) as genome_file:
+            genome_fn = genome_file.name
+            get_genome_file(ref=self.ref, output_file=genome_file.name)
+
+        slopped_features = slop_features(
+            feature_file=self.feature_file, genome_file=genome_fn, bp_left=self.slop_length, bp_right=self.slop_length)
+
         self.slopped_bedtool = pybedtools.BedTool(slopped_features)
+
         self.feature_weights = self._weight_features()
+
+        safe_remove((genome_fn,))
 
     def _weight_features(self, feature_weight_min_len=300):
         """Weights individual components to enable uniform coverage.
@@ -342,7 +350,7 @@ class RnaReadGenerator(ReadGenerator):
         features_to_omit = re.compile("|".join(["gene", "transcript", "mRNA" , "cDNA_match"]))
 
         # Attempt to group exons by transcript; iter() method of BedTool returns Interval objects
-        grouped_features = OrderedDefaultdict(list)
+        grouped_features = collections.defaultdict(list)
         metafeature_scores = {}
 
         for feature in self.ff_bedtool:
