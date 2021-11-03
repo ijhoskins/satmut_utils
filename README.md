@@ -50,11 +50,10 @@ samtools faidx $REF_DIR/GRCh38.fa
 
 Other genome reference files for other organisms are available [here](http://daehwankimlab.github.io/hisat2/download/)
 
-6. Navigate to the calling directory within the repository:
+6. Navigate to the package parent directory within the repository:
 ```
 cd satmut_utils
 ```
-
 
 ## Reference files
 
@@ -138,6 +137,12 @@ To run unit tests, execute the following from the satmut_utils repository:
 ## Accessory scripts
 
 To facilitate simulation of reads and variants in a desired transcript de novo, additional command-line scripts are provided in the scripts directory. Code here is not fully tested and is only provided for convenience.
+
+To call these scripts, make sure you are in the satmut_utils directory and execute as modules:
+
+```
+python -m scripts.run_bowtie2_aligner -h
+``` 
 
 1. run_read_generator.py.
 This may be used to simulate paired-end RNA reads with random addition of noise. However, we recommend one of the many NGS read simulators that construct error models to generate test reads.

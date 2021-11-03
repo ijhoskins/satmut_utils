@@ -51,7 +51,7 @@ def parse_commandline_params(args):
                         help='Number of fragments to generate. Default %i. Feature file scores override defaults.'
                              % DEFAULT_NREADS)
 
-    parser.add_argument("-a", "--reference", type=str, help='Corresponding reference FASTA.')
+    parser.add_argument("-x", "--reference", type=str, help='Corresponding reference FASTA.')
 
     parser.add_argument("-p", "--paired", action="store_true", help='Generate PE reads instead of SE reads')
 
@@ -69,7 +69,7 @@ def parse_commandline_params(args):
     parser.add_argument("-m", "--make_amplicons", action="store_true",
                         help='Flag to generate reads from the termini of the targets. Consider setting slop_length to 0.')
 
-    parser.add_argument("-s", "--add_snps", action="store_true", help='Add SNP errors to reads.')
+    parser.add_argument("-a", "--add_snps", action="store_true", help='Add SNP errors to reads.')
 
     parser.add_argument("-i", "--add_indels", action="store_true", help='Add InDel errors to reads.')
 
@@ -127,8 +127,8 @@ def main():
              output_prefix=parsed_args["output_prefix"], nreads=parsed_args["nreads"], ref=parsed_args["reference"],
              paired=parsed_args["paired"], rna=parsed_args["rna"], read_length=parsed_args["read_length"],
              frag_length=parsed_args["frag_length"], slop_length=parsed_args["slop_length"],
-             make_amplicons=parsed_args["make_amplicons"],
-             add_snps=parsed_args["add_snps"], add_indels=parsed_args["add_indels"])
+             make_amplicons=parsed_args["make_amplicons"], add_snps=parsed_args["add_snps"],
+             add_indels=parsed_args["add_indels"])
 
 
 if __name__ == "__main__":
