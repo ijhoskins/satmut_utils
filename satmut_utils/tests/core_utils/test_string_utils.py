@@ -15,7 +15,7 @@ class TestStringUtils(unittest.TestCase):
         str_len = 9
         prefix = "woohoo"
         obs = su.make_random_str(str_len, prefix)
-        self.assertTrue(obs.startswith(prefix) and len(obs.split("_")[1]) == str_len)
+        self.assertTrue(obs.startswith(prefix) and len(obs) == len(prefix) + str_len)
 
     def test_make_unique_ids(self):
         """Test that we can make a set of unique IDs."""

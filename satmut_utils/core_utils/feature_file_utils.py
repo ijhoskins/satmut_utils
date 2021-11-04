@@ -125,7 +125,11 @@ def get_genome_file(ref, output_file=None):
     """
 
     # Tests for index files by side effect
-    _ = BowtieConfig(ref)
+    bc = BowtieConfig(ref)
+    try:
+        bc.test_build()
+    except RuntimeError:
+        bc.build_fm_index()
 
     inspect_cmd = ("bowtie2-inspect", "-s", ref)
     grep_cmd = ("grep", "Sequence")
@@ -134,9 +138,6 @@ def get_genome_file(ref, output_file=None):
     outfile = output_file
     if output_file is None:
         outfile = os.path.join(os.path.dirname(ref), replace_extension(os.path.basename(ref), "genome_file.txt"))
-
-    if os.path.exists(outfile):
-        return outfile
 
     with open(outfile, "w") as out_fh:
 
