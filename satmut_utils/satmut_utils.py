@@ -163,8 +163,8 @@ def parse_commandline_params(args):
                                   'of its component SNPs. Default %i.' % VariantCaller.VARIANT_CALL_MAX_MNP_WINDOW)
 
     parser_call.add_argument("-n", "--ntrimmed", type=int, default=FastqPreprocessor.NTRIMMED,
-                             help='Max number of adapters to trim from each read. Useful for trimming amplicons with '
-                                  'vector-transgene alignment. Default %i.' % FastqPreprocessor.NTRIMMED)
+                             help='Max number of adapters to trim from each read. Useful for trimming terminal tiles '
+                                  'with vector-transgene alignment. Default %i.' % FastqPreprocessor.NTRIMMED)
 
     parser_call.add_argument("-l", "--overlap_length", type=int, default=FastqPreprocessor.OVERLAP_LEN,
                              help='Number of read bases overlapping the adapter sequence(s) to consider for trimming. '
@@ -182,7 +182,7 @@ def parse_commandline_params(args):
                                   'reasonable reporting of fragment coverage. To avoid this behavior, provide -f.')
 
     parser_call.add_argument("-f", "--primer_fasta", type=none_or_str,
-                             help='If -cd, this may optionally be set to append originating R2 primer sequences to read names.'
+                             help='If -cd, this may optionally be set to append originating R2 primer sequences to read names. '
                                   'Useful for RACE-like (e.g. AMP) libraries to prohibit R2 merging. That is, without '
                                   'this flag, tiled R2s sharing the same R1 will be merged into contigs during '
                                   'consensus deduplication (-cd).')

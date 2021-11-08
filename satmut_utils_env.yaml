@@ -15,7 +15,6 @@ dependencies:
 - bcftools
 - umi_tools
 - aenum
-- biopython
 - numpy
 - nose2
 - pip

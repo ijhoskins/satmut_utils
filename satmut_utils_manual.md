@@ -397,17 +397,36 @@ If -f/--primer_fasta, allow up to this number of edit operations for matching pr
 
 To facilitate simulation of reads and variants in a desired transcript *de novo*, accessory scripts are provided in the scripts directory. Code here is not fully tested and is only provided for convenience to facilitate error modeling.
 
-1. run\_read_generator.py.
-This may be used to simulate paired-end reads with optional random addition of noise. However, I recommend one of the many NGS read simulators that construct error models from real data to generate test reads.
 
-To simulate error-free, tiled RNA sequencing alignments in full-length coding regions, I provide a transcript reference FASTA and target BED file in transcriptomic space. I split the transcript target region into smaller targets (read length minus the sum of the average lengths of two primers, ~ 50 bp) then run with --make\_amplicons but *not* --rna. The use of --rna is limited to simulating RNA reads starting from a genomic reference as opposed to a transcript reference. Mock primers can be generated that are flush with the termini of the segmented target regions.
 
-As an example, for 2 x 150 bp reads I create ~100 bp interleaved target regions in BED format and configure the number of reads to generate for each amplicon by the BED score field. Finally, I pass --make\_amplicons so that reads start from the terminus of the target segments.
+## Accessory scripts
 
---make\_amplicons is intended for direct simulation of reads from a transcript FASTA and target features. For general DNA or RNA read generation using a genome FASTA and standard GFF annotations, omit --make\_amplicons. In this mode, generated fragments start and end at random coordinates in the sequence space informed by the --frag\_length and --read\_length arguments.
+To facilitate simulation of reads and variants in a desired transcript *de novo*, additional command-line scripts are provided in the scripts directory. Code here is not fully tested and is only provided for convenience.
 
-2. run\_variant_generator.py
-This script may be used to generate a VCF of all SNP and MNP codon permutations in a desired transcript coding region that match a mutagenesis signature.
+To call these scripts, make sure you are in the satmut_utils directory and execute the scripts as modules:
+
+```
+python -m scripts.run_bowtie2_aligner -h
+``` 
+
+1. run\_read\_generator.py.
+
+This may be used to simulate reads with optional random addition of noise. This functionality is a work in progress and I recommend one of the many NGS read simulators that construct error models from real data to generate test reads.
+
+To generate error-free, tiled RNA read alignments, provide a transcript reference FASTA and target BED file. Split the transcript target region into chunks with widths roughly [read length - 2\*(average primer length)] if the target region requires multiple tiles. Then run with --make\_amplicons but *not* --rna. (Use of --rna is is for simulation of random fragments and when starting with a genomic reference FASTA).
+
+--make\_amplicons is intended for direct simulation of reads from a transcript FASTA. For general DNA or RNA read generation using a genome FASTA and standard GFF annotations, omit --make\_amplicons. In this mode, generated fragments start and end at random coordinates in the sequence space informed by the --frag\_length argument.
+
+We encourage the generation of mock primers that are flush with the termini of the chunked target amplicons. This prohibits the simulation of variants near read termini, which may lead to their clipping from alignments.
+
+As an example, for 2 x 150 bp chemistry I create ~100 bp interleaved target chunks in BED format and configure the number of reads to generate for each amplicon by the BED score field. Finally, I pass --make\_amplicons so that reads start from the terminus of the target segments.
+
+```
+python -m scripts.run_read_generator -t CBS_chunked_10k.bed -d $OUTPUT_DIR -x CBS.fa -m -p
+```
+
+2. run\_variant\_generator.py
+This script may be used to generate a VCF of all SNP and MNP codon permutations in a desired transcript coding region that match a mutagenesis signature. Together with run\_read\_generator.py, this provides *de novo* inputs for satmut\_utils sim.
 
 3. run\_vcf\_subsampler.py
 This script can be used to subsample variants from the VCF produced by run\_variant_generator.py. Balancing true and false positive variants is highly recommended for training models.

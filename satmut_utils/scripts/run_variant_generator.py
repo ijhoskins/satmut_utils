@@ -1,5 +1,5 @@
 #!/usr/bin/env/python
-"""Runs variant generation using all possible codon permutations for a specified transcript."""
+"""Runs variant generation using all possible codon permutations for a transcript."""
 
 import argparse
 import logging

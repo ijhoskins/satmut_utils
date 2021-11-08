@@ -1,7 +1,6 @@
 #!/usr/bin/env/python
 """Objects for generating variants."""
 
-import Bio.Seq
 import collections
 import logging
 import pysam
@@ -98,7 +97,7 @@ class VariantGenerator(object):
 
         new_info_ids = (
             (vu.VCF_AAM_AA_CHANGE_ID, ".", "String", "%s comma-delimited amino acid changes." % aa_mapper_module_path),
-            (vu.VCF_VARTYPE_ID, ".", "String", "Variant type. MNPs are confined to a codon. Haplotypes span codons.")
+            (vu.VCF_VARTYPE_ID, ".", "String", "Variant type.")
         )
 
         vu.update_header(header=vcf_header, info_ids=new_info_ids, contigs=contigs)
@@ -165,7 +164,7 @@ class VariantGenerator(object):
         return var_id_tup
 
     def get_all_trx_variants(self, trx_id, outfile=None, var_type=DEFAULT_VAR_TYPE, mnp_bases=DEFAULT_MNP_BASES):
-        """Generates a VCF of all permutation variants in a transcript.
+        """Generates a VCF of all permutation variants in  the coding region of a transcript.
 
         :param str trx_id: transcript ID to generate variants for; only one version may be available in the input GFF
         :param str | None outfile: optional output VCF filename
@@ -202,7 +201,7 @@ class VariantGenerator(object):
             for i, codon in enumerate(cds_codons):
 
                 codon_start = trx_start_pos + (i * 3)
-                ref_aa = str(Bio.Seq.Seq(codon).translate())
+                ref_aa = cm.translate(codon)
 
                 # Get the codon alts and some add'l metadata for annotating the VCF records
                 var_permut_num, var_permut_alts = cp.codon_var_alts[codon]
@@ -213,7 +212,7 @@ class VariantGenerator(object):
                     pos, ref, alt = self._get_codon_variant_pos(codon_start=codon_start, ref=codon, alt=permut)
                     var_type = vu.get_variant_type(ref=ref, alt=alt, split_mnps=True)
 
-                    alt_aa = str(Bio.Seq.Seq(permut).translate())
+                    alt_aa = cm.translate(permut)
                     aa_change = cm.HGVS_AA_FORMAT.format(ref_aa, i + 1, alt_aa)
 
                     #mut_info_tuple = self.aam.get_codon_and_aa_changes(trx_id=trx_id, pos=pos + 1, ref=ref, alt=alt)
@@ -486,8 +485,8 @@ class CodonPermuts(object):
         aa_changes = set()
         for codon_alt in codon_alts:
 
-            wt_aa = str(Bio.Seq.Seq(codon).translate())
-            alt_aa = str(Bio.Seq.Seq(codon_alt).translate())
+            wt_aa = cm.translate(codon)
+            alt_aa = cm.translate(codon_alt)
 
             if pos is None:
                 aa_changes.add(self.AA_CHANGE_FORMAT.format(wt_aa, alt_aa))
@@ -634,7 +633,7 @@ class AminoAcidTypes(CodonPermuts):
 
         for codon, v in self.codon_aa_alts.items():
 
-            ref_type = self.get_aa_type(str(Bio.Seq.Seq(codon).translate()))
+            ref_type = self.get_aa_type(cm.translate(codon))
             alt_types = v[1]
 
             for at in alt_types:

@@ -1,7 +1,6 @@
 #!/usr/bin/env/python
 """Objects for mapping between transcriptomic and protein coordinates."""
 
-import Bio.Seq
 import collections
 import gzip
 import logging
@@ -26,6 +25,33 @@ __maintainer__ = "Ian Hoskins"
 __email__ = "ianjameshoskins@utexas.edu"
 __status__ = "Development"
 
+CODONS = ("GCC", "GCT", "GCA", "GCG",
+          "TGC", "TGT",
+          "GAC", "GAT",
+          "GAG", "GAA",
+          "TTC", "TTT",
+          "GGC", "GGG", "GGA", "GGT",
+          "CAC", "CAT",
+          "ATC", "ATT", "ATA",
+          "AAG", "AAA",
+          "CTG", "CTC", "TTG", "CTT", "CTA", "TTA",
+          "ATG",
+          "AAC", "AAT",
+          "CCC", "CCT", "CCA", "CCG",
+          "CAG", "CAA",
+          "CGC", "AGG", "CGG", "AGA", "CGA", "CGT",
+          "AGC", "TCC", "TCT", "AGT", "TCA", "TCG",
+          "ACC", "ACA", "ACT", "ACG",
+          "GTG", "GTC", "GTT", "GTA",
+          "TGG",
+          "TAC", "TAT",
+          "TGA", "TAA", "TAG")
+
+CODON_AAS = ["A"] * 4 + ["C"] * 2 + ["D"] * 2 + ["E"] * 2 + ["F"] * 2 + ["G"] * 4 + ["H"] * 2 + ["I"] * 3 + ["K"] * 2 + \
+["L"] * 6 + ["M"] + ["N"] * 2 + ["P"] * 4 + ["Q"] * 2 + ["R"] * 6 + ["S"] * 6 + ["T"] * 4 + ["V"] * 4 + ["W"] + \
+            ["Y"] * 2 + ["*"] * 3
+
+CODON_AA_DICT = dict(zip(CODONS, CODON_AAS))
 HGVS_AA_FORMAT = "p.{}{}{}"
 MUT_SIG_UNEXPECTED_WOBBLE_BPS = {"NNN": set(), "NNK": {"A", "C"}, "NNS": {"A", "T"}}
 
@@ -339,8 +365,8 @@ class AminoAcidMapper(MapperBase):
 
         for i, (wt_codon, mut_codon) in enumerate(codon_comparitors):
 
-            wt_aa = str(Bio.Seq.Seq(wt_codon).translate())
-            mut_aa = str(Bio.Seq.Seq(mut_codon).translate())
+            wt_aa = translate(wt_codon)
+            mut_aa = translate(mut_codon)
 
             full_wt_aas.append(wt_aa)
             full_mut_aas.append(mut_aa)
@@ -444,3 +470,16 @@ class AminoAcidMapper(MapperBase):
 
         gzip.GzipFile(self.pkl_filepath)
 
+
+def translate(codon):
+    """Translates a codon.
+
+    :param str codon: codon string
+    :return str: shorthand amino acid string
+    """
+
+    if codon not in CODON_AAS:
+        raise RuntimeError("Unrecognized codon %s." % codon)
+
+    aa = CODON_AA_DICT[codon]
+    return aa
