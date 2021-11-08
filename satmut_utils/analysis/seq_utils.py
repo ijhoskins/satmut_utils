@@ -423,7 +423,7 @@ def bam_to_fastq(bam, out_prefix=None, is_paired=True, nthreads=0, *args, **kwar
     if out_prefix is None:
         outfile_prefix = remove_extension(os.path.abspath(bam))
 
-    call_args = ["-n", "-t", "-@", str(nthreads)]
+    call_args = ["-n", "-@", str(nthreads)]
     for f in args:
         call_args.extend(["-" + f])
 
