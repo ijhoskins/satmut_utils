@@ -478,7 +478,7 @@ def translate(codon):
     :return str: shorthand amino acid string
     """
 
-    if codon not in CODON_AAS:
+    if codon not in CODON_AA_DICT:
         raise RuntimeError("Unrecognized codon %s." % codon)
 
     aa = CODON_AA_DICT[codon]

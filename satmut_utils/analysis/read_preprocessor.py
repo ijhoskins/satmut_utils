@@ -1218,7 +1218,7 @@ class ReadMasker(object):
         self.out_bam = os.path.join(outdir, fu.replace_extension(os.path.basename(in_bam), self.MASKED_SUFFIX))
 
         self.feature_file_type = ffu.BED_FILETYPE if self.feature_file.endswith(ffu.BED_FILETYPE) else ffu.GFF_FILETYPE
-        self.feature_file_nfields = len(pybedtools.BedTool(self.feature_file)[1].fields)
+        self.feature_file_nfields = len(pybedtools.BedTool(self.feature_file)[0].fields)
 
         self.primer_start_offset = ffu.BED_INTERSECT_WB_B_BED_START_OFFSET if self.feature_file_type == ffu.BED_FILETYPE \
             else ffu.BED_INTERSECT_WB_B_GFF_START_OFFSET

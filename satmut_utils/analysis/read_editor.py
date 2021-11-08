@@ -278,9 +278,6 @@ class ReadEditor(object):
 
             vf.reset()
 
-        # TODO: sort configs by position and then by variant type
-        # This is needed to ensure pc_ref_base in _get_edit_configs() does not start with a del REF span
-
         return variant_tuples
 
     @staticmethod
@@ -458,9 +455,13 @@ class ReadEditor(object):
                 # First calculate the total number of amenable (non-aberrant) qnames at the coordinate;
                 # this is the depth for multiplying by variant AFs to determine the integer number of qnames to edit
                 # Here apply several filters to determine amenable qnames
-                # TODO: make this the max ref span?
-                pc_ref_base = var_configs[0].ref
-                len_ref = len(pc_ref_base)
+
+                # Find the longest REF span among the variant configs at the current position
+                # Use this REF sequence for matching against the read
+                var_configs_ref_lens = [len(vc.ref) for vc in var_configs]
+                ref_len_max = max(var_configs_ref_lens)
+                ref_len_max_idx = [i for i, e in enumerate(var_configs_ref_lens) if e == ref_len_max][0]
+                var_configs_max_ref_len = var_configs_ref_lens[ref_len_max_idx]
 
                 # Both of these lists will be used to determine which qnames have concordant coverage at the column
                 all_qnames = []
@@ -473,7 +474,7 @@ class ReadEditor(object):
                     # If the edited bases intersect any synthetic primer regions, do not edit
                     if not (pileup_read.is_del or pileup_read.is_refskip) and \
                             su.MASKED_BQ in pileup_read.alignment.query_qualities[
-                                            pileup_read.query_position:pileup_read.query_position + len_ref]:
+                                            pileup_read.query_position:pileup_read.query_position + var_configs_max_ref_len]:
                         continue
 
                     # Now at this point, consider any concordant pair with/without error at the column for the
@@ -492,7 +493,7 @@ class ReadEditor(object):
                     # with nearby errors
                     if not self._ref_matches_window(
                             contig=pileup_read.alignment.reference_name, query_seq=pileup_read.alignment.query_sequence,
-                            query_pos=pileup_read.query_position, ref_len=len_ref,
+                            query_pos=pileup_read.query_position, ref_len=var_configs_max_ref_len,
                             ref_pos=pileup_read.alignment.reference_start + pileup_read.query_position + 1):
 
                         continue
