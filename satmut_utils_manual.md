@@ -275,7 +275,7 @@ Variant Call Format file that contains an in-line INFO tag (AF) specifying the d
 
 3. -b, --edit_buffer
 
-When selecting reads to edit, verify the absence of errors within this buffer about the edit position/span. The read segment must match the references within the span (POS - edit_buffer, POS + REF length + edit_buffer). Increasing this value prevents variant conversion and/or unexpected clipping of the variant from the aligned read. Decreasing this value may be needed in cases where variants are being edited near read termini.
+When selecting reads to edit, verify the absence of errors within this buffer about the edit position/span. The read segment must match the references within the span (POS - edit_buffer, POS + REF length + edit_buffer). Increasing this value prevents variant conversion and/or unexpected clipping of the variant from the termini of the aligned read. Decreasing this value may be needed in cases where variants are being edited near read termini.
 
 4. -f, --force_edit
 
@@ -427,6 +427,10 @@ python -m scripts.run_read_generator -t CBS_chunked_10k.bed -d $OUTPUT_DIR -x CB
 
 2. run\_variant\_generator.py
 This script may be used to generate a VCF of all SNP and MNP codon permutations in a desired transcript coding region that match a mutagenesis signature. Together with run\_read\_generator.py, this provides *de novo* inputs for satmut\_utils sim.
+
+Provide trx\_id exactly as it exists in the GFF attribute transcript\_id value.
+
+
 
 3. run\_vcf\_subsampler.py
 This script can be used to subsample variants from the VCF produced by run\_variant_generator.py. Balancing true and false positive variants is highly recommended for training models.

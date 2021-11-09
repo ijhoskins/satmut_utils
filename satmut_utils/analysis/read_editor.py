@@ -132,7 +132,7 @@ class ReadEditor(object):
     MIN_BQ = 1  # omit primer-masked bases where BQ = 0
     VAR_TAG_DELIM = "_"
     DEFAULT_MAX_ERROR_RATE = 0.03
-    DEFAULT_BUFFER = 3
+    DEFAULT_BUFFER = 5
 
     TRUTH_VCF_SUFFIX = "truth.vcf"
     NORM_VCF_SUFFIX = "norm.sort.vcf"

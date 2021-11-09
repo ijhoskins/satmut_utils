@@ -366,6 +366,9 @@ def call_workflow(fastq1, fastq2, r1_fiveprime_adapters, r1_threeprime_adapters,
         qv = QnameVerification(fastq=fastq1)
         sort_cmd = QNAME_SORTS[qv.format_index]
 
+    if not os.path.exists(outdir):
+        os.mkdir(outdir)
+
     # Create a temp dir for all intermediate files
     tempdir = tempfile.mkdtemp(suffix=".call.tmp")
 

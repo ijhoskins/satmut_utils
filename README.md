@@ -145,7 +145,8 @@ python -m scripts.run_bowtie2_aligner -h
 ``` 
 
 1. run_read_generator.py.
-This may be used to simulate paired-end RNA reads with random addition of noise. However, we recommend one of the many NGS read simulators that construct error models to generate test reads.
+This may be used to simulate paired-end RNA reads with random addition of noise. However, we recommend one of the many NGS read simulators that construct error models to generate test reads. 
+
 
 2. run_variant_generator.py
 This script may be used to generate a VCF of all SNP and MNP codon permutations in a desired transcript coding region.
