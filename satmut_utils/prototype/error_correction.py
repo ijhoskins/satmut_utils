@@ -105,8 +105,9 @@ class ErrorCorrectionDataGenerator(object):
         mut_df[vu.VCF_VARTYPE_ID] = mut_df.apply(
             lambda x: str(vu.get_variant_type(ref=x[vu.VAR_REF], alt=x[vu.VAR_ALT], split_mnps=True)), axis=1)
 
-        # We don't want any prexisiting background SNPs to inflate the estimates; filter out variants with high freq
-        filter_df = mut_df[mut_df["CAF"] < 0.35]
+        # We don't want any prexisting background SNPs to inflate the estimates; filter out variants with high freq
+        # Also filter out variants that don't match the mutagenesis signature
+        filter_df = mut_df[(mut_df["CAF"] < 0.35) & (mut_df["MATCHES_MUT_SIG"] == "True")]
 
         groupby_df = filter_df[[vu.VCF_VARTYPE_ID, vu.VCF_CAF_ID]].groupby(vu.VCF_VARTYPE_ID)
 

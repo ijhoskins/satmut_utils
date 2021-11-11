@@ -356,6 +356,9 @@ class VariantCaller(object):
                 ref_bp = str(reference_base).upper()
                 alt_bp = align_seg.query_sequence[query_pos].upper()
 
+                if alt_bp == su.UNKNOWN_BASE:
+                    continue
+
                 # We want the variant position 1-based with respect to the 5' end
                 var_pos = query_pos + 1 if read_strand == su.Strand.PLUS else align_seg.query_length - query_pos
 
