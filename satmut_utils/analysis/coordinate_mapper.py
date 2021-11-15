@@ -79,7 +79,6 @@ class MapperBase(object):
     """Base class for GTF/GFF related data parsing."""
 
     # Some GFF/GTF type fields
-
     # Common feature types
     GENE_ID = "gene"
     TRX_ID = "transcript"
@@ -181,10 +180,7 @@ class AminoAcidMapper(MapperBase):
         overwritten? Default False. This is useful if one makes dynamic edits to an existing GFF. Otherwise, the older \
         pickle will be used.
         :param str mut_sig: mutagenesis signature- one of {NNN, NNK, NNS}. Default NNN.
-        :param bool filter_unexpected: Filter codon/AA changes that did not match an expected NNK signature? This is a \
-        chemistry-specific filter to enable filtering of false positive calls from POPcode-mutagenized data. However, \
-        even if a variant does not match this signature, it could still be "real" in the sense that the variant was \
-        really in the data due to a mutagensis primer synthesis error (despite it being unintended by design). Default False.
+        :param bool filter_unexpected: Filter changes that did not match an expected mutagenesis signature? Default False.
 
         Warning! The exon feature GFF attributes must have transcript_id and exon_number or exon_ID, key-value pairs, and \
         features should be from 5' to 3', regardless of strand! For example, a transcript on the (-) will NOT be sorted \
@@ -343,9 +339,8 @@ class AminoAcidMapper(MapperBase):
         """
 
         # If we weren't interested in reporting silent mutations, we might just translate the whole sequences then
-        # compare AAs; but since we want this output for comparison to the Fritz Roth lab caller, translate each codon
-        # Multi-base MNPs (haplotypes) make optimization logic a little tricky, as the MNP may span multiple codons
-        # For now just iterate over all the codons/AAs
+        # compare AAs; but multi-base MNPs (haplotypes) make optimization logic a little tricky, as the MNP may
+        # span multiple codons. For now just iterate over all the codons/AAs
         codon_comparitors = zip(
             [wt_cds_seq[i:i + 3] for i in range(0, len(wt_cds_seq), 3)],
             [mut_cds_seq[i:i + 3] for i in range(0, len(mut_cds_seq), 3)]
@@ -359,17 +354,9 @@ class AminoAcidMapper(MapperBase):
         mut_aas = []
         mut_pos = set()
         aa_changes = []
-        full_wt_aas = []
-        full_mut_aas = []
         matches_mut_sig = []
 
         for i, (wt_codon, mut_codon) in enumerate(codon_comparitors):
-
-            wt_aa = translate(wt_codon)
-            mut_aa = translate(mut_codon)
-
-            full_wt_aas.append(wt_aa)
-            full_mut_aas.append(mut_aa)
 
             if wt_codon != mut_codon:
 
@@ -392,6 +379,8 @@ class AminoAcidMapper(MapperBase):
 
                 matches_mut_sig.append(matches_sig)
 
+                wt_aa = translate(wt_codon)
+                mut_aa = translate(mut_codon)
                 wt_aas.append(wt_aa)
                 mut_aas.append(mut_aa)
                 mut_pos.add(i + 1)
@@ -438,7 +427,7 @@ class AminoAcidMapper(MapperBase):
         expected_ref = trx_seq[zbased_pos:zbased_pos + len(ref)]
         if ref.upper() != expected_ref.upper():
             raise RuntimeError(
-                "Provided REF field does not match the expected reference of the stored transcript: %s" % expected_ref)
+                "REF %s does not match the expected reference sequence of the transcript: %s" % (ref, expected_ref))
 
         # Now that we have ensured our variant is valid, we can check for its placement
         if cds_start_offset is None and cds_stop_offset is None:

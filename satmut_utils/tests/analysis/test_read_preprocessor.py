@@ -396,18 +396,6 @@ class TestFastqPreprocessor(unittest.TestCase):
                 if i == 1:
                     self.assertEqual(expected, line.strip(fu.FILE_NEWLINE))
 
-    def test_validate(self):
-        """Test that fastqc output files are generated."""
-
-        _ = rp.FastqPreprocessor(f1=self.tileseq_r1_fastq, f2=self.tileseq_r2_fastq,
-                                   r1_fiveprime_adapters=",".join((NEB_ADAPTER_P7, PEZY3_ATTB1_P7)),
-                                   r1_threeprime_adapters=",".join((NEB_ADAPTER_P5_RC, PEZY3_ATTB2_P5_RC)),
-                                   outdir=self.tempdir, validate=True)
-
-        matches = [f for f in os.listdir(self.tempdir) if re.search("fastqc.html", f)]
-        # We should have a file for R1 and R2
-        self.assertEqual(len(matches), 2)
-
 
 class TestUmiExtractor(unittest.TestCase):
     """Tests for UmiExtractor."""

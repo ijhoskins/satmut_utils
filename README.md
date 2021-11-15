@@ -112,7 +112,7 @@ python satmut_utils.py -i ENST00000398165.7 -x $REF_DIR -o $OUTPUT_DIR -p $TEST_
 Here, we call variants on a simulated dataset with no adapter sequences, so we pass -v. However, in typical cases, the user should provide 5' and 3' adapters for trimming.
 
 
-If the Ensembl ID is not in the curated set of primary transcripts, or if the user wishes to align to a custom reference, several reference files most be provided (see Reference Files section):
+If the Ensembl ID is not in the curated set of primary transcripts, or if the user wishes to align to a custom reference, several reference files most be provided (see Reference Files):
 
 ```
 python satmut_utils.py -r $TEST_DIR/CBS.fa -o $OUTPUT_DIR -p $TEST_DIR/CBS_sim_primers.bed call -1 $TEST_DIR/CBS_sim.R1.fq.gz -2 $TEST_DIR/CBS_sim.R2.fq.gz -v -g $TEST_DIR/CBS.gff -k $REF_DIR/GRCh38.fa
@@ -131,7 +131,7 @@ A number of useful R functions exist in prototype.summarization_utils.r for pars
 
 To run unit tests, execute the following from the satmut_utils repository:
 
-```nose2 -v```
+```nose2 -q```
 
 
 ## Accessory scripts
@@ -145,8 +145,7 @@ python -m scripts.run_bowtie2_aligner -h
 ``` 
 
 1. run_read_generator.py.
-This may be used to simulate paired-end RNA reads with random addition of noise. However, we recommend one of the many NGS read simulators that construct error models to generate test reads. 
-
+This may be used to simulate paired-end RNA reads with random addition of noise. However, we recommend one of the many NGS read simulators that construct error models to generate test reads.
 
 2. run_variant_generator.py
 This script may be used to generate a VCF of all SNP and MNP codon permutations in a desired transcript coding region.

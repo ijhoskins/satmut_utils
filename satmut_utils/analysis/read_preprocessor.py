@@ -165,7 +165,7 @@ class FastqPreprocessor(object):
 
     def __init__(self, f1, f2, r1_fiveprime_adapters, r1_threeprime_adapters,
                  outdir=".", ncores=NCORES, trim_bq=TRIM_QUALITY, ntrimmed=NTRIMMED,
-                 overlap_len=OVERLAP_LEN, no_trim=TRIM_FLAG, validate=True):
+                 overlap_len=OVERLAP_LEN, no_trim=TRIM_FLAG):
         """Constructor for FastqPreprocessor.
 
         :param str f1: path of the R1 FASTQ
@@ -178,7 +178,6 @@ class FastqPreprocessor(object):
         :param int ntrimmed: Max number of adapters to trim from each read. Default 3.
         :param int overlap_len: number of bases to match in read to trim. Default 8.
         :param bool no_trim: flag to turn off adapter and 3' base quality trimming. Default False.
-        :param bool validate: Validate FASTQs with FastQC? Default True.
         """
 
         self.f1 = f1
@@ -205,7 +204,6 @@ class FastqPreprocessor(object):
         self.ntrimmed = ntrimmed
         self.overlap_len = overlap_len
         self.no_trim = no_trim
-        self.validate = validate
 
         if not os.path.exists(outdir):
             os.mkdir(outdir)
@@ -222,28 +220,11 @@ class FastqPreprocessor(object):
         if fu.is_gzipped(f2):
             self.trimmed_f2 = fu.add_extension(self.trimmed_f2, fu.get_extension(f2))
 
-        if self.validate:
-            self.run_fastqc()
-
         if not self.no_trim:
             self.workflow()
         else:
             self.trimmed_f1 = f1
             self.trimmed_f2 = f2
-
-    def run_fastqc(self):
-        """Runs FASTQC on input files to determine read quality."""
-
-        # Add adapter list to be searched
-        fastqc_call = ["fastqc", "--quiet", "-o", self.outdir, self.f1]
-
-        if self.ncores > 0:
-            fastqc_call.extend(["-t", str(self.ncores)])
-
-        if self.f2 is not None:
-            fastqc_call.append(self.f2)
-
-        subprocess.call(fastqc_call)
 
     def run_cutadapt(self):
         """Trims adapter sequence, poly-A sequences.

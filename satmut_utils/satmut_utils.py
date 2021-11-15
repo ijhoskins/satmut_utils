@@ -22,7 +22,7 @@ from scripts.run_bowtie2_aligner import workflow as baw
 
 __author__ = "Ian Hoskins"
 __credits__ = ["Ian Hoskins"]
-__license__ = "GPL"
+__license__ = "MIT"
 __version__ = "1.0"
 __maintainer__ = "Ian Hoskins"
 __email__ = "ianjameshoskins@utexas.edu"
@@ -390,8 +390,7 @@ def call_workflow(fastq1, fastq2, r1_fiveprime_adapters, r1_threeprime_adapters,
     # Run the FASTQ preprocessing workflow which includes adapter trimming and 3' BQ trimming
     fqp = FastqPreprocessor(
         f1=fqp_r1, f2=fqp_r2, r1_fiveprime_adapters=r1_fiveprime_adapters, r1_threeprime_adapters=r1_threeprime_adapters,
-        outdir=tempdir, ncores=nthreads, trim_bq=trim_bq, ntrimmed=ntrimmed, overlap_len=overlap_len, no_trim=omit_trim,
-        validate=False)
+        outdir=tempdir, ncores=nthreads, trim_bq=trim_bq, ntrimmed=ntrimmed, overlap_len=overlap_len, no_trim=omit_trim)
 
     # Run local alignment; handle the ncores/nthreads option for cutadapt versus bowtie2 options
     bowtie2_nthreads = 1 if nthreads == 0 else nthreads
