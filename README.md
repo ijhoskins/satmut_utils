@@ -6,9 +6,11 @@ satmut_utils is a Python package for simulation and variant calling of saturatio
 
 satmut_utils commands are designed to simulate and call variants in paired-end, targeted RNA-seq datasets. That is, alignments to a single transcript are expected. 
 
+Currently, only Linux and MacOSX operating systems are supported.
+
 ## Setting up the running environment
 
-To get started, you must clone the satmut_utils repository, create a conda environment, and download or generate reference files. This process is as follows:
+To get started, clone the satmut_utils repository, create a conda environment, and download or generate your own reference files. This process is as follows:
 
 1. Acquire the code base by cloning the satmut_utils repository:
 
@@ -28,7 +30,7 @@ cd satmut_utils && conda env create -f satmut_utils_env.yaml
 conda activate satmut_utils
 ```
 
-5. Download reference files if using Ensembl identifiers.
+5. If using Ensembl identifiers, download reference files.
 
 Create a reference directory:
 ```
@@ -87,7 +89,7 @@ Common arguments to both sim and call subcommands are provided first, then the s
 
 ### Run sim
 
-Run sim on *in silico* alignments to generate SNPs, MNPs, and InDels:
+Run sim on *in silico* alignments to generate SNPs, MNPs, and InDels. Structural variants are not supported.
 
 ```
 TEST_DIR="tests/test_data"
@@ -97,8 +99,7 @@ python satmut_utils.py -i ENST00000398165.7 -x $REF_DIR -o $OUTPUT_DIR -p $TEST_
 
 ### sim outputs
 
-The sim workflow outputs paired FASTQs and a truth VCF containing expected variants and their frequencies. Optionally, edited reads may be filtered and realigned for further investigation.
-
+The sim workflow outputs paired FASTQs and a truth VCF containing expected variants and their expected frequencies.
 
 ### Run call
 
@@ -110,7 +111,6 @@ python satmut_utils.py -i ENST00000398165.7 -x $REF_DIR -o $OUTPUT_DIR -p $TEST_
 ```
 
 Here, we call variants on a simulated dataset with no adapter sequences, so we pass -v. However, in typical cases, the user should provide 5' and 3' adapters for trimming.
-
 
 If the Ensembl ID is not in the curated set of primary transcripts, or if the user wishes to align to a custom reference, several reference files most be provided (see Reference Files):
 
@@ -124,7 +124,7 @@ The call workflow produces a VCF of candidate variant calls as well as a BED fil
 
 The output VCF and its corresponding tab-delimited summary.txt file contain records for each mismatched base in an MNP, so that quality information for the mismatches can be used for learning-based error correction.
 
-A number of useful R functions exist in prototype.summarization_utils.r for parsing and summarizing the VCF summary file. See the VCF header for column/feature descriptions.
+A number of useful R functions exist in prototype.summarization_utils.r for parsing and summarizing the VCF summary file. See the VCF header for column/field descriptions.
 
 
 ## Tests

@@ -90,19 +90,24 @@ def parse_commandline_params(args):
     parser_sim.set_defaults(func=sim_workflow)
 
     parser_sim.add_argument("-a", "--alignments", required=True, type=str,
-                            help='BAM file containing alignments to edit.')
+                            help='BAM file containing paired alignments to edit (reads should be aligned in '
+                                 'paired-end mode). Paired bowtie2 alignment is supported by the align_reads command.')
 
     parser_sim.add_argument("-v", "--vcf",  required=True, type=str,
-                            help='VCF file specifying variants to edit. Should have an AF INFO field for each variant, '
-                                 'specifying the fraction of fragments with overlapping coverage to edit into.')
+                            help='VCF file of variants to edit. Each variant record should have an AF INFO field '
+                                 'specifying the allele fraction of fragments to edit. Editing only occurs in fragments '
+                                 'with overlapping coverage from both reads.')
 
     parser_sim.add_argument("-b", "--edit_buffer", type=int, default=ri.ReadEditor.DEFAULT_BUFFER,
-                            help='Buffer +/- the edit coordinate positions (s) to check for pre-existing errors in reads. '
+                            help='Buffer +/- the edit coordinate position(s) to check for pre-existing errors in reads. '
                                  'Used to restrict phasing of true variants with errors, leading to false negatives. '
                                  'Default %i' % ri.ReadEditor.DEFAULT_BUFFER)
 
     parser_sim.add_argument("-f", "--force_edit", action="store_true",
-                            help='Flag to force editing of variants despite invalid variant configurations (AF sum > 1).')
+                            help='Flag to force editing of variants in the event of invalid variant configurations '
+                                 '(AF sum > 1). Editing of all variants is not ensured if this flag is provided, '
+                                 'especially for single-amplicon (PCR tile) alignments. If alignments contain many tiles, '
+                                 'this option enables more variants to be simulated, as they are diffuse in target space.')
 
     parser_sim.add_argument("-s", "--random_seed", type=int, default=9, help='Seed for random read sampling.')
 
@@ -117,7 +122,7 @@ def parse_commandline_params(args):
     group2 = parser_call.add_mutually_exclusive_group(required=True)
     group2.add_argument("-v", "--omit_trim", action="store_true",
                         help='Flag to turn off adapter and 3\' base quality trimming. Useful for simulated data '
-                             'that has no adapters or has already been adapter-trimmed.')
+                             'that has no adapters.')
 
     group2.add_argument("-5", "--r1_fiveprime_adapters", type=str,
                         help='Comma-delimited R1 5\' adapters.')
@@ -125,25 +130,25 @@ def parse_commandline_params(args):
     parser_call.add_argument("-3", "--r1_threeprime_adapters", type=str, help='Comma-delimited R1 3\' adapters.')
 
     parser_call.add_argument("-g", "--transcript_gff", type=str,
-                             help='GFF file containing transcript metafeatures and exon features. The GFF must be from 5\' '
-                                  'to 3\', regardless of strand, and contain transcript, exon, CDS, and stop_codon features.')
+                             help='GFF file with transcript metafeatures and exon features. The records must be from 5\' '
+                                  'to 3\' regardless of strand, and contain transcript, exon, CDS, and stop_codon features.')
 
     parser_call.add_argument("-k", "--gff_reference", type=str, help='Reference FASTA for the GFF.')
 
     parser_call.add_argument("-t", "--targets", type=str,
                              help='Optional target BED file. Only variants intersecting the targets will be reported. '
-                                  'Contig names in the target file should match the contig name of the reference FASTA. '
-                                  'Provided -i, the name should match a single contig in '
-                                  'appris_human_v1_actual_regions_contigs.txt.')
+                                  'Contig names in the target file should match the contig name in the reference FASTA.')
 
     parser_call.add_argument("-d", "--consensus_deduplicate", action="store_true",
-                             help='For UMIs at the start of R1, flag to deduplicate and generate consensus reads.')
+                             help='Flag to deduplicate and generate consensus reads following UMI grouping. '
+                                  'Assumes UMIs at the start of R1.')
 
     parser_call.add_argument("-u", "--umi_regex", type=str, default=AMP_UMI_REGEX,
-                             help='UMI regular expression to be passed to umi_tools extract command.')
+                             help='UMI regular expression to be passed to umi_tools extract command. '
+                                  'Default %s.' % AMP_UMI_REGEX)
 
     parser_call.add_argument("-s", "--mutagenesis_signature", type=str, default=DEFAULT_MUT_SIG,
-                             help='Mutagenesis signature. One of NNN, NNK, or NNS.')
+                             help='Mutagenesis signature. One of {NNN, NNK, NNS}. Default %s.' % DEFAULT_MUT_SIG)
 
     parser_call.add_argument("-q", "--min_bq", type=int, default=VariantCaller.VARIANT_CALL_MIN_BQ,
                              help='Min base quality to consider a position for variant calling. Default %i.' %
@@ -171,21 +176,21 @@ def parse_commandline_params(args):
                                   'Default %i.' % FastqPreprocessor.OVERLAP_LEN)
 
     parser_call.add_argument("-b", "--trim_bq", type=int, default=FastqPreprocessor.TRIM_QUALITY,
-                             help='Base quality for 3\' trimming. Default %i.' % FastqPreprocessor.TRIM_QUALITY)
+                             help='Base quality for cutadapt 3\' trimming. Default %i.' % FastqPreprocessor.TRIM_QUALITY)
 
     parser_call.add_argument("-c", "--contig_del_threshold", type=int, default=ConsensusDeduplicator.CONTIG_DEL_THRESH,
                              help='If -z (RACE-like chemistry) and -cd (consensus deduplicate) are provided, '
                                   'convert deletions to N that are larger than this threshold. Required as some R2s '
                                   'may share the same R1 [UMI x position] but align to different coordinates. To '
-                                  'generate consensus R2 contigs, merging R2s may leave large gaps that will be '
-                                  'reassigned the unknown base N if the gap is greater than this threshold. This allows'
-                                  'reasonable reporting of fragment coverage. To avoid this behavior, provide -f.')
+                                  'generate consensus R2 contigs, merging of R2s may leave large gaps that will be '
+                                  'reassigned the unknown base N if the gap is greater than this threshold. '
+                                  'To avoid this behavior, provide -f.')
 
     parser_call.add_argument("-f", "--primer_fasta", type=none_or_str,
-                             help='If -cd, this may optionally be set to append originating R2 primer sequences to read names. '
-                                  'Useful for RACE-like (e.g. AMP) libraries to prohibit R2 merging. That is, without '
-                                  'this flag, tiled R2s sharing the same R1 will be merged into contigs during '
-                                  'consensus deduplication (-cd).')
+                             help='If -z and -cd, this may be set to append originating R2 primer sequences to read names. '
+                                  'Useful for RACE-like (AMP) libraries to prohibit R2 merging. Without this flag, '
+                                  'R2s from separate tiles, but sharing the same R1 UMI, will be merged into contigs during '
+                                  'consensus deduplication.')
 
     parser_call.add_argument("-a", "--primer_nm_allowance", type=int, default=UMIExtractor.PRIMER_NM_ALLOW,
                              help='If -f, find primers in R2 with up to this many edit operations.')
