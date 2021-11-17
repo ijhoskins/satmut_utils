@@ -955,8 +955,10 @@ class VariantCaller(object):
             (vu.VCF_AAM_LOCATION_ID, ".", "String",
              "%s location of the variant in the transcript. One of {CDS, 5_UTR, 3_UTR, intergenic, untranslated}."
              % aa_mapper_module_path),
-            (vu.VCF_AAM_CODON_REF_ID, ".", "String", "%s comma-delimited reference codon(s)." % aa_mapper_module_path),
-            (vu.VCF_AAM_CODON_ALT_ID, ".", "String", "%s comma-delimited alternate codon(s)." % aa_mapper_module_path),
+            (vu.VCF_AAM_CODON_REF_ID, ".", "String",
+             "%s comma-delimited reference codon(s). NA if the variant is out of CDS bounds." % aa_mapper_module_path),
+            (vu.VCF_AAM_CODON_ALT_ID, ".", "String",
+             "%s comma-delimited alternate codon(s). NA if the variant is out of CDS bounds." % aa_mapper_module_path),
             (vu.VCF_AAM_AA_REF_ID, ".", "String",
              "%s comma-delimited reference amino acid(s). NA if the variant is out of CDS bounds." % aa_mapper_module_path),
             (vu.VCF_AAM_AA_ALT_ID, ".", "String",
@@ -965,7 +967,7 @@ class VariantCaller(object):
              "%s comma-delimited amino acid change(s). NA if the variant is out of CDS bounds." % aa_mapper_module_path),
             (vu.VCF_AAM_AA_POS_ID, ".", "String",
              "%s comma-delimited amino acid position(s). NA if the variant is out of CDS bounds." % aa_mapper_module_path),
-            (vu.VCF_MUT_SIG_MATCH, ".", "String", "Whether or not the variant matches the mutagenesis signature."),
+            (vu.VCF_MUT_SIG_MATCH, ".", "String", "Whether or not the variant matches the mutagenesis signature.")
         ]
 
         # Add the INFO fields to be populated in the variant records

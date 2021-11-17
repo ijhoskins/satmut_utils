@@ -37,7 +37,7 @@ def parse_commandline_params(args):
     parser = argparse.ArgumentParser(description="%s arguments" % __name__)
 
     # Add new arguments for command line passing of files, options, etc; see argparse docs
-    parser.add_argument("-t", "--trx_id", type=str, required=True,
+    parser.add_argument("-i", "--trx_id", type=str, required=True,
                         help='Full Ensembl transcript contig ID for which to generate variants.')
 
     parser.add_argument("-g", "--transcript_gff", required=True, type=str,
@@ -55,7 +55,7 @@ def parse_commandline_params(args):
                              VariantGenerator.DEFAULT_VAR_TYPE)
 
     parser.add_argument("-a", "--add_haplotypes", action="store_true",
-                        help='Flag to add longer range haplotypes up to read length.')
+                        help='Flag to add long range haplotypes up to read length.')
 
     parser.add_argument("-l", "--haplotype_length", type=int, default=VariantGenerator.DEFAULT_HAPLO_LEN,
                         help='Maximum length for which to create haplotypes.')

@@ -74,7 +74,7 @@ def parse_commandline_params(args):
                              VariantGenerator.DEFAULT_VAR_TYPE)
 
     parser.add_argument("-a", "--add_haplotypes", action="store_true",
-                        help='Flag to add longer range haplotypes up to read length.')
+                        help='Flag to add long range haplotypes up to read length.')
 
     parser.add_argument("-l", "--haplotype_length", type=int, default=VariantGenerator.DEFAULT_HAPLO_LEN,
                         help='Maximum length for which to create haplotypes.')
@@ -86,9 +86,6 @@ def parse_commandline_params(args):
     parser.add_argument("-s", "--random_seed", type=int, default=VariantGenerator.DEFAULT_HAPLO_SEED,
                         help='Seed for random variant sampling.')
 
-    parser.add_argument("-c", "--conservative_mnps", action="store_true",
-                        help='Should di-nt MNP AF estimates be set to tri-nt MNP AF estimates?')
-
     parsed_args = vars(parser.parse_args(args))
     return parsed_args
 
@@ -97,8 +94,7 @@ def workflow(negative_summary, mutant_summary, negative_bam, trx_id, ref, gff,
              race_like=ErrorCorrectionDataGenerator.DEFAULT_RACE_LIKE, primers=None,
              output_dir=".", output_prefix=None, var_type=VariantGenerator.DEFAULT_VAR_TYPE,
              haplotypes=VariantGenerator.DEFAULT_HAPLO, haplotype_len=VariantGenerator.DEFAULT_HAPLO_LEN,
-             mnp_bases=VariantGenerator.DEFAULT_MNP_BASES, random_seed=VariantGenerator.DEFAULT_HAPLO_SEED,
-             conservative_mnp_estimates=ErrorCorrectionDataGenerator.DEFAULT_CONSERVATIVE_MNPS):
+             mnp_bases=VariantGenerator.DEFAULT_MNP_BASES, random_seed=VariantGenerator.DEFAULT_HAPLO_SEED):
     r"""Runs the error correction data generation workflow.
 
     :param str negative_summary: vcf.summary.txt file for the negative control library
@@ -116,17 +112,13 @@ def workflow(negative_summary, mutant_summary, negative_bam, trx_id, ref, gff,
     :param int haplotype_len: max length to create haplotypes. No longer than read length.
     :param int mnp_bases: report for di- or tri-nt MNP? Must be either 2 or 3. Default 3.
     :param int random_seed: seed for variant sampling
-    :param bool conservative_mnp_estimates: Should di-nt MNP AF estimates be modeled after tri-nt MNP estimates? \
-    Default False. This flag may allow more realistic variant induction, as di-nt MNPs may be "contaminated" by \
-    false positive calls and exhibit lower AFs as a result (may occur without UMI-based consensus generation).
     :return tuple: (str, str | None, str, str | None) paths of the truth VCF, induced BAM, R1 FASTQ, and R2 FASTQ
     """
 
     ecdg = ErrorCorrectionDataGenerator(
         negative_summary=negative_summary, mutant_summary=mutant_summary, negative_bam=negative_bam, race_like=race_like,
         ref=ref, gff=gff, primers=primers, outdir=output_dir, output_prefix=output_prefix,
-        haplotypes=haplotypes, haplotype_len=haplotype_len, random_seed=random_seed,
-        conservative_mnp_estimates=conservative_mnp_estimates)
+        haplotypes=haplotypes, haplotype_len=haplotype_len, random_seed=random_seed)
 
     truth_vcf, output_bam, zipped_r1_fastq, zipped_r2_fastq = ecdg.workflow(
         trx_id=trx_id, var_type=var_type, mnp_bases=mnp_bases)
@@ -145,8 +137,7 @@ def main():
              primers=parsed_args["primers"], output_dir=parsed_args["output_dir"],
              output_prefix=parsed_args["output_prefix"], var_type=parsed_args["var_type"],
              haplotypes=parsed_args["add_haplotypes"], haplotype_len=parsed_args["haplotype_length"],
-             mnp_bases=parsed_args["mnp_bases"], random_seed=parsed_args["random_seed"],
-             conservative_mnp_estimates=parsed_args["conservative_mnps"])
+             mnp_bases=parsed_args["mnp_bases"], random_seed=parsed_args["random_seed"])
 
 
 if __name__ == "__main__":

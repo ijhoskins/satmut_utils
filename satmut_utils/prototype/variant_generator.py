@@ -37,7 +37,7 @@ class VariantGenerator(object):
     DEFAULT_VAR_TYPE = "total"
     DEFAULT_MNP_BASES = 3
     DEFAULT_HAPLO = False
-    DEFAULT_HAPLO_LEN = 150
+    DEFAULT_HAPLO_LEN = 12
     DEFAULT_HAPLO_SEED = 9
     DEFAULT_INFO_DELIM = ","
     DEFAULT_SNP_WEIGHT = 0.5
@@ -71,7 +71,7 @@ class VariantGenerator(object):
             os.mkdir(self.outdir)
 
         # Create the necessary mapping object for getting CDS sequence
-        self.aam = cm.AminoAcidMapper(gff=gff, ref=ref)
+        self.aam = cm.AminoAcidMapper(gff=gff, ref=ref, outdir=outdir)
         self.contig_lookup = su.get_contig_lookup(self.ref)
 
     def _create_vcf_header(self, contigs):
@@ -97,7 +97,23 @@ class VariantGenerator(object):
 
         new_info_ids = (
             (vu.VCF_AAM_AA_CHANGE_ID, ".", "String", "%s comma-delimited amino acid changes." % aa_mapper_module_path),
-            (vu.VCF_VARTYPE_ID, ".", "String", "Variant type.")
+            (vu.VCF_VARTYPE_ID, ".", "String", "Variant type."),
+            (vu.VCF_AAM_LOCATION_ID, ".", "String",
+             "%s location of the variant in the transcript. One of {CDS, 5_UTR, 3_UTR, intergenic, untranslated}."
+             % aa_mapper_module_path),
+            (vu.VCF_AAM_CODON_REF_ID, ".", "String",
+             "%s comma-delimited reference codon(s). NA if the variant is out of CDS bounds." % aa_mapper_module_path),
+            (vu.VCF_AAM_CODON_ALT_ID, ".", "String",
+             "%s comma-delimited alternate codon(s). NA if the variant is out of CDS bounds." % aa_mapper_module_path),
+            (vu.VCF_AAM_AA_REF_ID, ".", "String",
+             "%s comma-delimited reference amino acid(s). NA if the variant is out of CDS bounds." % aa_mapper_module_path),
+            (vu.VCF_AAM_AA_ALT_ID, ".", "String",
+             "%s comma-delimited alternate amino acid(s). NA if the variant is out of CDS bounds." % aa_mapper_module_path),
+            (vu.VCF_AAM_AA_CHANGE_ID, ".", "String",
+             "%s comma-delimited amino acid change(s). NA if the variant is out of CDS bounds." % aa_mapper_module_path),
+            (vu.VCF_AAM_AA_POS_ID, ".", "String",
+             "%s comma-delimited amino acid position(s). NA if the variant is out of CDS bounds." % aa_mapper_module_path),
+            (vu.VCF_MUT_SIG_MATCH, ".", "String", "Whether or not the variant matches the mutagenesis signature."),
         )
 
         vu.update_header(header=vcf_header, info_ids=new_info_ids, contigs=contigs)
@@ -107,7 +123,7 @@ class VariantGenerator(object):
     def _get_codon_variant_pos(self, codon_start, ref, alt):
         """Infers the variant given a codon REF and ALT.
 
-        :param int codon_start: coordinate 1-based-start
+        :param int codon_start: coordinate 1-based start
         :param str ref: REF codon
         :param str alt: ALT codon
         :return tuple: (transcriptomic_start, REF, ALT) with 0-based start
@@ -215,9 +231,18 @@ class VariantGenerator(object):
                     alt_aa = cm.translate(permut)
                     aa_change = cm.HGVS_AA_FORMAT.format(ref_aa, i + 1, alt_aa)
 
-                    #mut_info_tuple = self.aam.get_codon_and_aa_changes(trx_id=trx_id, pos=pos + 1, ref=ref, alt=alt)
-                    #nnk_match = str(mut_info_tuple.matches_nnk)
-                    info_dict = {vu.VCF_AAM_AA_CHANGE_ID: aa_change, vu.VCF_VARTYPE_ID: str(var_type.value)}
+                    mut_info_tuple = self.aam.get_codon_and_aa_changes(trx_id=trx_id, pos=pos + 1, ref=ref, alt=alt)
+                    # location, wt_codons, mut_codons, wt_aas, mut_aas, aa_changes, aa_positions, matches_mut_sig
+
+                    info_dict = {vu.VCF_VARTYPE_ID: str(var_type.value),
+                                 vu.VCF_AAM_LOCATION_ID: mut_info_tuple.location,
+                                 vu.VCF_AAM_CODON_REF_ID: mut_info_tuple.wt_codons,
+                                 vu.VCF_AAM_CODON_ALT_ID: mut_info_tuple.mut_codons,
+                                 vu.VCF_AAM_AA_REF_ID: mut_info_tuple.wt_aas,
+                                 vu.VCF_AAM_AA_ALT_ID: mut_info_tuple.mut_aas,
+                                 vu.VCF_AAM_AA_CHANGE_ID: mut_info_tuple.aa_changes,
+                                 vu.VCF_AAM_AA_POS_ID: mut_info_tuple.aa_positions,
+                                 vu.VCF_MUT_SIG_MATCH: str(mut_info_tuple.matches_mut_sig)}
 
                     new_variant_record = out_vf.new_record(
                         contig=full_trx_id, start=pos, alleles=(ref, alt), info=info_dict)
@@ -321,8 +346,8 @@ class CodonPermuts(object):
         if mut_sig not in VALID_MUT_SIGS:
             raise NotImplementedError("mut_sig %s is not one of {NNN, NNK, NNS}." % mut_sig)
 
-        self.codon_var_alts = self.get_all_codon_var_changes()
-        self.codon_aa_alts = self.get_all_codon_aa_changes()
+        self.codon_var_alts = self._get_all_codon_var_changes()
+        self.codon_aa_alts = self._get_all_codon_aa_changes()
 
     @property
     def all_codons(self):
@@ -355,7 +380,7 @@ class CodonPermuts(object):
 
         return ref_prop, alt_prop
 
-    def get_codon_snp_alts(self, codon):
+    def _get_codon_snp_alts(self, codon):
         """Gets the set of codons that may derive from the input codon by a single SNP.
 
         :param str codon: input codon
@@ -395,7 +420,7 @@ class CodonPermuts(object):
 
         return bi_one_b_alts, bi_two_b_alts
 
-    def get_codon_mnp_alts(self, codon):
+    def _get_codon_mnp_alts(self, codon):
         """Gets the set of codons that may derive from the input codon by a single MNP.
 
         :param str codon: input codon
@@ -428,7 +453,7 @@ class CodonPermuts(object):
 
         return codon_permutations
 
-    def get_codon_total_alts(self, codon):
+    def _get_codon_total_alts(self, codon):
         """Gets the set of codons that may derive from the input codon by a single MNP.
 
         :param str codon: input codon
@@ -436,11 +461,11 @@ class CodonPermuts(object):
         """
 
         codon_permutations = set()
-        codon_permutations |= self.get_codon_snp_alts(codon)
-        codon_permutations |= self.get_codon_mnp_alts(codon)
+        codon_permutations |= self._get_codon_snp_alts(codon)
+        codon_permutations |= self._get_codon_mnp_alts(codon)
         return codon_permutations
 
-    def get_codon_var_changes(self, codon):
+    def _get_codon_var_changes(self, codon):
         """Gets the codon alternate variants possible for the codon.
 
         :param str codon: input codon
@@ -450,15 +475,15 @@ class CodonPermuts(object):
         codon_alts = set()
 
         if self.var_type == "total":
-            codon_alts = self.get_codon_total_alts(codon)
+            codon_alts = self._get_codon_total_alts(codon)
         elif self.var_type == "snp":
-            codon_alts = self.get_codon_snp_alts(codon)
+            codon_alts = self._get_codon_snp_alts(codon)
         elif self.var_type == "mnp":
-            codon_alts = self.get_codon_mnp_alts(codon)
+            codon_alts = self._get_codon_mnp_alts(codon)
 
         return codon_alts
 
-    def get_all_codon_var_changes(self):
+    def _get_all_codon_var_changes(self):
         """Returns a dict of all the possible codon nt permutations for each codon.
 
         :return collections.defaultdict: {str: tuple} of {codon: (num_alts, set of ALT variants arising from codon)}}
@@ -467,7 +492,7 @@ class CodonPermuts(object):
         codon_alts = collections.defaultdict(tuple)
 
         for codon in self.codons:
-            alt_vars = self.get_codon_var_changes(codon=codon)
+            alt_vars = self._get_codon_var_changes(codon=codon)
             codon_alts[codon] = (len(alt_vars), alt_vars)
 
         return codon_alts
@@ -495,7 +520,7 @@ class CodonPermuts(object):
 
         return aa_changes
 
-    def get_all_codon_aa_changes(self):
+    def _get_all_codon_aa_changes(self):
         """Gets a dict of the total AA changes possible for all codons.
 
         :return collections.defaultdict: {str: tuple} of {codon: (num_alts, set of AA changes arising from codon)}}

@@ -35,7 +35,7 @@ class ErrorCorrectionDataGenerator(object):
     def __init__(self, negative_summary, mutant_summary, negative_bam, ref, gff, race_like=DEFAULT_RACE_LIKE,
                  primers=None, outdir=".", output_prefix=None, nvars=DEFAULT_NVARS,
                  haplotypes=vg.VariantGenerator.DEFAULT_HAPLO, haplotype_len=vg.VariantGenerator.DEFAULT_HAPLO_LEN,
-                 random_seed=vu.VcfSubsampler.DEFAULT_SEED, conservative_mnp_estimates=DEFAULT_CONSERVATIVE_MNPS):
+                 random_seed=vu.VcfSubsampler.DEFAULT_SEED):
         r"""Constructor for ErrorCorrectionDataGenerator.
 
         :param str negative_summary: vcf.summary.txt file for the negative control library
@@ -51,9 +51,6 @@ class ErrorCorrectionDataGenerator(object):
         :param bool haplotypes: should haplotypes be created with uniform number to codon variants? Default True.
         :param int haplotype_len: max length to create haplotypes. No longer than read length.
         :param int random_seed: seed for variant sampling
-        :param bool conservative_mnp_estimates: Should di-nt MNP AF estimates be modeled after tri-nt MNP estimates? \
-        Default False. This flag may allow more realistic variant editing, as di-nt MNPs may be "contaminated" by \
-        false positive calls and exhibit lower AFs as a result (likely without UMI-based consensus generation).
         """
 
         self.negative_summary = negative_summary
@@ -68,7 +65,6 @@ class ErrorCorrectionDataGenerator(object):
         self.haplotypes = haplotypes
         self.haplotype_len = haplotype_len
         self.random_seed = random_seed
-        self.conservative_mnp_estimates = conservative_mnp_estimates
 
         self.nvars = nvars
         if nvars is None:
@@ -105,17 +101,12 @@ class ErrorCorrectionDataGenerator(object):
         mut_df[vu.VCF_VARTYPE_ID] = mut_df.apply(
             lambda x: str(vu.get_variant_type(ref=x[vu.VAR_REF], alt=x[vu.VAR_ALT], split_mnps=True)), axis=1)
 
-        # We don't want any prexisting background SNPs to inflate the estimates; filter out variants with high freq
-        # Also filter out variants that don't match the mutagenesis signature
-        filter_df = mut_df[(mut_df["CAF"] < 0.35) & (mut_df["MATCHES_MUT_SIG"] == "True")]
+        # Filter out variants that don't match the mutagenesis signature
+        filter_df = mut_df[mut_df["MATCHES_MUT_SIG"] == "True"]
 
         groupby_df = filter_df[[vu.VCF_VARTYPE_ID, vu.VCF_CAF_ID]].groupby(vu.VCF_VARTYPE_ID)
 
         for vartype, cafs in groupby_df:
-            if self.conservative_mnp_estimates and vartype == vu.VariantType.DI_NT_MNP:
-                log10_cafs = np.log10(groupby_df[vu.VariantType.TRI_NT_MNP][vu.VCF_CAF_ID])
-                caf_dict[vartype] = (float(log10_cafs.median()), float(log10_cafs.std()))
-            else:
                 log10_cafs = np.log10(cafs[vu.VCF_CAF_ID])
                 caf_dict[vartype] = (float(log10_cafs.median()), float(log10_cafs.std()))
 
@@ -152,7 +143,7 @@ class ErrorCorrectionDataGenerator(object):
         _logger.info("Annotating variants using estimated AF parameters for true positives.")
         vp = vu.VcfPreprocessor(in_vcf=subsamp_vcf, caf_estimates=caf_estimates, ref=self.ref, outdir=self.outdir)
 
-        _logger.info("Editing variants into the negative control background.")
+        _logger.info("Editing variants into the negative control alignments.")
         outbam, r1_fastq, r2_fastq = ReadEditor(
             bam=self.negative_bam, variants=vp.out_vcf, ref=self.ref, race_like=self.race_like, primers=self.primers,
             output_dir=self.outdir, output_prefix=self.output_prefix).workflow()

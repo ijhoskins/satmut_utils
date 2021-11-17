@@ -157,7 +157,7 @@ class HumanContig(aenum.MultiValueEnum):
 def get_contig_lookup(transcriptome_reference):
     """Gets a lookup of short_name: full_name of reference transcript contigs.
 
-    :param str transcriptome_reference: path of the transciptome reference
+    :param str transcriptome_reference: path of the transcriptome reference
     :return dict: mapping of short Ensembl transcript IDs to the full contig name
     """
 
