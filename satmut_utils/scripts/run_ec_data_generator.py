@@ -50,18 +50,18 @@ def parse_commandline_params(args):
 
     parser.add_argument("-i", "--trx_id", type=str, required=True, help='Transcript ID for which to generate variants.')
 
-    parser.add_argument("-r", "--reference", type=str, required=True, help='Corresponding reference FASTA. Default %s.')
+    parser.add_argument("-r", "--reference", type=str, required=True, help='Corresponding reference FASTA.')
 
     parser.add_argument("-g", "--transcript_gff", type=str, required=True,
                         help='GFF file containing transcript metafeatures and exon, CDS, start_codon, and stop_codon '
-                             'features, from 5\' to 3\', regardless of strand. Default %s.')
+                             'features, from 5\' to 3\', regardless of strand.')
 
     parser.add_argument("-z", "--race_like", action="store_true",
                         help='Flag for data generated from a RACE-like chemistry with R1s starting at variable ends '
                              'and R2s starting at primers.')
 
     parser.add_argument("-p", "--primers", type=none_or_str, default="None",
-                        help='Primer feature file, e.g. BED, GFF, or GTF. Must have strand field. Default no masking.')
+                        help='Primer BED file. Must have strand field. Default no masking.')
 
     parser.add_argument("-d", "--output_dir", type=str, default=".", help='Output directory for FASTQs and BAM.')
 

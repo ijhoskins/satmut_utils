@@ -298,28 +298,29 @@ class CodonPermuts(object):
     TABLE_HEADER = ["Codon", "AA_alternates", "AA_changes"]
 
     def __init__(self, codons=ALL_CODONS, var_type="total", mnp_bases=3, mut_sig=DEFAULT_MUT_SIG):
-        """Ctor for CodonPermuts.
+        """Constructor for CodonPermuts.
 
         :param tuple codons: tuple of codons to find permutations for
         :param str var_type: one of {"snp", "mnp", "total"}
-        :param int mnp_bps: report for di- or tri-nt MNP? Must be either 2 or 3. Default 3.
-        :param str mut_sig: mutagenesis signature- one of {NNN, NNK, NNS}. Default NNK.
-        :raises NotImplementedError: if the mnp_bps was not either 2 or 3.
+        :param int mnp_bases: report di- or tri-nt MNPs? Must be either 2 or 3. Default 3.
+        :param str mut_sig: mutagenesis signature- one of {NNN, NNK, NNS}. Default NNN.
+        :raises NotImplementedError: if mut_sig or mnp_bps is invalid.
         """
-
-        if self.var_type not in {"snp", "mnp", "total"}:
-            raise NotImplementedError("Not a valid var_type: %s" % self.var_type)
-
-        if self.mnp_bases not in {2, 3}:
-            raise NotImplementedError("MNP is not within the required span of 2 to 3.")
-
-        if mut_sig not in VALID_MUT_SIGS:
-            raise NotImplementedError("Mutation signature %s not one of NNN, NNK, or NNS" % mut_sig)
 
         self.codons = codons
         self.var_type = var_type
         self.mnp_bases = mnp_bases
         self.mut_sig = mut_sig
+
+        if self.var_type not in {"snp", "mnp", "total"}:
+            raise NotImplementedError("Not a valid var_type: %s" % self.var_type)
+
+        if self.mnp_bases not in {2, 3}:
+            raise NotImplementedError("mnp_bases %i is not one of {2, 3}." % mnp_bases)
+
+        if mut_sig not in VALID_MUT_SIGS:
+            raise NotImplementedError("mut_sig %s is not one of {NNN, NNK, NNS}." % mut_sig)
+
         self.codon_var_alts = self.get_all_codon_var_changes()
         self.codon_aa_alts = self.get_all_codon_aa_changes()
 
@@ -386,7 +387,7 @@ class CodonPermuts(object):
 
         :param str codon: codon to interrogate
         :param tuple bi: indices for the codon (bases to get alts for)
-        :return tuple: alternates for the 1st and 2nd base index bases
+        :return tuple: alternates for the 1st and 2nd index bases
         """
 
         bi_one_b_alts = {e for e in su.DNA_BASES if e != codon[bi[0]]}
@@ -417,8 +418,7 @@ class CodonPermuts(object):
             bi1_alts, bi2_alts = self._get_permut_alts(codon, bi)
 
             if i == 0:
-                codon_permutations |= {"".join((ba1, ba2, bps[2])) for ba1 in bi1_alts for ba2 in bi2_alts
-                                       if bps[2] not in cm.MUT_SIG_UNEXPECTED_WOBBLE_BPS[self.mut_sig]}
+                codon_permutations |= {"".join((ba1, ba2, bps[2])) for ba1 in bi1_alts for ba2 in bi2_alts}
             elif i == 1:
                 codon_permutations |= {"".join((ba1, bps[1], ba2)) for ba1 in bi1_alts for ba2 in bi2_alts
                                        if ba2 not in cm.MUT_SIG_UNEXPECTED_WOBBLE_BPS[self.mut_sig]}
@@ -624,7 +624,7 @@ class AminoAcidTypes(CodonPermuts):
         elif aa == "*":
             return "Stop"
         else:
-            raise RuntimeError("Unknown AA %s" % aa)
+            raise RuntimeError("Unknown AA %s." % aa)
 
     def get_aa_type_counts(self):
         """Gets the counts for each AA type change."""

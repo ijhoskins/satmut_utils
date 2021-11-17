@@ -141,11 +141,11 @@ def parse_commandline_params(args):
 
     parser_call.add_argument("-d", "--consensus_deduplicate", action="store_true",
                              help='Flag to deduplicate and generate consensus reads following UMI grouping. '
-                                  'Assumes UMIs at the start of R1.')
+                                  'Assumes UMIs at the start of R1. Pass --umi-regex to supply the UMI expression.')
 
     parser_call.add_argument("-u", "--umi_regex", type=str, default=AMP_UMI_REGEX,
                              help='UMI regular expression to be passed to umi_tools extract command. '
-                                  'Default %s.' % AMP_UMI_REGEX)
+                                  'Default for AMP libraries is %s.' % AMP_UMI_REGEX)
 
     parser_call.add_argument("-s", "--mutagenesis_signature", type=str, default=DEFAULT_MUT_SIG,
                              help='Mutagenesis signature. One of {NNN, NNK, NNS}. Default %s.' % DEFAULT_MUT_SIG)
@@ -380,7 +380,7 @@ def call_workflow(fastq1, fastq2, r1_fiveprime_adapters, r1_threeprime_adapters,
     # Get and index the references
     ref_fa, gff, gff_ref = get_call_references(
         reference_dir=reference_dir, ensembl_id=ensembl_id, ref=ref, transcript_gff=transcript_gff,
-        gff_reference=gff_reference, outdir=tempdir)
+        gff_reference=gff_reference, outdir=outdir)
 
     fqp_r1 = fastq1
     fqp_r2 = fastq2
