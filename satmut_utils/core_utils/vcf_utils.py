@@ -564,10 +564,12 @@ class VcfPreprocessor(object):
 class VcfSubsampler(object):
     """Class for subsampling variants from a VCFs."""
 
+    DEFAULT_OUTDIR = "."
+    DEFAULT_OUTFILE = None
     DEFAULT_EXT = "subsamp.vcf"
     DEFAULT_SEED = 9
 
-    def __init__(self, cf, outdir=".", random_seed=DEFAULT_SEED):
+    def __init__(self, cf, outdir=DEFAULT_OUTDIR, random_seed=DEFAULT_SEED):
         """Constructor for VariantSubsampler.
 
         :param str cf: path to a BCF or VCF (possibly gzipped) file
@@ -580,7 +582,7 @@ class VcfSubsampler(object):
         self.random_seed = random_seed
         random.seed(self.random_seed)
 
-    def get_nvars(self):
+    def _get_nvars(self):
         """Gets the number of variants in the VCF.
 
         :return int: number variants
@@ -596,7 +598,7 @@ class VcfSubsampler(object):
             nrecords = res_file.readlines()[0]
             return int(nrecords)
 
-    def subsample_variants(self, nvars, outfile=None):
+    def subsample_variants(self, nvars, outfile=DEFAULT_OUTFILE):
         """Subsamples a specified number of variants.
 
         :param int nvars: number of variants requested
@@ -612,10 +614,11 @@ class VcfSubsampler(object):
             out_filename = os.path.join(self.outdir, outfile)
 
         # Get the number of variants in the input file
-        emp_nvars = self.get_nvars()
+        emp_nvars = self._get_nvars()
 
         if nvars > emp_nvars:
-            warnings.warn("Number of variants requested is greater than the number in the VCF: %i" % emp_nvars)
+            warnings.warn("Number of variants requested (%i) is greater than the number in the VCF: %i"
+                          % (nvars, emp_nvars))
 
         vars_to_sample = set(random.sample(range(emp_nvars), k=nvars))
 
@@ -631,14 +634,14 @@ class VcfSubsampler(object):
 
         return out_filename
 
-    def subsample_bases(self, nbases, outfile=None):
+    def subsample_bases(self, nbases, outfile=DEFAULT_OUTFILE):
         """Subsamples an approximate number of mismatched bases.
 
         :param int nbases: number of mismatched bases
         :param str | None outfile: output filename
         :return str: output filename
 
-        WARNING: This method returns an approximate nbases. The nbases actually sampled may be one or two more than requested.
+        WARNING: This method returns an approximate nbases. The nbases actually sampled may be a few more than requested.
         """
 
         if outfile is None:
@@ -649,14 +652,15 @@ class VcfSubsampler(object):
             out_filename = os.path.join(self.outdir, outfile)
 
         # Get the number of variants in the input file
-        emp_nvars = self.get_nvars()
+        emp_nvars = self._get_nvars()
 
         if nbases > emp_nvars:
-            warnings.warn("Number of bases requested is greater than the number of variants in the VCF: %i" % emp_nvars)
+            warnings.warn("Number of bases requested (%i) is greater than the number of variants in the VCF: %i"
+                          % (nbases, emp_nvars))
 
         base_counter = 0
-        with pysam.VariantFile(self.cf) as in_vcf, \
-                pysam.VariantFile(out_filename, "w", header=in_vcf.header) as out_vcf:
+        with pysam.VariantFile(self.cf, mode="r") as in_vcf, \
+                pysam.VariantFile(out_filename, mode="w", header=in_vcf.header) as out_vcf:
 
             # Shuffle the list of all variants and then count bases
             all_variants = [var_record for var_record in in_vcf.fetch()]

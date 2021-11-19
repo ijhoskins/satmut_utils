@@ -264,12 +264,11 @@ def get_call_references(reference_dir, ensembl_id, ref, transcript_gff, gff_refe
     return ref_fa, gff, gff_ref
 
 
-def sim_workflow(bam, vcf, race_like,
-                 ensembl_id=ri.ReadEditor.DEFAULT_ENSEMBL_ID, reference_dir=ri.ReadEditor.DEFAULT_REFERENCE_DIR,
-                 ref=ri.ReadEditor.DEFAULT_REF, primers=ri.ReadEditor.DEFAULT_PRIMERS,
-                 outdir=ri.ReadEditor.DEFAULT_OUTDIR, buffer=ri.ReadEditor.DEFAULT_BUFFER,
-                 random_seed=ri.ReadEditor.DEFAULT_SEED, force_edit=ri.ReadEditor.DEFAULT_FORCE,
-                 nthreads=ri.ReadEditor.DEFAULT_NTHREADS):
+def sim_workflow(bam, vcf, race_like, ensembl_id=ri.ReadEditor.DEFAULT_ENSEMBL_ID,
+                 reference_dir=ri.ReadEditor.DEFAULT_REFERENCE_DIR, ref=ri.ReadEditor.DEFAULT_REF,
+                 primers=ri.ReadEditor.DEFAULT_PRIMERS, outdir=ri.ReadEditor.DEFAULT_OUTDIR,
+                 buffer=ri.ReadEditor.DEFAULT_BUFFER, random_seed=ri.ReadEditor.DEFAULT_SEED,
+                 force_edit=ri.ReadEditor.DEFAULT_FORCE, nthreads=ri.ReadEditor.DEFAULT_NTHREADS):
     """Runs the satmut_utils sim workflow.
 
     :param str bam: BAM file to edit into
@@ -280,7 +279,7 @@ def sim_workflow(bam, vcf, race_like,
     :param str | None ref: indexed reference FASTA; mutually exclusive with ensembl_id
     :param str | None primers: feature file of primer locations for read masking and primer detection
     :param str outdir: Optional output directory to store generated FASTQs and BAM
-    :param int buffer: buffer about the edit span (position + REF len) to ensure lack of error before editing. Default 3.
+    :param int buffer: buffer about the edit span (position + REF len) to ensure lack of error before editing. Default 6.
     :param int random_seed: seed for random qname sampling
     :param bool force_edit: flag to attempt editing of variants despite a NonconfiguredVariant exception.
     :param int nthreads: Number of threads to use for SAM/BAM operations and alignment. Default 0 (autodetect) \

@@ -33,12 +33,10 @@ class ErrorCorrectionDataGenerator(object):
     DEFAULT_PRIMERS = None
     DEFAULT_OUTDIR = "."
     DEFAULT_PREFIX = None
-    DEFAULT_NVARS = None
+    DEFAULT_NTHREADS = 0
 
     def __init__(self, negative_summary, mutant_summary, negative_bam, ref, gff, race_like=DEFAULT_RACE_LIKE,
-                 primers=DEFAULT_PRIMERS, outdir=DEFAULT_OUTDIR, output_prefix=DEFAULT_PREFIX, nvars=DEFAULT_NVARS,
-                 haplotypes=vg.VariantGenerator.DEFAULT_HAPLO, haplotype_len=vg.VariantGenerator.DEFAULT_HAPLO_LEN,
-                 random_seed=vu.VcfSubsampler.DEFAULT_SEED):
+                 primers=DEFAULT_PRIMERS, outdir=DEFAULT_OUTDIR, nthreads=DEFAULT_NTHREADS):
         """Constructor for ErrorCorrectionDataGenerator.
 
         :param str negative_summary: vcf.summary.txt file for the negative control library
@@ -49,11 +47,7 @@ class ErrorCorrectionDataGenerator(object):
         :param bool race_like: is the data produced by RACE-like (e.g. AMP) data? Default False.
         :param str | None primers: primer bed file for BQ masking
         :param str outdir: Optional output directory to write generated VCFs and edited FASTQs, BAM
-        :param str | None output_prefix: Optional output prefix for the FASTQ(s) and BAM; if None, use same prefix as VCF
-        :param int | None nvars: number of variants requested; set to None for equivalent nbases as in the mutant_summary
-        :param bool haplotypes: should haplotypes be created with uniform number to codon variants? Default False.
-        :param int haplotype_len: max length to create haplotypes. Must be no longer than read length. Default 12.
-        :param int random_seed: seed for variant sampling. Default 9.
+        :param int nthreads: Number of threads to use for BAM operations. Default 0 (autodetect).
         """
 
         self.negative_summary = negative_summary
@@ -64,16 +58,7 @@ class ErrorCorrectionDataGenerator(object):
         self.race_like = race_like
         self.primers = primers
         self.outdir = outdir
-        self.output_prefix = output_prefix
-        self.haplotypes = haplotypes
-        self.haplotype_len = haplotype_len
-        self.random_seed = random_seed
-        self.nvars = nvars
-        if nvars is None:
-            self.nvars = self._get_fp_count()
-
-        self.vg = vg.VariantGenerator(
-            gff=gff, ref=ref, haplotypes=haplotypes, haplotype_len=haplotype_len, outdir=outdir, random_seed=random_seed)
+        self.nthreads = nthreads
 
     def _get_fp_count(self):
         """Gets the number of false positive mismatches in the negative control.
@@ -115,7 +100,10 @@ class ErrorCorrectionDataGenerator(object):
         return caf_dict
 
     def workflow(self, trx_id, targets=vg.VariantGenerator.DEFAULT_TARGETS, out_vcf=vg.VariantGenerator.DEFAULT_OUTFILE,
-                 var_type=vg.VariantGenerator.DEFAULT_VAR_TYPE, mnp_bases=vg.VariantGenerator.DEFAULT_MNP_BASES):
+                 var_type=vg.VariantGenerator.DEFAULT_VAR_TYPE, mnp_bases=vg.VariantGenerator.DEFAULT_MNP_BASES,
+                 output_prefix=DEFAULT_PREFIX, haplotypes=vg.VariantGenerator.DEFAULT_HAPLO,
+                 haplotype_len=vg.VariantGenerator.DEFAULT_HAPLO_LEN, random_seed=vu.VcfSubsampler.DEFAULT_SEED,
+                 buffer=ReadEditor.DEFAULT_BUFFER, force_edit=ReadEditor.DEFAULT_FORCE):
         """Runs the ErrorCorrectionDataGenerator workflow.
 
         :param str trx_id: transcript ID to generate variants for; only one version may be available in the input GFF
@@ -123,10 +111,20 @@ class ErrorCorrectionDataGenerator(object):
         :param str | None out_vcf: optional output VCF name for all codon permutation variants
         :param str var_type: one of {"snp", "mnp", "total"}
         :param int mnp_bases: report for di- or tri-nt MNP? Must be either 2 or 3. Default 3.
+        :param str | None output_prefix: Optional output prefix for the FASTQ(s) and BAM; if None, use same prefix as VCF
+        :param bool haplotypes: should haplotypes be created with uniform number to codon variants? Default False.
+        :param int haplotype_len: max length to create haplotypes. Must be no longer than read length. Default 12.
+        :param int random_seed: seed for variant sampling. Default 9.
+        :param int buffer: buffer about the edit span (position + REF len) to ensure lack of error before editing. Default 6.
+        :param bool force_edit: flag to attempt editing of variants despite a NonconfiguredVariant exception.
         :return tuple: (str, str, str, str) paths of the truth VCF, edited BAM, R1 FASTQ, R2 FASTQ
         """
 
         _logger.info("Starting error correction data generation workflow.")
+
+        variant_generator = vg.VariantGenerator(
+            gff=self.gff, ref=self.ref, haplotypes=haplotypes, haplotype_len=haplotype_len,
+            outdir=self.outdir, random_seed=random_seed)
 
         _logger.info("Estimating truth set parameters from positive and negative control variant calls.")
         fp_nbases = self._get_fp_count()
@@ -138,11 +136,11 @@ class ErrorCorrectionDataGenerator(object):
                      % str(caf_estimates))
 
         _logger.info("Generating codon permutation variants.")
-        all_codon_permuts = self.vg.workflow(
+        all_codon_permuts = variant_generator.workflow(
             trx_id=trx_id, targets=targets, outfile=out_vcf, var_type=var_type, mnp_bases=mnp_bases)
 
         _logger.info("Subsampling variants/bases for true positives.")
-        vs = vu.VcfSubsampler(all_codon_permuts, outdir=self.outdir, random_seed=self.random_seed)
+        vs = vu.VcfSubsampler(cf=all_codon_permuts, outdir=self.outdir, random_seed=random_seed)
         subsamp_vcf = vs.subsample_bases(nbases=fp_nbases)
 
         _logger.info("Annotating variants using estimated frequency parameters from the mutant summary file.")
@@ -151,7 +149,8 @@ class ErrorCorrectionDataGenerator(object):
         _logger.info("Editing variants into the negative control alignments.")
         outbam, r1_fastq, r2_fastq = ReadEditor(
             bam=self.negative_bam, variants=vp.out_vcf, ref=self.ref, race_like=self.race_like, primers=self.primers,
-            output_dir=self.outdir, output_prefix=self.output_prefix).workflow()
+            output_dir=self.outdir, output_prefix=output_prefix, random_seed=random_seed,
+            buffer=buffer, force_edit=force_edit, nthreads=self.nthreads).workflow()
 
         _logger.info("Completed error correction data generation workflow.")
 

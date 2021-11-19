@@ -322,9 +322,9 @@ class VariantGenerator(object):
         """
 
         if outfile is None:
-            output_filepath = os.path.join(self.outdir, fu.replace_extension(os.path.basename(trx_id), self.DEFAULT_EXT))
+            output_filepath = os.path.join(self.outdir, fu.add_extension(trx_id, self.DEFAULT_EXT))
         else:
-            output_filepath = os.path.join(self.outdir, outfile)
+            output_filepath = os.path.join(self.outdir, os.path.basename(outfile))
 
         # If there are no targets, output all codon permutation variants
         if targets is None:
@@ -334,7 +334,7 @@ class VariantGenerator(object):
         # Otherwise intersect the codon permutation variants with the targets
         with tempfile.NamedTemporaryFile(suffix=".codon.permuts.vcf", delete=False) as temp_vcf_fh:
             temp_vcf = self._get_all_trx_variants(trx_id, temp_vcf_fh.name, var_type, mnp_bases)
-            out_vcf = ffu.intersect_features(ff1=temp_vcf, ff2=targets, outfile=output_filepath, f=1.0)
+            out_vcf = ffu.intersect_features(ff1=temp_vcf, ff2=targets, outfile=output_filepath, f=1.0, header=True)
             fu.safe_remove((temp_vcf,))
             return out_vcf
 

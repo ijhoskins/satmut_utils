@@ -7,7 +7,8 @@ import pysam
 import random
 import tempfile
 
-from analysis.seq_utils import extract_seq, bam_to_fastq, reverse_complement, DEFAULT_MIN_BQ, DEFAULT_MAX_BQ, DNA_BASES
+from analysis.seq_utils import extract_seq, bam_to_fastq, sam_view, reverse_complement, DEFAULT_MIN_BQ, DEFAULT_MAX_BQ, \
+    DNA_BASES, SAM_FLAG_SUPPL, SAM_FLAG_SECONDARY, SAM_FLAG_UNMAP, SAM_FLAG_MUNMAP
 import core_utils.file_utils as fu
 from core_utils.string_utils import make_random_str
 from definitions import *
@@ -24,15 +25,78 @@ tempfile.tempdir = os.getenv("SCRATCH", "/tmp")
 _logger = logging.getLogger(__name__)
 
 
+class FilterForPairs(object):
+    """Filters BAM files to contain only primary, paired alignments."""
+
+    DEFAULT_OUTDIR = "."
+    DEFAULT_NTHREADS = 0
+    DEFAULT_SUFFIX = "pairs.bam"
+
+    def __init__(self, in_bam, outdir=DEFAULT_OUTDIR, nthreads=DEFAULT_NTHREADS):
+        """Constructor for FilterForPairs.
+
+        :param str in_bam: input alignments for a single tile
+        :param str outdir: output directory. Default current directory.
+        :param int nthreads: Number of threads to use for BAM operations. Default 0 (autodetect).
+        """
+
+        self.in_bam = in_bam
+        self.outdir = outdir
+        self.nthreads = nthreads
+        self.out_bam = os.path.join(self.outdir, fu.replace_extension(self.in_bam, self.DEFAULT_SUFFIX))
+        self.workflow()
+
+    @staticmethod
+    def _get_nonpaired_qnames(in_bam):
+        """Determines the non-paired qnames in the input BAM.
+
+        :param str in_bam: input BAM
+        :return set: non-paired qnames to filter from the BAM to generate paired reads only.
+        """
+
+        with pysam.AlignmentFile(in_bam, mode="rb") as in_af:
+            qname_list = [align_seg.query_name for align_seg in in_af.fetch(until_eof=True)]
+            in_af.reset()
+            qname_counter = collections.Counter(qname_list)
+            nonpaired_qnames = {qname for qname, count in qname_counter.items() if count != 2}
+            return nonpaired_qnames
+
+    def workflow(self):
+        """Runs the pair-filtering workflow."""
+
+        # First discard supplementary, secondary, unmapped alignments
+        preprocessed_bam = sam_view(
+            self.in_bam, None, "BAM", self.nthreads, F=SAM_FLAG_SUPPL + SAM_FLAG_SECONDARY + SAM_FLAG_UNMAP + SAM_FLAG_MUNMAP)
+
+        # This may still not be enough preprocessing if the user intersected the reads and not updated the SAM flags
+        # For instance, if one read of a pair does not intersect, it will not be in the input but still contain a
+        # paired bit in the flag. Thus determine the non-paired qnames and filter them manually
+        nonpaired_qnames = self._get_nonpaired_qnames(preprocessed_bam)
+
+        with pysam.AlignmentFile(preprocessed_bam, mode="rb") as in_af, \
+                pysam.AlignmentFile(self.out_bam, mode="wb", header=in_af.header) as out_af:
+
+            for align_seg in in_af.fetch(until_eof=True):
+
+                if align_seg.query_name in nonpaired_qnames:
+                    continue
+
+                out_af.write(align_seg)
+
+        fu.safe_remove((preprocessed_bam,))
+        return self.out_bam
+
+
 class ConvertToDmstools(object):
     """Converts reads to dms_tools input format."""
 
-    DEFAULT_OUTDIR = "."
     DEFAULT_UMI_LEN = 8
+    DEFAULT_OUTDIR = "."
+    DEFAULT_NTHREADS = 0
     OUTPUT_PREFIX = "dms_tools"
     OUTBAM_SUFFIX = "dms_tools.bam"
 
-    def __init__(self, in_bam, ref, pos_range, umi_len, outdir=DEFAULT_OUTDIR):
+    def __init__(self, in_bam, ref, pos_range, umi_len, outdir=DEFAULT_OUTDIR, nthreads=DEFAULT_NTHREADS):
         """Constructor for ConvertToDmstools.
 
         :param str in_bam: input alignments for a single tile
@@ -44,9 +108,10 @@ class ConvertToDmstools(object):
 
         self.in_bam = in_bam
         self.ref = ref
-        self.pos_range = tuple(",".split(pos_range))
+        self.pos_range = tuple(map(int, ",".split(pos_range)))
         self.umi_len = umi_len
         self.outdir = outdir
+        self.nthreads = nthreads
         self.out_prefix = os.path.join(self.outdir, fu.replace_extension(os.path.basename(in_bam), self.OUTPUT_PREFIX))
 
         if not os.path.exists(self.outdir):
@@ -54,19 +119,6 @@ class ConvertToDmstools(object):
 
         self.out_bam = os.path.join(self.outdir, fu.replace_extension(
             os.path.basename(self.in_bam), self.OUTBAM_SUFFIX))
-
-    def _get_nonpaired_qnames(self):
-        """Determines the non-paired qnames in the input BAM. These should be filtered as we will write paired FASTQs.
-
-        :return set: non-paired qnames to filter during conversion
-        """
-
-        with pysam.AlignmentFile(self.in_bam, mode="rb") as in_af:
-            qname_list = [align_seg.query_name for align_seg in in_af.fetch(until_eof=True)]
-            in_af.reset()
-            qname_counter = collections.Counter(qname_list)
-            nonpaired_qnames = {qname for qname, count in qname_counter.items() if count != 2}
-            return nonpaired_qnames
 
     @staticmethod
     def _trim_read_start(seq, quals, idx):
@@ -143,24 +195,18 @@ class ConvertToDmstools(object):
         align_seg.query_alignment_sequence = "".join(seq)
         align_seg.query_alignment_qualities = quals
 
-    def _convert_reads(self, nonpaired_qnames):
+    def _convert_reads(self, paired_bam):
         """Makes reads flush with the reference and adds UMIs to the 5' end of the reads.
 
-        :param set nonpaired_qnames: non-paired qnames to exclude from output
+        :param str paired_bam: BAM with only paired reads
         """
 
-        with pysam.AlignmentFile(self.in_bam, mode="rb") as in_af, \
+        with pysam.AlignmentFile(paired_bam, mode="rb") as in_af, \
                 pysam.AlignmentFile(self.out_bam, mode="wb", header=in_af.header) as out_af:
 
             used_umis = set()
 
             for align_seg in in_af.fetch(until_eof=True):
-
-                if align_seg.query_name in nonpaired_qnames:
-                    continue
-
-                if align_seg.is_unmapped:
-                    out_af.write(align_seg)
 
                 ref_positions = align_seg.get_reference_positions()
                 min_ref_pos = min(ref_positions) + 1
@@ -247,10 +293,12 @@ class ConvertToDmstools(object):
         # because we have to write paired FASTQs.
         # Do not rely on SAM flags because the alignments may have been previously intersected, which may lead
         # to loss of mates (and SAM flags are not typically updated following manipulation).
-        nonpaired_qnames = self._get_nonpaired_qnames()
+        ffp = FilterForPairs(in_bam=self.in_bam, outdir=self.outdir, nthreads=self.nthreads)
 
         # Now iterate over the reads, make them flush with the range positions, add UMIs, and exclude non-paired reads
-        self._convert_reads(nonpaired_qnames)
+        self._convert_reads(ffp.out_bam)
+
+        # Write the FASTQs
         zipped_r1_fastq, zipped_r2_fastq = self._write_fastqs()
 
         _logger.info("Completed dms_tools conversion workflow.")

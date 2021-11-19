@@ -39,14 +39,14 @@ def parse_commandline_params(args):
     # Add new arguments for command line passing of files, options, etc; see argparse docs
     parser.add_argument("-v", "--cf", required=True, type=str, help='BCF/VCF to subsample.')
 
-    parser.add_argument("-n", "--nvars", type=int,
+    parser.add_argument("-n", "--nvars", required=True, type=int,
                         help='Number of variants to subsample. If this is greater than the number of variants in the '
                              'input, a warning is raised and no subsampling is performed.')
 
     parser.add_argument("-r", "--random_seed", type=int, default=VcfSubsampler.DEFAULT_SEED,
                         help='Seed for random qname sampling.')
 
-    parser.add_argument("-d", "--output_dir", type=str, default=".", help='Output directory.')
+    parser.add_argument("-d", "--output_dir", type=str, default=VcfSubsampler.DEFAULT_OUTDIR, help='Output directory.')
 
     parser.add_argument("-o", "--output_vcf", type=none_or_str, default="None", help='Optional output VCF name.')
 
@@ -54,7 +54,7 @@ def parse_commandline_params(args):
     return parsed_args
 
 
-def workflow(cf, nvars, output_dir=".", random_seed=VcfSubsampler.DEFAULT_SEED, output_vcf=None):
+def workflow(cf, nvars, output_dir=VcfSubsampler.DEFAULT_OUTDIR, random_seed=VcfSubsampler.DEFAULT_SEED, output_vcf=None):
     """Runs the VCF subsampling workflow.
 
     :param str cf: BCF or VCF to subsample

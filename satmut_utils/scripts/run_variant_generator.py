@@ -50,7 +50,7 @@ def parse_commandline_params(args):
                         help='Optional target BED file. Only variants intersecting the targets will be generated. '
                              'Contig names in the target file should match the contig name in the reference FASTA.')
 
-    parser.add_argument("-o", "--out_vcf", type=none_or_str, default="None", help='Optional output VCF basename.')
+    parser.add_argument("-o", "--out_vcf", type=none_or_str, default="None", help='Optional output VCF basename. Default use ')
 
     parser.add_argument("-d", "--outdir", type=str, default=VariantGenerator.DEFAULT_OUTDIR,
                         help='Optional output directory.')
@@ -63,11 +63,12 @@ def parse_commandline_params(args):
                         help='Flag to add long range haplotypes up to read length.')
 
     parser.add_argument("-l", "--haplotype_length", type=int, default=VariantGenerator.DEFAULT_HAPLO_LEN,
-                        help='Maximum length for which to create haplotypes.')
+                        help='Maximum length for which to create haplotypes. Default %i.'
+                             % VariantGenerator.DEFAULT_HAPLO_LEN)
 
     parser.add_argument("-m", "--mnp_bases", type=int, default=VariantGenerator.DEFAULT_MNP_BASES,
                         help='For var_type==mnp or var_type==total, max number of bases in MNPs. Must be either 2 or 3. '
-                             'Default %s.' % VariantGenerator.DEFAULT_MNP_BASES)
+                             'Default %i.' % VariantGenerator.DEFAULT_MNP_BASES)
 
     parser.add_argument("-s", "--random_seed", type=int, default=9, help='Seed for random variant sampling.')
 

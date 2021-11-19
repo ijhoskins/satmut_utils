@@ -6,6 +6,7 @@ import datetime
 import logging
 import sys
 
+from analysis.read_editor import ReadEditor
 from core_utils.string_utils import none_or_str
 from prototype.variant_generator import VariantGenerator
 from prototype.error_correction import ErrorCorrectionDataGenerator
@@ -90,6 +91,21 @@ def parse_commandline_params(args):
     parser.add_argument("-s", "--random_seed", type=int, default=VariantGenerator.DEFAULT_HAPLO_SEED,
                         help='Seed for random variant sampling.')
 
+    parser.add_argument("-e", "--edit_buffer", type=int, default=ReadEditor.DEFAULT_BUFFER,
+                        help='Buffer +/- the edit coordinate position(s) to check for pre-existing errors in reads. '
+                             'Used to restrict phasing of true variants with errors, leading to false negatives. '
+                             'Default %i' % ReadEditor.DEFAULT_BUFFER)
+
+    parser.add_argument("-f", "--force_edit", action="store_true",
+                        help='Flag to force editing of variants in the event of invalid variant configurations '
+                             '(AF sum > 1). Editing of all variants is not ensured if this flag is provided, '
+                             'especially for single-amplicon (PCR tile) alignments. If alignments contain many tiles, '
+                             'this option enables more variants to be simulated, as they are diffuse in target space.')
+
+    parser.add_argument("-j", "--nthreads", type=int, default=ErrorCorrectionDataGenerator.DEFAULT_NTHREADS,
+                        help='Number of threads to use for bowtie2 alignment and BAM sorting operations. '
+                             'Default %i, autodetect.' % ErrorCorrectionDataGenerator.DEFAULT_NTHREADS)
+
     parsed_args = vars(parser.parse_args(args))
     return parsed_args
 
@@ -98,7 +114,9 @@ def workflow(negative_summary, mutant_summary, negative_bam, trx_id, ref, gff, t
              race_like=ErrorCorrectionDataGenerator.DEFAULT_RACE_LIKE, primers=None,
              output_dir=".", output_prefix=None, var_type=VariantGenerator.DEFAULT_VAR_TYPE,
              haplotypes=VariantGenerator.DEFAULT_HAPLO, haplotype_len=VariantGenerator.DEFAULT_HAPLO_LEN,
-             mnp_bases=VariantGenerator.DEFAULT_MNP_BASES, random_seed=VariantGenerator.DEFAULT_HAPLO_SEED):
+             mnp_bases=VariantGenerator.DEFAULT_MNP_BASES, random_seed=VariantGenerator.DEFAULT_HAPLO_SEED,
+             buffer=ReadEditor.DEFAULT_BUFFER, force_edit=ReadEditor.DEFAULT_FORCE,
+             nthreads=ErrorCorrectionDataGenerator.DEFAULT_NTHREADS):
     r"""Runs the error correction data generation workflow.
 
     :param str negative_summary: vcf.summary.txt file for the negative control library
@@ -116,17 +134,21 @@ def workflow(negative_summary, mutant_summary, negative_bam, trx_id, ref, gff, t
     :param bool haplotypes: should haplotypes be created with uniform number to codon variants? Default True.
     :param int haplotype_len: max length to create haplotypes. No longer than read length.
     :param int mnp_bases: report for di- or tri-nt MNP? Must be either 2 or 3. Default 3.
-    :param int random_seed: seed for variant sampling
+    :param int random_seed: seed for variant and qname random sampling
+    :param int buffer: buffer about the edit span (position + REF len) to ensure lack of error before editing. Default 3.
+    :param bool force_edit: flag to attempt editing of variants despite a NonconfiguredVariant exception.
+    :param int nthreads: Number of threads to use for BAM operations. Default 0 (autodetect).
     :return tuple: (str, str | None, str, str | None) paths of the truth VCF, induced BAM, R1 FASTQ, and R2 FASTQ
     """
 
     ecdg = ErrorCorrectionDataGenerator(
         negative_summary=negative_summary, mutant_summary=mutant_summary, negative_bam=negative_bam,
-        race_like=race_like, ref=ref, gff=gff, primers=primers, outdir=output_dir, output_prefix=output_prefix,
-        haplotypes=haplotypes, haplotype_len=haplotype_len, random_seed=random_seed)
+        race_like=race_like, ref=ref, gff=gff, primers=primers, outdir=output_dir, nthreads=nthreads)
 
     truth_vcf, output_bam, zipped_r1_fastq, zipped_r2_fastq = ecdg.workflow(
-        trx_id=trx_id, targets=targets, var_type=var_type, mnp_bases=mnp_bases)
+        trx_id=trx_id, targets=targets, var_type=var_type, mnp_bases=mnp_bases, output_prefix=output_prefix,
+        haplotypes=haplotypes, haplotype_len=haplotype_len, random_seed=random_seed,
+        buffer=buffer, force_edit=force_edit)
 
     return truth_vcf, output_bam, zipped_r1_fastq, zipped_r2_fastq
 
@@ -139,11 +161,13 @@ def main():
     workflow(negative_summary=parsed_args["negative_summary"], mutant_summary=parsed_args["mutant_summary"],
              negative_bam=parsed_args["negative_bam"], trx_id=parsed_args["trx_id"],
              ref=parsed_args["reference"], gff=parsed_args["transcript_gff"],
-             targets=parsed_args["targets"] ,race_like=parsed_args["race_like"],
+             targets=parsed_args["targets"], race_like=parsed_args["race_like"],
              primers=parsed_args["primers"], output_dir=parsed_args["output_dir"],
              output_prefix=parsed_args["output_prefix"], var_type=parsed_args["var_type"],
              haplotypes=parsed_args["add_haplotypes"], haplotype_len=parsed_args["haplotype_length"],
-             mnp_bases=parsed_args["mnp_bases"], random_seed=parsed_args["random_seed"])
+             mnp_bases=parsed_args["mnp_bases"], random_seed=parsed_args["random_seed"],
+             buffer=parsed_args["edit_buffer"], force_edit=parsed_args["force_edit"],
+             nthreads=parsed_args["nthreads"])
 
 
 if __name__ == "__main__":
