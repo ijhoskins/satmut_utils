@@ -56,6 +56,10 @@ def parse_commandline_params(args):
                         help='GFF file containing transcript metafeatures and exon, CDS, start_codon, and stop_codon '
                              'features, from 5\' to 3\', regardless of strand.')
 
+    parser.add_argument("-t", "--targets", type=none_or_str, default="None",
+                        help='Optional target BED file. Only variants intersecting the targets will be generated. '
+                             'Contig names in the target file should match the contig name in the reference FASTA.')
+
     parser.add_argument("-z", "--race_like", action="store_true",
                         help='Flag for data generated from a RACE-like chemistry with R1s starting at variable ends '
                              'and R2s starting at primers.')
@@ -90,7 +94,7 @@ def parse_commandline_params(args):
     return parsed_args
 
 
-def workflow(negative_summary, mutant_summary, negative_bam, trx_id, ref, gff,
+def workflow(negative_summary, mutant_summary, negative_bam, trx_id, ref, gff, targets=VariantGenerator.DEFAULT_TARGETS,
              race_like=ErrorCorrectionDataGenerator.DEFAULT_RACE_LIKE, primers=None,
              output_dir=".", output_prefix=None, var_type=VariantGenerator.DEFAULT_VAR_TYPE,
              haplotypes=VariantGenerator.DEFAULT_HAPLO, haplotype_len=VariantGenerator.DEFAULT_HAPLO_LEN,
@@ -103,6 +107,7 @@ def workflow(negative_summary, mutant_summary, negative_bam, trx_id, ref, gff,
     :param str trx_id: transcript ID to generate variants for
     :param str ref: reference FASTA for trx_id
     :param str gff: transcript GFF for trx_id
+    :param str | None targets: optional target feature file. Only variants intersecting the target will be generated.
     :param bool race_like: is the data produced by RACE-like (e.g. AMP) data? Default False.
     :param str | None primers: feature file of primer locations for read masking and primer detection
     :param str output_dir: Optional output directory to write ReadEditor output files.
@@ -116,12 +121,12 @@ def workflow(negative_summary, mutant_summary, negative_bam, trx_id, ref, gff,
     """
 
     ecdg = ErrorCorrectionDataGenerator(
-        negative_summary=negative_summary, mutant_summary=mutant_summary, negative_bam=negative_bam, race_like=race_like,
-        ref=ref, gff=gff, primers=primers, outdir=output_dir, output_prefix=output_prefix,
+        negative_summary=negative_summary, mutant_summary=mutant_summary, negative_bam=negative_bam,
+        race_like=race_like, ref=ref, gff=gff, primers=primers, outdir=output_dir, output_prefix=output_prefix,
         haplotypes=haplotypes, haplotype_len=haplotype_len, random_seed=random_seed)
 
     truth_vcf, output_bam, zipped_r1_fastq, zipped_r2_fastq = ecdg.workflow(
-        trx_id=trx_id, var_type=var_type, mnp_bases=mnp_bases)
+        trx_id=trx_id, targets=targets, var_type=var_type, mnp_bases=mnp_bases)
 
     return truth_vcf, output_bam, zipped_r1_fastq, zipped_r2_fastq
 
@@ -133,7 +138,8 @@ def main():
 
     workflow(negative_summary=parsed_args["negative_summary"], mutant_summary=parsed_args["mutant_summary"],
              negative_bam=parsed_args["negative_bam"], trx_id=parsed_args["trx_id"],
-             ref=parsed_args["reference"], gff=parsed_args["transcript_gff"], race_like=parsed_args["race_like"],
+             ref=parsed_args["reference"], gff=parsed_args["transcript_gff"],
+             targets=parsed_args["targets"] ,race_like=parsed_args["race_like"],
              primers=parsed_args["primers"], output_dir=parsed_args["output_dir"],
              output_prefix=parsed_args["output_prefix"], var_type=parsed_args["var_type"],
              haplotypes=parsed_args["add_haplotypes"], haplotype_len=parsed_args["haplotype_length"],

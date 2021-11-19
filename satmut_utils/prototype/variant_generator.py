@@ -32,6 +32,9 @@ VAR_ID_TUPLE = collections.namedtuple("VAR_ID_TUPLE", "pos, ref, alt, aa_change,
 class VariantGenerator(object):
     """Class for generating all variant permutations of each codon in a transcript's CDS."""
 
+    DEFAULT_OUTDIR = "."
+    DEFAULT_OUTFILE = None
+    DEFAULT_TARGETS = None
     DEFAULT_RACE_LIKE = False
     DEFAULT_EXT = "codon.permuts.vcf"
     DEFAULT_VAR_TYPE = "total"
@@ -44,7 +47,7 @@ class VariantGenerator(object):
     DEFAULT_MUTAGENESIS_PRIMER_LEN = 25
 
     def __init__(self, gff, ref, haplotypes=DEFAULT_HAPLO, haplotype_len=DEFAULT_HAPLO_LEN,
-                 outdir=".", random_seed=DEFAULT_HAPLO_SEED):
+                 outdir=DEFAULT_OUTDIR, random_seed=DEFAULT_HAPLO_SEED):
         r"""Constructor for VariantGenerator.
 
         :param str gff: transcript GFF; must have "transcript_id" metafeature and "exon", "CDS", "start_codon", \
@@ -179,20 +182,15 @@ class VariantGenerator(object):
 
         return var_id_tup
 
-    def get_all_trx_variants(self, trx_id, outfile=None, var_type=DEFAULT_VAR_TYPE, mnp_bases=DEFAULT_MNP_BASES):
+    def _get_all_trx_variants(self, trx_id, outfile, var_type=DEFAULT_VAR_TYPE, mnp_bases=DEFAULT_MNP_BASES):
         """Generates a VCF of all permutation variants in  the coding region of a transcript.
 
         :param str trx_id: transcript ID to generate variants for; only one version may be available in the input GFF
-        :param str | None outfile: optional output VCF filename
+        :param str outfile: output VCF filename
         :param str var_type: one of {"snp", "mnp", "total"}
         :param int mnp_bases: report for di- or tri-nt MNP? Must be either 2 or 3. Default 3.
         :return str: name of the output VCF
         """
-
-        if outfile is None:
-            outfile = fu.replace_extension(os.path.basename(trx_id), self.DEFAULT_EXT)
-
-        output_filepath = os.path.join(self.outdir, outfile)
 
         vcf_header = self._create_vcf_header(contigs=(self.contig_lookup[trx_id],))
 
@@ -232,7 +230,6 @@ class VariantGenerator(object):
                     aa_change = cm.HGVS_AA_FORMAT.format(ref_aa, i + 1, alt_aa)
 
                     mut_info_tuple = self.aam.get_codon_and_aa_changes(trx_id=trx_id, pos=pos + 1, ref=ref, alt=alt)
-                    # location, wt_codons, mut_codons, wt_aas, mut_aas, aa_changes, aa_positions, matches_mut_sig
 
                     info_dict = {vu.VCF_VARTYPE_ID: str(var_type.value),
                                  vu.VCF_AAM_LOCATION_ID: mut_info_tuple.location,
@@ -299,7 +296,6 @@ class VariantGenerator(object):
 
                     new_var = self._combine_variants(trx_id=full_trx_id, first_var=first_var, second_var=second_var)
 
-                    # info_dict = {vu.VCF_NNK_SIG_MATCH: new_var.nnk_match}
                     info_dict = {vu.VCF_AAM_AA_CHANGE_ID: new_var.aa_change,
                                  vu.VCF_VARTYPE_ID: "{}:{}".format(
                                      str(first_var_type.value), str(second_var_type.value))}
@@ -309,10 +305,38 @@ class VariantGenerator(object):
 
                     out_vf.write(new_variant_record)
 
-        vu.remove_end_info_tag(in_vcf=patch_vcf, out_vcf=output_filepath)
+        vu.remove_end_info_tag(in_vcf=patch_vcf, out_vcf=outfile)
         fu.safe_remove((patch_vcf,))
+        return outfile
 
-        return output_filepath
+    def workflow(self, trx_id, targets=DEFAULT_TARGETS, outfile=DEFAULT_OUTFILE,
+                 var_type=DEFAULT_VAR_TYPE, mnp_bases=DEFAULT_MNP_BASES):
+        """Runs the VariantGenerator workflow.
+
+        :param str trx_id: transcript ID to generate variants for; only one version may be available in the input GFF
+        :param str | None targets: optional target feature file. Only variants intersecting the target will be generated.
+        :param str | None outfile: optional output VCF filename
+        :param str var_type: one of {"snp", "mnp", "total"}. Default total.
+        :param int mnp_bases: report for di- or tri-nt MNP? Must be either 2 or 3. Default 3.
+        :return str: name of the output VCF
+        """
+
+        if outfile is None:
+            output_filepath = os.path.join(self.outdir, fu.replace_extension(os.path.basename(trx_id), self.DEFAULT_EXT))
+        else:
+            output_filepath = os.path.join(self.outdir, outfile)
+
+        # If there are no targets, output all codon permutation variants
+        if targets is None:
+            out_vcf = self._get_all_trx_variants(trx_id, output_filepath, var_type, mnp_bases)
+            return out_vcf
+
+        # Otherwise intersect the codon permutation variants with the targets
+        with tempfile.NamedTemporaryFile(suffix=".codon.permuts.vcf", delete=False) as temp_vcf_fh:
+            temp_vcf = self._get_all_trx_variants(trx_id, temp_vcf_fh.name, var_type, mnp_bases)
+            out_vcf = ffu.intersect_features(ff1=temp_vcf, ff2=targets, outfile=output_filepath, f=1.0)
+            fu.safe_remove((temp_vcf,))
+            return out_vcf
 
 
 class CodonPermuts(object):

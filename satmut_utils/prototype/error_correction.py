@@ -26,17 +26,20 @@ _logger = logging.getLogger(__name__)
 
 
 class ErrorCorrectionDataGenerator(object):
-    """Generates datasets for training error correction models. Uses analysis.variant_caller.VariantCaller output."""
+    """Generates data for training error correction models. Uses satmut_utils call output summary files."""
 
+    DEFAULT_TARGETS = None
     DEFAULT_RACE_LIKE = False
+    DEFAULT_PRIMERS = None
+    DEFAULT_OUTDIR = "."
+    DEFAULT_PREFIX = None
     DEFAULT_NVARS = None
-    DEFAULT_CONSERVATIVE_MNPS = False
 
     def __init__(self, negative_summary, mutant_summary, negative_bam, ref, gff, race_like=DEFAULT_RACE_LIKE,
-                 primers=None, outdir=".", output_prefix=None, nvars=DEFAULT_NVARS,
+                 primers=DEFAULT_PRIMERS, outdir=DEFAULT_OUTDIR, output_prefix=DEFAULT_PREFIX, nvars=DEFAULT_NVARS,
                  haplotypes=vg.VariantGenerator.DEFAULT_HAPLO, haplotype_len=vg.VariantGenerator.DEFAULT_HAPLO_LEN,
                  random_seed=vu.VcfSubsampler.DEFAULT_SEED):
-        r"""Constructor for ErrorCorrectionDataGenerator.
+        """Constructor for ErrorCorrectionDataGenerator.
 
         :param str negative_summary: vcf.summary.txt file for the negative control library
         :param str mutant_summary: vcf.summary.txt file for a mutant library
@@ -44,13 +47,13 @@ class ErrorCorrectionDataGenerator(object):
         :param str ref: reference FASTA used in alignment/variant calling
         :param str gff: reference GTF of the transcript that was mutagenized
         :param bool race_like: is the data produced by RACE-like (e.g. AMP) data? Default False.
-        :param str | None primers: feature file of primer locations for read masking and primer detection
+        :param str | None primers: primer bed file for BQ masking
         :param str outdir: Optional output directory to write generated VCFs and edited FASTQs, BAM
         :param str | None output_prefix: Optional output prefix for the FASTQ(s) and BAM; if None, use same prefix as VCF
         :param int | None nvars: number of variants requested; set to None for equivalent nbases as in the mutant_summary
-        :param bool haplotypes: should haplotypes be created with uniform number to codon variants? Default True.
-        :param int haplotype_len: max length to create haplotypes. No longer than read length.
-        :param int random_seed: seed for variant sampling
+        :param bool haplotypes: should haplotypes be created with uniform number to codon variants? Default False.
+        :param int haplotype_len: max length to create haplotypes. Must be no longer than read length. Default 12.
+        :param int random_seed: seed for variant sampling. Default 9.
         """
 
         self.negative_summary = negative_summary
@@ -65,15 +68,14 @@ class ErrorCorrectionDataGenerator(object):
         self.haplotypes = haplotypes
         self.haplotype_len = haplotype_len
         self.random_seed = random_seed
-
         self.nvars = nvars
         if nvars is None:
-            self.nvars = self.get_fp_count()
+            self.nvars = self._get_fp_count()
 
         self.vg = vg.VariantGenerator(
             gff=gff, ref=ref, haplotypes=haplotypes, haplotype_len=haplotype_len, outdir=outdir, random_seed=random_seed)
 
-    def get_fp_count(self):
+    def _get_fp_count(self):
         """Gets the number of false positive mismatches in the negative control.
 
         :return int: number of false positive mismatches in the background
@@ -88,7 +90,7 @@ class ErrorCorrectionDataGenerator(object):
         num_mismatches = int(nc_df[vu.VCF_MM_ID].drop_duplicates().count())
         return num_mismatches
 
-    def get_mutant_caf_estimates(self):
+    def _get_mutant_caf_estimates(self):
         """Gets the median and SD of log10 CAFs of each variant type in a mutant fraction.
 
         :return dict: {str: tuple} median and SD of log10 CAFs keyed by the variant type
@@ -112,11 +114,12 @@ class ErrorCorrectionDataGenerator(object):
 
         return caf_dict
 
-    def workflow(self, trx_id, out_vcf=None, var_type=vg.VariantGenerator.DEFAULT_VAR_TYPE,
-                 mnp_bases=vg.VariantGenerator.DEFAULT_MNP_BASES):
+    def workflow(self, trx_id, targets=vg.VariantGenerator.DEFAULT_TARGETS, out_vcf=vg.VariantGenerator.DEFAULT_OUTFILE,
+                 var_type=vg.VariantGenerator.DEFAULT_VAR_TYPE, mnp_bases=vg.VariantGenerator.DEFAULT_MNP_BASES):
         """Runs the ErrorCorrectionDataGenerator workflow.
 
         :param str trx_id: transcript ID to generate variants for; only one version may be available in the input GFF
+        :param str | None targets: optional target feature file. Only variants intersecting the target will be generated.
         :param str | None out_vcf: optional output VCF name for all codon permutation variants
         :param str var_type: one of {"snp", "mnp", "total"}
         :param int mnp_bases: report for di- or tri-nt MNP? Must be either 2 or 3. Default 3.
@@ -126,21 +129,23 @@ class ErrorCorrectionDataGenerator(object):
         _logger.info("Starting error correction data generation workflow.")
 
         _logger.info("Estimating truth set parameters from positive and negative control variant calls.")
-        fp_nbases = self.get_fp_count()
-        caf_estimates = self.get_mutant_caf_estimates()
+        fp_nbases = self._get_fp_count()
+        caf_estimates = self._get_mutant_caf_estimates()
 
         _logger.info("%i false positive mismatched bases counted in %s" % (fp_nbases, self.negative_summary))
-        _logger.info("Estimates of the median and standard deviation of log10 concordant AFs are %s" % str(caf_estimates))
 
-        _logger.info("Generating all codon-permuted variants.")
-        all_codon_permuts = self.vg.get_all_trx_variants(
-            trx_id=trx_id, outfile=out_vcf, var_type=var_type, mnp_bases=mnp_bases)
+        _logger.info("Estimates of the median and standard deviation of log10 concordant frequencies are %s"
+                     % str(caf_estimates))
+
+        _logger.info("Generating codon permutation variants.")
+        all_codon_permuts = self.vg.workflow(
+            trx_id=trx_id, targets=targets, outfile=out_vcf, var_type=var_type, mnp_bases=mnp_bases)
 
         _logger.info("Subsampling variants/bases for true positives.")
         vs = vu.VcfSubsampler(all_codon_permuts, outdir=self.outdir, random_seed=self.random_seed)
         subsamp_vcf = vs.subsample_bases(nbases=fp_nbases)
 
-        _logger.info("Annotating variants using estimated AF parameters for true positives.")
+        _logger.info("Annotating variants using estimated frequency parameters from the mutant summary file.")
         vp = vu.VcfPreprocessor(in_vcf=subsamp_vcf, caf_estimates=caf_estimates, ref=self.ref, outdir=self.outdir)
 
         _logger.info("Editing variants into the negative control alignments.")

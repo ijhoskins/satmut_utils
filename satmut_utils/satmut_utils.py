@@ -148,7 +148,8 @@ def parse_commandline_params(args):
                                   'Default for AMP libraries is %s.' % AMP_UMI_REGEX)
 
     parser_call.add_argument("-s", "--mutagenesis_signature", type=str, default=DEFAULT_MUT_SIG,
-                             help='Mutagenesis signature. One of {NNN, NNK, NNS}. Default %s.' % DEFAULT_MUT_SIG)
+                             help='Mutagenesis signature. Wseful for annotation of signature matching. '
+                                  'One of {NNN, NNK, NNS}. Default %s.' % DEFAULT_MUT_SIG)
 
     parser_call.add_argument("-q", "--min_bq", type=int, default=VariantCaller.VARIANT_CALL_MIN_BQ,
                              help='Min base quality to consider a position for variant calling. Default %i.' %
@@ -188,8 +189,8 @@ def parse_commandline_params(args):
 
     parser_call.add_argument("-f", "--primer_fasta", type=none_or_str,
                              help='If -z and -cd, this may be set to append originating R2 primer sequences to read names. '
-                                  'Useful for RACE-like (AMP) libraries to prohibit R2 merging. Without this flag, '
-                                  'R2s from separate tiles, but sharing the same R1 UMI, will be merged into contigs during '
+                                  'Useful for RACE-like libraries to prohibit R2 merging. Without this flag, R2s from '
+                                  'separate tiles but sharing the same R1 will be merged into contigs during '
                                   'consensus deduplication.')
 
     parser_call.add_argument("-a", "--primer_nm_allowance", type=int, default=UMIExtractor.PRIMER_NM_ALLOW,
