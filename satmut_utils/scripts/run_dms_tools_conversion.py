@@ -40,11 +40,11 @@ def parse_commandline_params(args):
                         help='BAM file of reads in a single tile to convert. Intersect any alignments with a single '
                              'target tile using bedtools -f (if alignments consist of multiple PCR tiles).')
 
-    parser.add_argument("-r", "--pos_range", type=str, required=True,
+    parser.add_argument("-r", "--reference", type=str, required=True, help='Corresponding reference FASTA.')
+
+    parser.add_argument("-p", "--pos_range", type=str, required=True,
                         help='Comma-delimited 1-based start and end positions of the amplicon/tile. '
                              'Reads will be made flush with these coordinates.')
-
-    parser.add_argument("-r", "--reference", type=str, required=True, help='Corresponding reference FASTA.')
 
     parser.add_argument("-o", "--output_dir", type=str, default=ConvertToDmstools.DEFAULT_OUTDIR,
                         help='Output directory for FASTQs and BAM.')
@@ -52,11 +52,16 @@ def parse_commandline_params(args):
     parser.add_argument("-l", "--umi_length", type=int, default=ConvertToDmstools.DEFAULT_UMI_LEN,
                         help='UMI length, for addition to 5\' end of each read.')
 
+    parser.add_argument("-j", "--nthreads", type=int, default=ConvertToDmstools.DEFAULT_NTHREADS,
+                        help='Number of threads to use for BAM sorting operations. Default %i, autodetect.'
+                             % ConvertToDmstools.DEFAULT_NTHREADS)
+
     parsed_args = vars(parser.parse_args(args))
     return parsed_args
 
 
-def workflow(in_bam, ref, pos_range, umi_len=ConvertToDmstools.DEFAULT_UMI_LEN, outdir=ConvertToDmstools.DEFAULT_OUTDIR):
+def workflow(in_bam, ref, pos_range, umi_len=ConvertToDmstools.DEFAULT_UMI_LEN,
+             outdir=ConvertToDmstools.DEFAULT_OUTDIR, nthreads=ConvertToDmstools.DEFAULT_NTHREADS):
     """Runs the dms_tools conversion workflow.
 
     :param str in_bam: input alignments for a single tile
@@ -64,9 +69,12 @@ def workflow(in_bam, ref, pos_range, umi_len=ConvertToDmstools.DEFAULT_UMI_LEN, 
     :param str pos_range: 1-based positions flush with codons spanning the target
     :param int umi_len: length of randomer UMI. Default 8.
     :param str outdir: output directory. Default current directory.
+    :param int nthreads: Number of threads to use for BAM operations. Default 0 (autodetect).
     """
 
-    zipped_r1_fastq, zipped_r2_fastq = ConvertToDmstools(in_bam, ref, pos_range, umi_len, outdir=outdir).workflow()
+    zipped_r1_fastq, zipped_r2_fastq = ConvertToDmstools(
+        in_bam, ref, pos_range, umi_len, outdir=outdir, nthreads=nthreads).workflow()
+
     return zipped_r1_fastq, zipped_r2_fastq
 
 
@@ -76,7 +84,7 @@ def main():
     parsed_args = parse_commandline_params(sys.argv[1:])
 
     workflow(in_bam=parsed_args["in_bam"], ref=parsed_args["reference"], pos_range=parsed_args["pos_range"],
-             umi_len=parsed_args["umi_length"], outdir=parsed_args["output_dir"])
+             umi_len=parsed_args["umi_length"], outdir=parsed_args["output_dir"], nthreads=parsed_args["nthreads"])
 
 
 if __name__ == "__main__":

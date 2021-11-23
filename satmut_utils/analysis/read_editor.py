@@ -612,12 +612,12 @@ class ReadEditor(object):
         truth_vcf_fh.write(new_variant_record)
 
     def workflow(self):
-        r"""Runs the ReadEditor workflow.
+        """Runs the ReadEditor workflow.
 
         :return tuple: (str, str, str) paths of the edited and realigned BAM, R1 FASTQ, R2 FASTQ
         """
 
-        _logger.info("Getting edit configs. This could take time if aligned depth across target positions is high.")
+        _logger.info("Getting edit configs. This could take time if the depth across target positions is high.")
         edit_configs = self._get_edit_configs()
 
         _logger.info("Editing variants.")
