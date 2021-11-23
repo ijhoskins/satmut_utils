@@ -236,8 +236,6 @@ class ConvertToDmstools(object):
                     seq, quals = self._add_read_end(
                         contig=align_seg.reference_name, ref_pos=max_ref_pos, seq=seq, quals=quals, nbases=end_diff)
 
-                self._update_read(align_seg, seq, quals)
-
                 # Finally append UMIs/barcodes to each read
                 self._append_umi(align_seg, used_umis)
 
@@ -245,11 +243,13 @@ class ConvertToDmstools(object):
                 align_seg.cigarstring = None
                 out_af.write(align_seg)
 
-    def _append_umi(self, align_seg, used_umis):
+    def _append_umi(self, align_seg, used_umis, seq, quals):
         """Appends a UMI to the 5' end of the read.
 
         :param pysam.AlignedSegment align_seg: read object
         :param set used_umis: set of UMIs already assigned
+        :param list seq: codon-flush sequence
+        :param list quals: codon-flush  base qualities
         """
 
         umi = make_random_str(str_len=self.umi_len, letters=DNA_BASES)
@@ -257,16 +257,17 @@ class ConvertToDmstools(object):
             umi = make_random_str(str_len=self.umi_len, letters=DNA_BASES)
 
         used_umis.add(umi)
-
         umi_quals = [random.randint(DEFAULT_MIN_BQ, DEFAULT_MAX_BQ) for _ in range(self.umi_len)]
 
         if not align_seg.is_reverse:
-            align_seg.query_sequence = umi + align_seg.query_sequence
-            align_seg.query_qualities = umi_quals + list(align_seg.query_qualities)
+            seq = umi + seq
+            quals = umi_quals + quals
         else:
             umi = reverse_complement(umi)
-            align_seg.query_sequence += umi
-            align_seg.query_qualities = list(align_seg.query_qualities) + umi_quals
+            seq += umi
+            quals += umi_quals
+
+        self._update_read(align_seg, seq, quals)
 
     def _write_fastqs(self):
         """Writes and gzips FASTQs.
