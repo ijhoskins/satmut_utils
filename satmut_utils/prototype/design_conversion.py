@@ -91,19 +91,21 @@ class ConvertToDmstools(object):
     """Converts reads to dms_tools input format."""
 
     DEFAULT_UMI_LEN = 8
+    DEFAULT_NO_UMI = False
     DEFAULT_OUTDIR = "."
     DEFAULT_NTHREADS = 0
     POS_RANGE_DELIM = ","
     OUTPUT_PREFIX = "dms_tools"
     OUTBAM_SUFFIX = "dms_tools.bam"
 
-    def __init__(self, in_bam, ref, pos_range, umi_len, outdir=DEFAULT_OUTDIR, nthreads=DEFAULT_NTHREADS):
+    def __init__(self, in_bam, ref, pos_range, umi_len, no_umis=DEFAULT_NO_UMI, outdir=DEFAULT_OUTDIR, nthreads=DEFAULT_NTHREADS):
         """Constructor for ConvertToDmstools.
 
         :param str in_bam: input alignments for a single tile
         :param str ref: reference FASTA
         :param str pos_range: 1-based positions flush with codons spanning the target
         :param int umi_len: length of randomer UMI. Default 8.
+        :param bool no_umis: do not add UMIs, only make reads flush with the pos_range. Default False
         :param str outdir: output directory. Default current directory.
         :param int nthreads: Number of threads to use for BAM operations. Default 0 (autodetect).
         """
@@ -112,6 +114,7 @@ class ConvertToDmstools(object):
         self.ref = ref
         self.pos_range = tuple(map(int, pos_range.split(self.POS_RANGE_DELIM)))
         self.umi_len = umi_len
+        self.no_umis = no_umis
         self.outdir = outdir
         self.nthreads = nthreads
         self.out_prefix = os.path.join(self.outdir, fu.replace_extension(os.path.basename(in_bam), self.OUTPUT_PREFIX))
@@ -215,10 +218,8 @@ class ConvertToDmstools(object):
                 max_ref_pos = max(ref_positions) + 1
                 start_diff = self.pos_range[0] - min_ref_pos
                 end_diff = self.pos_range[1] - max_ref_pos
-
-                # TODO
                 seq = align_seg.query_alignment_sequence
-                quals = align_seg.query_alignment_qualities
+                quals = list(align_seg.query_alignment_qualities)
 
                 if end_diff < 0:
                     seq, quals = self._trim_read_end(
@@ -237,7 +238,10 @@ class ConvertToDmstools(object):
                         contig=align_seg.reference_name, ref_pos=max_ref_pos, seq=seq, quals=quals, nbases=end_diff)
 
                 # Finally append UMIs/barcodes to each read
-                self._append_umi(align_seg, used_umis)
+                if not self.no_umis:
+                    seq, quals = self._append_umi(align_seg, used_umis, seq, quals)
+
+                self._update_read(align_seg, seq, quals)
 
                 # Now that reads have been modified, write paired reads to FASTQ and re-align
                 align_seg.cigarstring = None
@@ -250,6 +254,7 @@ class ConvertToDmstools(object):
         :param set used_umis: set of UMIs already assigned
         :param list seq: codon-flush sequence
         :param list quals: codon-flush  base qualities
+        :return tuple: sequence and quals lists
         """
 
         umi = make_random_str(str_len=self.umi_len, letters=DNA_BASES)
@@ -267,7 +272,7 @@ class ConvertToDmstools(object):
             seq += umi
             quals += umi_quals
 
-        self._update_read(align_seg, seq, quals)
+        return seq, quals
 
     def _write_fastqs(self):
         """Writes and gzips FASTQs.

@@ -70,7 +70,7 @@ class VariantCaller(object):
 
     VARIANT_CALL_MIN_BQ = 30
     VARIANT_CALL_MIN_MAPQ = 0
-    VARIANT_CALL_MIN_DP = 1
+    VARIANT_CALL_MIN_DP = 2
     VARIANT_CALL_MAX_NM = 10
     VARIANT_CALL_NORM_DP = 1000000
     VARIANT_CALL_COV_EXT = "cov.bedgraph"
