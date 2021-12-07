@@ -435,9 +435,7 @@ class VcfPreprocessor(object):
     """Preprocesses as a VCF by left-normalizing variants, sorting, filtering, and annotating with INFO tags."""
 
     DEFAULT_EXT = "norm.annot.vcf"
-    DEFAULT_AF = 0.5
-    DEFAULT_IE = None
-    DEFAULT_IR = None
+    DEFAULT_AF = 0.001
     DEFAULT_OMIT_TYPES = (VariantType.INS, VariantType.DEL, VariantType.COMPLEX, VariantType.INV)
     INFO_TAG_CONFIG_TUPLE = collections.namedtuple("info_tag_config", "tag_value, tag_header_fields")
     VAR_COORDS_FORMAT = "{}:{}"
@@ -624,13 +622,9 @@ class VcfSubsampler(object):
         :return list: list of SNPs and MNPs mixed according to the snp_prop
         """
 
-        # WARNING: this has a side effect
-        random.shuffle(snp_vars)
-        random.shuffle(mnp_vars)
-
         # Determine the number of SNPs and MNPs to generate
         n_snps = int(self.snp_prop * nvars)
-        n_mnps = (int(1.0 - self.snp_prop) * nvars)
+        n_mnps = (int((1.0 - self.snp_prop) * nvars))
         snp_samp = random.sample(snp_vars, n_snps)
         mnp_samp = random.sample(mnp_vars, n_mnps)
         all_vars = snp_samp + mnp_samp
@@ -662,6 +656,7 @@ class VcfSubsampler(object):
                     mnp_variants.append(var_record)
 
             all_variants = self._mix_distr(snp_variants, mnp_variants, nvars)
+            in_vcf.reset()
             return all_variants
 
     def subsample_variants(self, nvars, outfile=DEFAULT_OUTFILE):
@@ -686,7 +681,7 @@ class VcfSubsampler(object):
             warnings.warn("Number of variants requested (%i) is greater than the number of variants in the VCF: %i."
                           % (nvars, emp_nvars))
 
-        weighted_variants = self._get_snp_mnp_variants(emp_nvars)
+        weighted_variants = self._get_snp_mnp_variants(nvars)
         vars_to_sample = set(random.sample(range(len(weighted_variants)), k=nvars))
 
         with pysam.VariantFile(self.cf) as in_vcf, \
@@ -701,10 +696,11 @@ class VcfSubsampler(object):
 
         return out_filename
 
-    def subsample_bases(self, nbases, outfile=DEFAULT_OUTFILE):
+    def subsample_bases(self, nvars, nbases, outfile=DEFAULT_OUTFILE):
         """Subsamples an approximate number of mismatched bases.
 
-        :param int nbases: number of mismatched bases
+        :param int nvars: number of variants to use for SNP/MNP mixing
+        :param int nbases: number of mismatched bases to return
         :param str | None outfile: output filename
         :return str: output filename
 
@@ -721,12 +717,12 @@ class VcfSubsampler(object):
         # Get the number of variants in the input file
         emp_nvars = self._get_nvars()
 
-        if nbases > emp_nvars:
-            warnings.warn("Number of bases requested (%i) is greater than the number of variants in the VCF: %i"
-                          % (nbases, emp_nvars))
+        if nvars > emp_nvars:
+            warnings.warn("Number of variants requested (%i) is greater than the number of variants in the VCF: %i."
+                          % (nvars, emp_nvars))
 
         # Make a mixture distr of SNPs and MNPs
-        weighted_variants = self._get_snp_mnp_variants(emp_nvars)
+        weighted_variants = self._get_snp_mnp_variants(nvars)
 
         with pysam.VariantFile(self.cf, mode="r") as in_vcf, \
                 pysam.VariantFile(out_filename, mode="w", header=in_vcf.header) as out_vcf:

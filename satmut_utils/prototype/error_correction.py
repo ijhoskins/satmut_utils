@@ -60,25 +60,35 @@ class ErrorCorrectionDataGenerator(object):
         self.outdir = outdir
         self.nthreads = nthreads
 
-    def _get_fp_count(self):
-        """Gets the number of false positive mismatches in the negative control.
+    def _get_fp_nvars(self):
+        """Gets the number of false positive variants in the negative control.
 
-        :return int: number of false positive mismatches in the background
+        :return int: number of false positive variants
         """
 
         nc_df = pd.read_csv(self.negative_summary, sep=fu.FILE_DELIM)
 
-        nc_df[vu.VCF_MM_ID] = nc_df[vu.VAR_POS].astype(str) + vu.VCF_VAR_ID_DELIM + \
-                              nc_df[vu.VCF_REF_NT_ID] + vu.VCF_VAR_ID_DELIM + \
-                              nc_df[vu.VCF_ALT_NT_ID]
+        nc_df[vu.VCF_VAR_ID] = nc_df[vu.VAR_POS].astype(str) + vu.VCF_VAR_ID_DELIM + \
+                               nc_df[vu.VAR_REF] + vu.VCF_VAR_ID_DELIM + \
+                               nc_df[vu.VAR_ALT]
 
-        num_mismatches = int(nc_df[vu.VCF_MM_ID].drop_duplicates().count())
-        return num_mismatches
+        num_vars = int(nc_df[vu.VCF_VAR_ID].drop_duplicates().count())
+        return num_vars
+
+    def _get_fp_nbases(self):
+        """Gets the number of false positive mismatches in the negative control.
+
+        :return int: number of false positive mismatches
+        """
+
+        nc_df = pd.read_csv(self.negative_summary, sep=fu.FILE_DELIM)
+        n_mismatches = len(nc_df)
+        return n_mismatches
 
     def _get_mutant_caf_estimates(self):
-        """Gets the median and SD of log10 CAFs of each variant type in a mutant fraction.
+        """Gets the mean and SD of log10 CAFs of each variant type in the positive control.
 
-        :return dict: {str: tuple} median and SD of log10 CAFs keyed by the variant type
+        :return dict: {str: tuple} mean and SD of log10 CAFs keyed by the variant type
         """
 
         caf_dict = {}
@@ -86,7 +96,7 @@ class ErrorCorrectionDataGenerator(object):
 
         # Iterate over variants for each type and store the CAF estimates
         mut_df[vu.VCF_VARTYPE_ID] = mut_df.apply(
-            lambda x: str(vu.get_variant_type(ref=x[vu.VAR_REF], alt=x[vu.VAR_ALT], split_mnps=True)), axis=1)
+            lambda x: str(vu.get_variant_type(ref=x[vu.VAR_REF], alt=x[vu.VAR_ALT], split_mnps=False)), axis=1)
 
         # Filter out variants that don't match the mutagenesis signature
         filter_df = mut_df[mut_df["MATCHES_MUT_SIG"] == "True"]
@@ -95,7 +105,7 @@ class ErrorCorrectionDataGenerator(object):
 
         for vartype, cafs in groupby_df:
                 log10_cafs = np.log10(cafs[vu.VCF_CAF_ID])
-                caf_dict[vartype] = (float(log10_cafs.median()), float(log10_cafs.std()))
+                caf_dict[vartype] = (float(log10_cafs.mean()), float(log10_cafs.std()))
 
         return caf_dict
 
@@ -124,27 +134,27 @@ class ErrorCorrectionDataGenerator(object):
 
         _logger.info("Starting error correction data generation workflow.")
 
+        _logger.info("Estimating truth set parameters from positive and negative control variant calls.")
+        fp_nvars = self._get_fp_nvars()
+        fp_nbases = self._get_fp_nbases()
+        caf_estimates = self._get_mutant_caf_estimates()
+
+        _logger.info("%i false positive variants counted in %s." % (fp_nvars, self.negative_summary))
+        _logger.info("%i false positive mismatched bases counted in %s." % (fp_nbases, self.negative_summary))
+        _logger.info("Estimates of the mean and standard deviation of log10 concordant frequencies are %s"
+                     % str(caf_estimates))
+
+        _logger.info("Generating all codon-permutated variants.")
         variant_generator = vg.VariantGenerator(
             gff=self.gff, ref=self.ref, mut_sig=mut_sig, haplotypes=haplotypes, haplotype_len=haplotype_len,
             outdir=self.outdir, random_seed=random_seed)
 
-        _logger.info("Estimating truth set parameters from positive and negative control variant calls.")
-        fp_nbases = self._get_fp_count()
-        caf_estimates = self._get_mutant_caf_estimates()
-
-        _logger.info("%i false positive mismatched bases counted in %s" % (fp_nbases, self.negative_summary))
-
-        _logger.info("Estimates of the median and standard deviation of log10 concordant frequencies are %s"
-                     % str(caf_estimates))
-
-        _logger.info("Generating codon permutation variants.")
         all_codon_permuts = variant_generator.workflow(
             trx_id=trx_id, targets=targets, outfile=out_vcf, var_type=var_type, mnp_bases=mnp_bases)
 
         _logger.info("Subsampling variants/bases for true positives.")
-        # TODO: subsample variants according to the SNP, MNP proportions in the true library
         vs = vu.VcfSubsampler(cf=all_codon_permuts, outdir=self.outdir, random_seed=random_seed)
-        subsamp_vcf = vs.subsample_bases(nbases=fp_nbases)
+        subsamp_vcf = vs.subsample_bases(nvars=fp_nvars, nbases=fp_nbases)
 
         _logger.info("Annotating variants using estimated frequency parameters from the mutant summary file.")
         vp = vu.VcfPreprocessor(in_vcf=subsamp_vcf, caf_estimates=caf_estimates, ref=self.ref, outdir=self.outdir)
