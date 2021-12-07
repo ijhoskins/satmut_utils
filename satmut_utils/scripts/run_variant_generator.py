@@ -5,6 +5,7 @@ import argparse
 import logging
 import sys
 
+from definitions import DEFAULT_MUT_SIG
 from prototype.variant_generator import VariantGenerator
 from core_utils.string_utils import none_or_str
 
@@ -55,6 +56,10 @@ def parse_commandline_params(args):
     parser.add_argument("-d", "--outdir", type=str, default=VariantGenerator.DEFAULT_OUTDIR,
                         help='Optional output directory.')
 
+    parser.add_argument("-s", "--mutagenesis_signature", type=str, default=DEFAULT_MUT_SIG,
+                        help='Mutagenesis signature. Only variants matching the mutagensis signature will be generated. '
+                             'One of {NNN, NNK, NNS}. Default %s.' % DEFAULT_MUT_SIG)
+
     parser.add_argument("-v", "--var_type", type=str, default=VariantGenerator.DEFAULT_VAR_TYPE,
                         help='Variant types to generate. One of {snp, mnp, total}. Default %s.' %
                              VariantGenerator.DEFAULT_VAR_TYPE)
@@ -70,14 +75,14 @@ def parse_commandline_params(args):
                         help='For var_type==mnp or var_type==total, max number of bases in MNPs. Must be either 2 or 3. '
                              'Default %i.' % VariantGenerator.DEFAULT_MNP_BASES)
 
-    parser.add_argument("-s", "--random_seed", type=int, default=9, help='Seed for random variant sampling.')
+    parser.add_argument("-y", "--random_seed", type=int, default=9, help='Seed for random variant sampling.')
 
     parsed_args = vars(parser.parse_args(args))
     return parsed_args
 
 
 def workflow(trx_id, transcript_gff, ref, targets=VariantGenerator.DEFAULT_TARGETS,
-             out_vcf=VariantGenerator.DEFAULT_OUTFILE, outdir=VariantGenerator.DEFAULT_OUTDIR,
+             out_vcf=VariantGenerator.DEFAULT_OUTFILE, outdir=VariantGenerator.DEFAULT_OUTDIR, mut_sig=DEFAULT_MUT_SIG,
              var_type=VariantGenerator.DEFAULT_VAR_TYPE, haplotypes=VariantGenerator.DEFAULT_HAPLO,
              haplotype_len=VariantGenerator.DEFAULT_HAPLO_LEN, random_seed=VariantGenerator.DEFAULT_HAPLO_SEED,
              mnp_bases=VariantGenerator.DEFAULT_MNP_BASES):
@@ -90,6 +95,7 @@ def workflow(trx_id, transcript_gff, ref, targets=VariantGenerator.DEFAULT_TARGE
     :param str | None targets: optional target feature file. Only variants intersecting the target will be generated.
     :param str | None out_vcf: output VCF name
     :param str outdir: Optional output directory. Default current directory.
+    :param str mut_sig: mutagenesis signature- one of {NNN, NNK, NNS}. Default NNN.
     :param str var_type: one of {"snp", "mnp", "total"}
     :param bool haplotypes: should haplotypes be created with uniform number to codon variants? Default True.
     :param int haplotype_len: max length to create haplotypes. No longer than read length.
@@ -98,8 +104,9 @@ def workflow(trx_id, transcript_gff, ref, targets=VariantGenerator.DEFAULT_TARGE
     :return str: name of the output VCF
     """
 
-    vg = VariantGenerator(gff=transcript_gff, ref=ref, haplotypes=haplotypes, haplotype_len=haplotype_len,
-                          outdir=outdir, random_seed=random_seed)
+    vg = VariantGenerator(
+        gff=transcript_gff, ref=ref, mut_sig=mut_sig, haplotypes=haplotypes, haplotype_len=haplotype_len,
+        outdir=outdir, random_seed=random_seed)
 
     out_vcf = vg.workflow(trx_id=trx_id, targets=targets, outfile=out_vcf, var_type=var_type, mnp_bases=mnp_bases)
     return out_vcf
@@ -112,9 +119,9 @@ def main():
 
     workflow(trx_id=parsed_args["trx_id"], transcript_gff=parsed_args["transcript_gff"], ref=parsed_args["reference"],
              targets=parsed_args["targets"], out_vcf=parsed_args["out_vcf"], outdir=parsed_args["outdir"],
-             var_type=parsed_args["var_type"], haplotypes=parsed_args["add_haplotypes"],
-             haplotype_len=parsed_args["haplotype_length"], random_seed=parsed_args["random_seed"],
-             mnp_bases=parsed_args["mnp_bases"])
+             mut_sig=parsed_args["mutagenesis_signature"], var_type=parsed_args["var_type"],
+             haplotypes=parsed_args["add_haplotypes"], haplotype_len=parsed_args["haplotype_length"],
+             random_seed=parsed_args["random_seed"], mnp_bases=parsed_args["mnp_bases"])
 
 
 if __name__ == "__main__":

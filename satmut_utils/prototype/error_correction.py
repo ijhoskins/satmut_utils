@@ -99,15 +99,17 @@ class ErrorCorrectionDataGenerator(object):
 
         return caf_dict
 
-    def workflow(self, trx_id, targets=vg.VariantGenerator.DEFAULT_TARGETS, out_vcf=vg.VariantGenerator.DEFAULT_OUTFILE,
-                 var_type=vg.VariantGenerator.DEFAULT_VAR_TYPE, mnp_bases=vg.VariantGenerator.DEFAULT_MNP_BASES,
-                 output_prefix=DEFAULT_PREFIX, haplotypes=vg.VariantGenerator.DEFAULT_HAPLO,
-                 haplotype_len=vg.VariantGenerator.DEFAULT_HAPLO_LEN, random_seed=vu.VcfSubsampler.DEFAULT_SEED,
-                 buffer=ReadEditor.DEFAULT_BUFFER, force_edit=ReadEditor.DEFAULT_FORCE):
+    def workflow(self, trx_id, targets=vg.VariantGenerator.DEFAULT_TARGETS, mut_sig=DEFAULT_MUT_SIG,
+                 out_vcf=vg.VariantGenerator.DEFAULT_OUTFILE, var_type=vg.VariantGenerator.DEFAULT_VAR_TYPE,
+                 mnp_bases=vg.VariantGenerator.DEFAULT_MNP_BASES, output_prefix=DEFAULT_PREFIX,
+                 haplotypes=vg.VariantGenerator.DEFAULT_HAPLO, haplotype_len=vg.VariantGenerator.DEFAULT_HAPLO_LEN,
+                 random_seed=vu.VcfSubsampler.DEFAULT_SEED, buffer=ReadEditor.DEFAULT_BUFFER,
+                 force_edit=ReadEditor.DEFAULT_FORCE):
         """Runs the ErrorCorrectionDataGenerator workflow.
 
         :param str trx_id: transcript ID to generate variants for; only one version may be available in the input GFF
         :param str | None targets: optional target feature file. Only variants intersecting the target will be generated.
+        :param str mut_sig: mutagenesis signature- one of {NNN, NNK, NNS}. Default NNN.
         :param str | None out_vcf: optional output VCF name for all codon permutation variants
         :param str var_type: one of {"snp", "mnp", "total"}
         :param int mnp_bases: report for di- or tri-nt MNP? Must be either 2 or 3. Default 3.
@@ -123,7 +125,7 @@ class ErrorCorrectionDataGenerator(object):
         _logger.info("Starting error correction data generation workflow.")
 
         variant_generator = vg.VariantGenerator(
-            gff=self.gff, ref=self.ref, haplotypes=haplotypes, haplotype_len=haplotype_len,
+            gff=self.gff, ref=self.ref, mut_sig=mut_sig, haplotypes=haplotypes, haplotype_len=haplotype_len,
             outdir=self.outdir, random_seed=random_seed)
 
         _logger.info("Estimating truth set parameters from positive and negative control variant calls.")
@@ -140,6 +142,7 @@ class ErrorCorrectionDataGenerator(object):
             trx_id=trx_id, targets=targets, outfile=out_vcf, var_type=var_type, mnp_bases=mnp_bases)
 
         _logger.info("Subsampling variants/bases for true positives.")
+        # TODO: subsample variants according to the SNP, MNP proportions in the true library
         vs = vu.VcfSubsampler(cf=all_codon_permuts, outdir=self.outdir, random_seed=random_seed)
         subsamp_vcf = vs.subsample_bases(nbases=fp_nbases)
 

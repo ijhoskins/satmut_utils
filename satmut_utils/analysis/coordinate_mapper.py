@@ -430,6 +430,7 @@ class AminoAcidMapper(MapperBase):
                 "REF %s does not match the expected reference sequence of the transcript: %s" % (ref, expected_ref))
 
         # Now that we have ensured our variant is valid, we can check for its placement
+        # TODO: consider variant calling/location within intronic sequences
         if cds_start_offset is None and cds_stop_offset is None:
             return MUT_INFO_TUPLE(location=self.UNTRANSLATED, **self.DEFAULT_KWARGS)
         elif zbased_pos < cds_start_offset:

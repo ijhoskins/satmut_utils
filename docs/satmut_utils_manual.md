@@ -283,7 +283,7 @@ By default, sim will raise a InvalidVariantConfig Exception if the sum of varian
 
 InvalidVariantConfig exceptions are guaranteed to result in unedited variants if alignments from a single PCR tile are being edited into. However, if variants are to be edited into alignments across multiple PCR tiles, all variants *may* be edited despite an InvalidVariantConfig exception. This flag is particularly useful for maximizing the number of variants edited for multi-tile alignments.
 
-5. -s, --random_seed
+5. -y, --random_seed
 
 Integer seed to use for pseudorandom qname (read name) sampling. This may be used to select different reads for editing of variants. Default 9.
 
@@ -429,7 +429,6 @@ python -m scripts.run_read_generator -t CBS_chunked_10k.bed -d $OUTPUT_DIR -x CB
 This script may be used to generate a VCF of all SNP and MNP codon permutations in a desired transcript coding region that match a mutagenesis signature. Together with run\_read\_generator.py, this provides *de novo* inputs for satmut\_utils sim.
 
 Provide trx\_id exactly as it exists in the GFF attribute transcript\_id value.
-
 
 
 3. run\_vcf\_subsampler.py

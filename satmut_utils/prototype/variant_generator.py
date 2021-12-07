@@ -46,13 +46,14 @@ class VariantGenerator(object):
     DEFAULT_SNP_WEIGHT = 0.5
     DEFAULT_MUTAGENESIS_PRIMER_LEN = 25
 
-    def __init__(self, gff, ref, haplotypes=DEFAULT_HAPLO, haplotype_len=DEFAULT_HAPLO_LEN,
+    def __init__(self, gff, ref, mut_sig=DEFAULT_MUT_SIG, haplotypes=DEFAULT_HAPLO, haplotype_len=DEFAULT_HAPLO_LEN,
                  outdir=DEFAULT_OUTDIR, random_seed=DEFAULT_HAPLO_SEED):
         r"""Constructor for VariantGenerator.
 
         :param str gff: transcript GFF; must have "transcript_id" metafeature and "exon", "CDS", "start_codon", \
         and "stop_codon" features
         :param str ref: reference FASTA with contigs matching those in the GFF seqname field
+        :param str mut_sig: mutagenesis signature- one of {NNN, NNK, NNS}. Default NNN.
         :param bool haplotypes: should haplotypes be created with uniform number to codon variants? Default True.
         :param int haplotype_len: max length to create haplotypes. No longer than read length.
         :param str outdir: Output directory to write results
@@ -65,6 +66,7 @@ class VariantGenerator(object):
 
         self.gff = gff
         self.ref = ref
+        self.mut_sig = mut_sig
         self.haplotypes = haplotypes
         self.haplotype_len = haplotype_len
         self.outdir = outdir
@@ -74,7 +76,7 @@ class VariantGenerator(object):
             os.mkdir(self.outdir)
 
         # Create the necessary mapping object for getting CDS sequence
-        self.aam = cm.AminoAcidMapper(gff=gff, ref=ref, outdir=outdir)
+        self.aam = cm.AminoAcidMapper(gff=gff, ref=ref, outdir=outdir, mut_sig=mut_sig)
         self.contig_lookup = su.get_contig_lookup(self.ref)
 
     def _create_vcf_header(self, contigs):
@@ -231,6 +233,10 @@ class VariantGenerator(object):
 
                     mut_info_tuple = self.aam.get_codon_and_aa_changes(trx_id=trx_id, pos=pos + 1, ref=ref, alt=alt)
 
+                    # Only generate variants that match the mutagenesis signature
+                    if mut_info_tuple.matches_mut_sig == "False":
+                        continue
+
                     info_dict = {vu.VCF_VARTYPE_ID: str(var_type.value),
                                  vu.VCF_AAM_LOCATION_ID: mut_info_tuple.location,
                                  vu.VCF_AAM_CODON_REF_ID: mut_info_tuple.wt_codons,
@@ -239,7 +245,7 @@ class VariantGenerator(object):
                                  vu.VCF_AAM_AA_ALT_ID: mut_info_tuple.mut_aas,
                                  vu.VCF_AAM_AA_CHANGE_ID: mut_info_tuple.aa_changes,
                                  vu.VCF_AAM_AA_POS_ID: mut_info_tuple.aa_positions,
-                                 vu.VCF_MUT_SIG_MATCH: str(mut_info_tuple.matches_mut_sig)}
+                                 vu.VCF_MUT_SIG_MATCH: mut_info_tuple.matches_mut_sig}
 
                     new_variant_record = out_vf.new_record(
                         contig=full_trx_id, start=pos, alleles=(ref, alt), info=info_dict)

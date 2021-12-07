@@ -568,18 +568,21 @@ class VcfSubsampler(object):
     DEFAULT_OUTFILE = None
     DEFAULT_EXT = "subsamp.vcf"
     DEFAULT_SEED = 9
+    DEFAULT_SNP_PROP = 0.4
 
-    def __init__(self, cf, outdir=DEFAULT_OUTDIR, random_seed=DEFAULT_SEED):
+    def __init__(self, cf, outdir=DEFAULT_OUTDIR, random_seed=DEFAULT_SEED, snp_prop=DEFAULT_SNP_PROP):
         """Constructor for VariantSubsampler.
 
         :param str cf: path to a BCF or VCF (possibly gzipped) file
         :param str outdir: output directory to write subsampled VCF to
         :param int random_seed: seed for variant sampling
+        :param float snp_prop: SNP proportion; di-nt and tri-nt MNPs will be uniformly drawn from the complement
         """
 
         self.cf = cf
         self.outdir = outdir
         self.random_seed = random_seed
+        self.snp_prop = snp_prop
         random.seed(self.random_seed)
 
     def _get_nvars(self):
@@ -597,6 +600,69 @@ class VcfSubsampler(object):
             fu.flush_files((res_file,))
             nrecords = res_file.readlines()[0]
             return int(nrecords)
+
+    def _get_mut_sig_match_nvars(self):
+        """Gets the number of variants in the VCF that match the mutagenesis signature.
+
+        :return int: number variants matching the signature
+        """
+
+        with pysam.VariantFile(self.cf) as in_vcf:
+
+            mut_sig_match_counts = len(
+                [var_record for var_record in in_vcf.fetch() if var_record.info[VCF_MUT_SIG_MATCH] == "True"])
+
+            in_vcf.reset()
+            return mut_sig_match_counts
+
+    def _mix_distr(self, snp_vars, mnp_vars, nvars):
+        """Mixes SNPs and MNPs according to their proportions.
+
+        :param [pysam.VariantRecord] snp_vars: list of SNP VariantRecords
+        :param [pysam.VariantRecord] mnp_vars: list of MNP VariantRecords
+        :param int nvars: number of variants requested
+        :return list: list of SNPs and MNPs mixed according to the snp_prop
+        """
+
+        # WARNING: this has a side effect
+        random.shuffle(snp_vars)
+        random.shuffle(mnp_vars)
+
+        # Determine the number of SNPs and MNPs to generate
+        n_snps = int(self.snp_prop * nvars)
+        n_mnps = (int(1.0 - self.snp_prop) * nvars)
+        snp_samp = random.sample(snp_vars, n_snps)
+        mnp_samp = random.sample(mnp_vars, n_mnps)
+        all_vars = snp_samp + mnp_samp
+        random.shuffle(all_vars)
+        return all_vars
+
+    def _get_snp_mnp_variants(self, nvars):
+        """Gets SNP and MNP variants at the configured proportion.
+
+        :param int nvars: number of variants requested
+        :return list: SNP and MNP variants mixed according to proportion.
+        """
+
+        with pysam.VariantFile(self.cf, mode="r") as in_vcf:
+
+            snp_variants = []
+            mnp_variants = []
+
+            for var_record in in_vcf.fetch():
+
+                if var_record.info[VCF_MUT_SIG_MATCH] == "False":
+                    continue
+
+                var_type = get_variant_type(var_record.ref, var_record.alts[0], split_mnps=False)
+
+                if var_type == VariantType.SNP:
+                    snp_variants.append(var_record)
+                elif var_type == VariantType.MNP:
+                    mnp_variants.append(var_record)
+
+            all_variants = self._mix_distr(snp_variants, mnp_variants, nvars)
+            return all_variants
 
     def subsample_variants(self, nvars, outfile=DEFAULT_OUTFILE):
         """Subsamples a specified number of variants.
@@ -617,15 +683,16 @@ class VcfSubsampler(object):
         emp_nvars = self._get_nvars()
 
         if nvars > emp_nvars:
-            warnings.warn("Number of variants requested (%i) is greater than the number in the VCF: %i"
+            warnings.warn("Number of variants requested (%i) is greater than the number of variants in the VCF: %i."
                           % (nvars, emp_nvars))
 
-        vars_to_sample = set(random.sample(range(emp_nvars), k=nvars))
+        weighted_variants = self._get_snp_mnp_variants(emp_nvars)
+        vars_to_sample = set(random.sample(range(len(weighted_variants)), k=nvars))
 
         with pysam.VariantFile(self.cf) as in_vcf, \
                 pysam.VariantFile(out_filename, "w", header=in_vcf.header) as out_vcf:
 
-            for i, var_record in enumerate(in_vcf.fetch()):
+            for i, var_record in enumerate(weighted_variants):
 
                 if vars_to_sample is not None and i not in vars_to_sample:
                     continue
@@ -641,7 +708,7 @@ class VcfSubsampler(object):
         :param str | None outfile: output filename
         :return str: output filename
 
-        WARNING: This method returns an approximate nbases. The nbases actually sampled may be a few more than requested.
+        WARNING: This method returns an approximate nbases.
         """
 
         if outfile is None:
@@ -658,15 +725,17 @@ class VcfSubsampler(object):
             warnings.warn("Number of bases requested (%i) is greater than the number of variants in the VCF: %i"
                           % (nbases, emp_nvars))
 
-        base_counter = 0
+        # Make a mixture distr of SNPs and MNPs
+        weighted_variants = self._get_snp_mnp_variants(emp_nvars)
+
         with pysam.VariantFile(self.cf, mode="r") as in_vcf, \
                 pysam.VariantFile(out_filename, mode="w", header=in_vcf.header) as out_vcf:
 
-            # Shuffle the list of all variants and then count bases
-            all_variants = [var_record for var_record in in_vcf.fetch()]
-            random.shuffle(all_variants)
+            base_counter = 0
+            for var_record in weighted_variants:
 
-            for var_record in all_variants:
+                if base_counter >= nbases:
+                    break
 
                 vartype = get_variant_type(ref=str(var_record.ref), alt=str(var_record.alts[0]), split_mnps=True)
 
@@ -681,9 +750,6 @@ class VcfSubsampler(object):
                         [e1 for (e1, e2) in zip(str(var_record.ref), str(var_record.alts[0])) if e1 != e2])
 
                 out_vcf.write(var_record)
-
-                if base_counter >= nbases:
-                    break
 
         return out_filename
 

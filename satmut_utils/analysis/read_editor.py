@@ -133,6 +133,8 @@ class ReadEditor(object):
     VAR_TAG_DELIM = "_"
     DEFAULT_MAX_ERROR_RATE = 0.03
     DEFAULT_BUFFER = 6
+    DEFAULT_MAX_NM = 10
+    DEFAULT_MIN_BQ = 30
 
     TRUTH_VCF_SUFFIX = "truth.vcf"
     NORM_VCF_SUFFIX = "norm.sort.vcf"
@@ -140,7 +142,8 @@ class ReadEditor(object):
 
     def __init__(self, bam, variants, ref, race_like=ReadEditorPreprocessor.DEFAULT_RACE_LIKE,
                  primers=DEFAULT_PRIMERS, output_dir=DEFAULT_OUTDIR, output_prefix=DEFAULT_PREFIX,
-                 buffer=DEFAULT_BUFFER, random_seed=DEFAULT_SEED, force_edit=DEFAULT_FORCE, nthreads=DEFAULT_NTHREADS):
+                 buffer=DEFAULT_BUFFER, max_nm=DEFAULT_MAX_NM, min_bq=DEFAULT_MIN_BQ, random_seed=DEFAULT_SEED,
+                 force_edit=DEFAULT_FORCE, nthreads=DEFAULT_NTHREADS):
         r"""Constructor for ReadEditor.
 
         :param str bam: alignments to edit into.
@@ -151,14 +154,14 @@ class ReadEditor(object):
         accurate AF of variants under primer regions. This feature file should contain the strand of the primer. \
         Set to None for no masking.
         :param str output_dir: Optional output directory to store generated FASTQs and BAM. Default current directory.
-        :param str | None output_prefix: Optional output prefix for the FASTQ(s) and BAM
+        :param str | None output_prefix: Optional output prefix for the FASTQ(s) and BAM; If None, use bam basename.
         :param int buffer: buffer about the edit span (position + REF len) to ensure lack of error before editing. Default 3.
-        :param int random_seed: seed for random qname sampling
+        :param int max_nm: max edit distance to consider a read/pair for simulation. Default 10.
+        :param int min_bq: min base quality to consider a read pair for editing. Default 30.
+        :param int random_seed: seed for random qname sampling. Default 9.
         :param bool force_edit: flag to attempt editing of variants despite a NonconfiguredVariant exception.
         :param int nthreads: Number of threads to use for SAM/BAM operations and alignment. Default 0 (autodetect) \
         for samtools operations. If 0, will pass 1 to bowtie2 --threads.
-
-        Note: Reads that have been edited will be tagged with an IN alignment tag.
         """
 
         self.bam = bam
@@ -169,6 +172,8 @@ class ReadEditor(object):
         self.output_dir = output_dir
         self.output_prefix = output_prefix
         self.buffer = buffer
+        self.max_nm = max_nm
+        self.min_bq = min_bq
         self.random_seed = random_seed
         self.force_edit = force_edit
         self.nthreads = nthreads
@@ -298,16 +303,15 @@ class ReadEditor(object):
         # Make sure to protect ourselves in cases where the VcfSplitter has not been used prior and we are editing
         # multiple variants at the same position with somewhat high AFs
         if num_qnames_to_edit > amenable_qname_len:
-            num_qnames_to_edit = int(float(amenable_qname_len) * variant_config.af)
+            num_qnames_to_edit = amenable_qname_len
 
         # Ensure at least 1 qname can be edited if int(DP * AF) == 0
         num_qnames_to_edit = 1 if num_qnames_to_edit == 0 else num_qnames_to_edit
 
         # Could have no amenable qnames if the sum of AFs for variants at a position exceeds total_amenable_qnames
-        if amenable_qname_len != 0:
+        qnames_to_edit = set()
+        if amenable_qname_len > 0 and num_qnames_to_edit > 0:
             qnames_to_edit = set(random.sample(amenable_qnames, num_qnames_to_edit))
-        else:
-            qnames_to_edit = set()
 
         return qnames_to_edit
 
@@ -318,8 +322,8 @@ class ReadEditor(object):
         :param pysam.PileupColumn pileup_column: iterator over PileupRead objects
         :param read_editor.VARIANT_CONFIG_TUPLE variant_config: config for the variant
         :param dict edit_configs: dict containing editing data
-        :param set amenable_qnames: amenable qnames as the coordinate
-        :param int total_qnames: number total qnames as the coordinate
+        :param set amenable_qnames: amenable qnames at the coordinate
+        :param int total_qnames: number total qnames at the coordinate
         :param set qname_blacklist: blacklist of qnames to avoid, as they have already been configured for editing
         :return float: expected allele frequency of the variant specified by variant_config
         """
@@ -363,9 +367,10 @@ class ReadEditor(object):
 
         # Determine the total concordant depth at the column; this will be multiplied by individual variant AFs
         # to compute the integer number of qnames to edit
-        all_qname_counter = collections.Counter(all_qnames)
-        all_qnames = {qname for (qname, qname_count) in all_qname_counter.items() if qname_count == 2}
-        total_qnames = len(all_qnames)
+        #all_qname_counter = collections.Counter(all_qnames)
+        #all_qnames = {qname for (qname, qname_count) in all_qname_counter.items() if qname_count == 2}
+        all_qnames_set = set(all_qnames)
+        total_qnames = len(all_qnames_set)
 
         # Ensure both mates overlap the POS; satmut_utils call requires both mates for variant calls
         amenable_qname_counter = collections.Counter(amenable_qnames)
@@ -414,6 +419,19 @@ class ReadEditor(object):
 
         return False
 
+    @staticmethod
+    def _reads_overlap(align_seg):
+        """Determines if a read overlaps its mate.
+
+        :param pysam.AlignedSegment align_seg: read object
+        :return bool: whether the read overlaps its mate or not
+        """
+
+        if align_seg.reference_start + align_seg.query_length < align_seg.next_reference_start:
+            return False
+
+        return True
+
     def _get_edit_configs(self):
         """Gets a dictionary of read editing configurations and writes variants to the truth VCF.
 
@@ -461,7 +479,7 @@ class ReadEditor(object):
                 var_configs_ref_lens = [len(vc.ref) for vc in var_configs]
                 ref_len_max = max(var_configs_ref_lens)
                 ref_len_max_idx = [i for i, e in enumerate(var_configs_ref_lens) if e == ref_len_max][0]
-                var_configs_max_ref_len = var_configs_ref_lens[ref_len_max_idx]
+                vc_max_ref_len = var_configs_ref_lens[ref_len_max_idx]
 
                 # Both of these lists will be used to determine which qnames have concordant coverage at the column
                 all_qnames = []
@@ -472,20 +490,38 @@ class ReadEditor(object):
                 for pileup_read in pc.pileups:
 
                     # If the edited bases intersect any synthetic primer regions, do not edit
-                    if not (pileup_read.is_del or pileup_read.is_refskip) and \
-                            su.MASKED_BQ in pileup_read.alignment.query_qualities[
-                                            pileup_read.query_position:pileup_read.query_position + var_configs_max_ref_len]:
+                    if not pileup_read.is_del and su.MASKED_BQ in set(
+                            pileup_read.alignment.query_qualities[pileup_read.query_position]):
+                        continue
+
+                    # Do not consider reads/pairs that exceed the edit distance threshold
+                    # To mirror the variant caller, this should check both mates simultaneously and continue for the pair
+                    # However, this would require significant re-factoring, so just check each read individually
+                    # Note that if one mate exceeds the thresh but the other does not, fragment will contribute to DP
+                    if su.get_edit_distance(pileup_read.alignment) > self.max_nm:
+                        continue
+
+                    # Do not consider reads/pairs that do not overlap
+                    if not self._reads_overlap(pileup_read.alignment):
                         continue
 
                     # Now at this point, consider any concordant pair with/without error at the column for the
-                    # total column depth
+                    # total column depth,
                     qname_alias = self._get_qname_alias(pileup_read.alignment.query_name)
                     all_qnames.append(qname_alias)
 
                     # If the current read position has a InDel, skip for editing
-                    # WARNING: this does not check nearby positions, and may cause FNs if certain reads are chosen
-                    # In this case, try changing the seed for low frequency dels
+                    # This does not check nearby positions; which is the purpose of _ref_matches_window
                     if pileup_read.is_del or pileup_read.is_refskip:
+                        continue
+
+                    # If the base qualities across the REF span are not all above the min BQ, do not edit
+                    ref_span_quals = list(pileup_read.alignment.query_qualities[
+                                          pileup_read.query_position:pileup_read.query_position + vc_max_ref_len])
+
+                    ref_span_quals_pass = [bq for bq in ref_span_quals if bq >= self.min_bq]
+
+                    if len(ref_span_quals_pass) < vc_max_ref_len:
                         continue
 
                     # If the editable read position does not match the reference sequence in a window about the variant
@@ -493,7 +529,7 @@ class ReadEditor(object):
                     # with nearby errors
                     if not self._ref_matches_window(
                             contig=pileup_read.alignment.reference_name, query_seq=pileup_read.alignment.query_sequence,
-                            query_pos=pileup_read.query_position, ref_len=var_configs_max_ref_len,
+                            query_pos=pileup_read.query_position, ref_len=vc_max_ref_len,
                             ref_pos=pileup_read.alignment.reference_start + pileup_read.query_position + 1):
 
                         continue
@@ -504,14 +540,15 @@ class ReadEditor(object):
                 total_qnames, amenable_qnames = self._get_concordant_qnames(all_qnames, amenable_qnames)
 
                 # At this point amenable_qnames are all the "clean" reads at the current column
-                # Make sure to not edit into variants that have been configured to edit a variant at lower coordinate
+                # Make sure to not edit into reads that have been configured to contain a variant at lower coordinate
                 amenable_qnames -= qname_blacklist
 
                 if len(amenable_qnames) == 0:
                     _logger.warning("No amenable qnames for editing at %s." % pc_coord)
                     continue
 
-                # Get the edit configs for all variants at the column
+                # Get the edit configs for all variants at the column; this will update the qname_blacklist and
+                # amenable_qnames internally
                 for var_config in var_configs:
 
                     # Update the edit_configs dict and determine the truth frequency

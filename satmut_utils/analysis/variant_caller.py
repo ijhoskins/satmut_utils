@@ -69,7 +69,6 @@ class VariantCaller(object):
     VARIANT_CALL_STATS = False
 
     VARIANT_CALL_MIN_BQ = 30
-    VARIANT_CALL_MIN_MAPQ = 0
     VARIANT_CALL_MIN_DP = 2
     VARIANT_CALL_MAX_NM = 10
     VARIANT_CALL_NORM_DP = 1000000
@@ -559,11 +558,11 @@ class VariantCaller(object):
 
     @staticmethod
     def _reads_overlap(r1, r2):
-        r"""Determines if paired reads overlaps.
+        """Determines if paired reads overlap.
 
         :param pysam.AlignedSegment r1: R1 read object
         :param pysam.AlignedSegment r2: R2 read object
-        :return bool: whether or not the reads have any overlap (even 1 nt)
+        :return bool: whether or not the reads overlap (require >= 1 nt overlap)
         """
 
         r1_ref_pos = set(r1.get_reference_positions())
@@ -575,11 +574,11 @@ class VariantCaller(object):
         return False
 
     def _update_pos_dp(self, r1, r2):
-        r"""Updates the reference position dict for fragment coverage.
+        """Updates the reference position dict for fragment coverage.
 
         :param pysam.AlignedSegment r1: R1 read object
         :param pysam.AlignedSegment r2: R2 read object
-        :return None if no unmasked positions exist.
+        :return None: if no unmasked positions exist
         """
 
         # Only update the DP for positions with nonzero BQ
@@ -602,7 +601,7 @@ class VariantCaller(object):
 
     def _iterate_over_reads(self, af1, af2, min_bq=VARIANT_CALL_MIN_BQ, max_nm=VARIANT_CALL_MAX_NM,
                             max_mnp_window=VARIANT_CALL_MAX_MNP_WINDOW):
-        """Iterates over reads to enumerate variants.
+        """Iterates over read pairs to enumerate variants.
 
         :param pysam.AlignmentFile af1: object corresponding to the R1 BAM
         :param pysam.AlignmentFile af2: object corresponding to the R2 BAM
@@ -617,9 +616,9 @@ class VariantCaller(object):
 
             # Sanity check to make sure we are always paired
             # Split to handle consensus deduplicated input which include the mate ID along with the group ID
-            if r1.query_name.split("_")[0] != r2.query_name.split("_")[0]:
+            if r1.query_name != r2.query_name:
                 raise RuntimeError(
-                    "Improper pairing of reads. R1 was %s and R2 was %s" % (r1.query_name, r2.query_name))
+                    "Improper pairing of reads. R1 was %s and R2 was %s." % (r1.query_name, r2.query_name))
 
             # Only call variants for pairs that pass filters
             r1_nm = su.get_edit_distance(r1)
@@ -630,7 +629,7 @@ class VariantCaller(object):
             if not self._reads_overlap(r1, r2):
                 continue
 
-            # Compute fragment coverage/depth; note only filtered read pairs contibute to depth
+            # Compute fragment coverage/depth; note only filtered read pairs contribute to depth
             self._update_pos_dp(r1, r2)
 
             # Enumerate mismatch positions for each read in the pair
@@ -996,11 +995,10 @@ class VariantCaller(object):
             raise NotImplementedError("If primers are provided, min_bq must be >= 1 so that synthetic sequences "
                                       "can be detected.")
 
-        if max_mnp_window != self.VARIANT_CALL_MAX_MNP_WINDOW:
-            raise NotImplementedError(
-                "The max_mnp_window must be <= 3 so that all possible AA-changing MNPs are discovered.")
+        if max_mnp_window not in {1, 2, 3}:
+            raise NotImplementedError("--max_mnp_window must be one of {1,2,3}.")
 
-        # Create some temp vcfs to use in patch for removing pysam's obligatory END INFO tag addition,
+        # Create some temp VCFs to use in patch for removing pysam's obligatory END INFO tag addition,
         # which interferes with IGV visualization and is only applicable for structural variants in VCF.
         patch_reference = tempfile.NamedTemporaryFile(suffix=".patch.ref.vcf", delete=False).name
 

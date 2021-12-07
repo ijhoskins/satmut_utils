@@ -1,5 +1,5 @@
 #!/usr/bin/env/python
-"""Runs the data generation workflow for error correction models."""
+"""Runs the training data generation workflow for error correction models."""
 
 import argparse
 import datetime
@@ -8,6 +8,7 @@ import sys
 
 from analysis.read_editor import ReadEditor
 from core_utils.string_utils import none_or_str
+from definitions import DEFAULT_MUT_SIG
 from prototype.variant_generator import VariantGenerator
 from prototype.error_correction import ErrorCorrectionDataGenerator
 
@@ -44,8 +45,8 @@ def parse_commandline_params(args):
                         help='.vcf.summary.txt file for the negative control alignments (--negative_bam).')
 
     parser.add_argument("-m", "--mutant_summary", type=str, required=True,
-                        help='.vcf.summary.txt file for the mutant sample. Used to estimate AF parameters '
-                             'for each variant type.')
+                        help='.vcf.summary.txt file for the mutant sample. Used to estimate frequency parameters '
+                             'for each variant type (SNP, di-nt MNP, tri-nt MNP).')
 
     parser.add_argument("-b", "--negative_bam", type=str, required=True, help='BAM file for the negative control.')
 
@@ -70,6 +71,10 @@ def parse_commandline_params(args):
 
     parser.add_argument("-d", "--output_dir", type=str, default=".", help='Output directory for FASTQs and BAM.')
 
+    parser.add_argument("-s", "--mutagenesis_signature", type=str, default=DEFAULT_MUT_SIG,
+                        help='Mutagenesis signature. Only variants matching the mutagensis signature will be generated. '
+                             'One of {NNN, NNK, NNS}. Default %s.' % DEFAULT_MUT_SIG)
+
     parser.add_argument("-o", "--output_prefix", type=none_or_str,
                         default=".".join([datetime.datetime.now().strftime("%d%b%Y.%I.%M%p"), "ec_data"]),
                         help='Output prefix for VCFs.')
@@ -88,7 +93,7 @@ def parse_commandline_params(args):
                         help='For var_type==mnp or var_type==total, max bases for MNPs. Must be either 2 or 3. '
                              'Default %s.' % VariantGenerator.DEFAULT_MNP_BASES)
 
-    parser.add_argument("-s", "--random_seed", type=int, default=VariantGenerator.DEFAULT_HAPLO_SEED,
+    parser.add_argument("-y", "--random_seed", type=int, default=VariantGenerator.DEFAULT_HAPLO_SEED,
                         help='Seed for random variant sampling.')
 
     parser.add_argument("-e", "--edit_buffer", type=int, default=ReadEditor.DEFAULT_BUFFER,
@@ -103,7 +108,7 @@ def parse_commandline_params(args):
                              'this option enables more variants to be simulated, as they are diffuse in target space.')
 
     parser.add_argument("-j", "--nthreads", type=int, default=ErrorCorrectionDataGenerator.DEFAULT_NTHREADS,
-                        help='Number of threads to use for bowtie2 alignment and BAM sorting operations. '
+                        help='Number of threads to use for BAM sorting operations. '
                              'Default %i, autodetect.' % ErrorCorrectionDataGenerator.DEFAULT_NTHREADS)
 
     parsed_args = vars(parser.parse_args(args))
@@ -111,8 +116,9 @@ def parse_commandline_params(args):
 
 
 def workflow(negative_summary, mutant_summary, negative_bam, trx_id, ref, gff, targets=VariantGenerator.DEFAULT_TARGETS,
-             race_like=ErrorCorrectionDataGenerator.DEFAULT_RACE_LIKE, primers=None,
-             output_dir=".", output_prefix=None, var_type=VariantGenerator.DEFAULT_VAR_TYPE,
+             race_like=ErrorCorrectionDataGenerator.DEFAULT_RACE_LIKE, primers=ErrorCorrectionDataGenerator.DEFAULT_PRIMERS,
+             output_dir=ErrorCorrectionDataGenerator.DEFAULT_OUTDIR, mut_sig=DEFAULT_MUT_SIG,
+             output_prefix=ErrorCorrectionDataGenerator.DEFAULT_PREFIX, var_type=VariantGenerator.DEFAULT_VAR_TYPE,
              haplotypes=VariantGenerator.DEFAULT_HAPLO, haplotype_len=VariantGenerator.DEFAULT_HAPLO_LEN,
              mnp_bases=VariantGenerator.DEFAULT_MNP_BASES, random_seed=VariantGenerator.DEFAULT_HAPLO_SEED,
              buffer=ReadEditor.DEFAULT_BUFFER, force_edit=ReadEditor.DEFAULT_FORCE,
@@ -129,6 +135,7 @@ def workflow(negative_summary, mutant_summary, negative_bam, trx_id, ref, gff, t
     :param bool race_like: is the data produced by RACE-like (e.g. AMP) data? Default False.
     :param str | None primers: feature file of primer locations for read masking and primer detection
     :param str output_dir: Optional output directory to write ReadEditor output files.
+    :param str mut_sig: mutagenesis signature- one of {NNN, NNK, NNS}. Default NNN.
     :param str | None output_prefix: Optional output prefix for the FASTQ(s) and BAM; if None, use same prefix as VCF
     :param str var_type: one of {"snp", "mnp", "total"}
     :param bool haplotypes: should haplotypes be created with uniform number to codon variants? Default True.
@@ -146,8 +153,8 @@ def workflow(negative_summary, mutant_summary, negative_bam, trx_id, ref, gff, t
         race_like=race_like, ref=ref, gff=gff, primers=primers, outdir=output_dir, nthreads=nthreads)
 
     truth_vcf, output_bam, zipped_r1_fastq, zipped_r2_fastq = ecdg.workflow(
-        trx_id=trx_id, targets=targets, var_type=var_type, mnp_bases=mnp_bases, output_prefix=output_prefix,
-        haplotypes=haplotypes, haplotype_len=haplotype_len, random_seed=random_seed,
+        trx_id=trx_id, targets=targets, mut_sig=mut_sig, var_type=var_type, mnp_bases=mnp_bases,
+        output_prefix=output_prefix, haplotypes=haplotypes, haplotype_len=haplotype_len, random_seed=random_seed,
         buffer=buffer, force_edit=force_edit)
 
     return truth_vcf, output_bam, zipped_r1_fastq, zipped_r2_fastq
@@ -163,11 +170,11 @@ def main():
              ref=parsed_args["reference"], gff=parsed_args["transcript_gff"],
              targets=parsed_args["targets"], race_like=parsed_args["race_like"],
              primers=parsed_args["primers"], output_dir=parsed_args["output_dir"],
-             output_prefix=parsed_args["output_prefix"], var_type=parsed_args["var_type"],
-             haplotypes=parsed_args["add_haplotypes"], haplotype_len=parsed_args["haplotype_length"],
-             mnp_bases=parsed_args["mnp_bases"], random_seed=parsed_args["random_seed"],
-             buffer=parsed_args["edit_buffer"], force_edit=parsed_args["force_edit"],
-             nthreads=parsed_args["nthreads"])
+             mut_sig=parsed_args["mutagenesis_signature"], output_prefix=parsed_args["output_prefix"],
+             var_type=parsed_args["var_type"], haplotypes=parsed_args["add_haplotypes"],
+             haplotype_len=parsed_args["haplotype_length"], mnp_bases=parsed_args["mnp_bases"],
+             random_seed=parsed_args["random_seed"], buffer=parsed_args["edit_buffer"],
+             force_edit=parsed_args["force_edit"], nthreads=parsed_args["nthreads"])
 
 
 if __name__ == "__main__":

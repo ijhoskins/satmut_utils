@@ -8,10 +8,11 @@ import random
 import tempfile
 
 from analysis.seq_utils import extract_seq, bam_to_fastq, sam_view, reverse_complement, DEFAULT_MIN_BQ, DEFAULT_MAX_BQ, \
-    DNA_BASES, SAM_FLAG_SUPPL, SAM_FLAG_SECONDARY, SAM_FLAG_UNMAP, SAM_FLAG_MUNMAP
+    DNA_BASES, SAM_FLAG_SUPPL, SAM_FLAG_SECONDARY, SAM_FLAG_UNMAP, SAM_FLAG_MUNMAP, SAM_CIGAR_INS, SAM_CIGAR_DEL
 import core_utils.file_utils as fu
 from core_utils.string_utils import make_random_str
 from definitions import *
+from scripts.run_bowtie2_aligner import workflow as align_workflow
 
 __author__ = "Ian_Hoskins"
 __credits__ = ["Ian Hoskins"]
@@ -98,7 +99,8 @@ class ConvertToDmstools(object):
     OUTPUT_PREFIX = "dms_tools"
     OUTBAM_SUFFIX = "dms_tools.bam"
 
-    def __init__(self, in_bam, ref, pos_range, umi_len, no_umis=DEFAULT_NO_UMI, outdir=DEFAULT_OUTDIR, nthreads=DEFAULT_NTHREADS):
+    def __init__(self, in_bam, ref, pos_range, umi_len, no_umis=DEFAULT_NO_UMI, outdir=DEFAULT_OUTDIR,
+                 nthreads=DEFAULT_NTHREADS):
         """Constructor for ConvertToDmstools.
 
         :param str in_bam: input alignments for a single tile
@@ -210,8 +212,19 @@ class ConvertToDmstools(object):
                 pysam.AlignmentFile(self.out_bam, mode="wb", header=in_af.header) as out_af:
 
             used_umis = set()
+            filt_reads = set()
 
             for align_seg in in_af.fetch(until_eof=True):
+
+                # Filter any reads that have InDels, as all reads must be the same length as the WT reference
+                cigar_set = set(align_seg.cigarstring)
+                if SAM_CIGAR_INS in cigar_set or SAM_CIGAR_DEL in cigar_set:
+                    filt_reads.add(align_seg.query_name)
+                    continue
+
+                # For any mate of a read that has InDel, also filter it because we must have only pairs in the output
+                if align_seg.query_name in filt_reads:
+                    continue
 
                 ref_positions = align_seg.get_reference_positions()
                 min_ref_pos = min(ref_positions) + 1
@@ -304,6 +317,10 @@ class ConvertToDmstools(object):
 
         # Write the FASTQs
         zipped_r1_fastq, zipped_r2_fastq = self._write_fastqs()
+
+        nthreads = self.nthreads if self.nthreads != 0 else 1
+        align_workflow(
+            f1=zipped_r1_fastq, f2=zipped_r2_fastq, ref=self.ref, outdir=self.outdir, local=True, nthreads=nthreads)
 
         _logger.info("Completed dms_tools conversion workflow.")
         return zipped_r1_fastq, zipped_r2_fastq

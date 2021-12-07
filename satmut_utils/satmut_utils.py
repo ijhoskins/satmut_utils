@@ -82,6 +82,10 @@ def parse_commandline_params(args):
                         help='Number of threads to use for bowtie2 alignment and BAM sorting operations. '
                              'Default %i, autodetect.' % FastqPreprocessor.NCORES)
 
+    parser.add_argument("-e", "--max_nm", type=int, default=VariantCaller.VARIANT_CALL_MAX_NM,
+                        help='Max edit distance to consider a read pair for simulation and variant calling. '
+                             'Default %i.' % VariantCaller.VARIANT_CALL_MAX_NM)
+
     # Subcommands
     subparsers = parser.add_subparsers(title='subcommands', help='sub-command help', dest="subcommand", required=True)
 
@@ -109,7 +113,7 @@ def parse_commandline_params(args):
                                  'especially for single-amplicon (PCR tile) alignments. If alignments contain many tiles, '
                                  'this option enables more variants to be simulated, as they are diffuse in target space.')
 
-    parser_sim.add_argument("-s", "--random_seed", type=int, default=9, help='Seed for random read sampling.')
+    parser_sim.add_argument("-y", "--random_seed", type=int, default=9, help='Seed for random read sampling.')
 
     # call subcommand
     parser_call = subparsers.add_parser(CALL_WORKFLOW, help='%s help' % CALL_WORKFLOW)
@@ -148,16 +152,12 @@ def parse_commandline_params(args):
                                   'Default for AMP libraries is %s.' % AMP_UMI_REGEX)
 
     parser_call.add_argument("-s", "--mutagenesis_signature", type=str, default=DEFAULT_MUT_SIG,
-                             help='Mutagenesis signature. Wseful for annotation of signature matching. '
+                             help='Mutagenesis signature. Useful for annotation of a match to the signature. '
                                   'One of {NNN, NNK, NNS}. Default %s.' % DEFAULT_MUT_SIG)
 
     parser_call.add_argument("-q", "--min_bq", type=int, default=VariantCaller.VARIANT_CALL_MIN_BQ,
                              help='Min base quality to consider a position for variant calling. Default %i.' %
                                   VariantCaller.VARIANT_CALL_MIN_BQ)
-
-    parser_call.add_argument("-e", "--max_nm", type=int, default=VariantCaller.VARIANT_CALL_MAX_NM,
-                             help='Max edit distance to consider a read pair for variant calling. Default %i.' %
-                                  VariantCaller.VARIANT_CALL_MAX_NM)
 
     parser_call.add_argument("-m", "--min_supporting", type=int, default=VariantCaller.VARIANT_CALL_MIN_DP,
                              help='Min mate-concordant counts for variant calling. Default %i.' %
@@ -267,8 +267,9 @@ def get_call_references(reference_dir, ensembl_id, ref, transcript_gff, gff_refe
 def sim_workflow(bam, vcf, race_like, ensembl_id=ri.ReadEditor.DEFAULT_ENSEMBL_ID,
                  reference_dir=ri.ReadEditor.DEFAULT_REFERENCE_DIR, ref=ri.ReadEditor.DEFAULT_REF,
                  primers=ri.ReadEditor.DEFAULT_PRIMERS, outdir=ri.ReadEditor.DEFAULT_OUTDIR,
-                 buffer=ri.ReadEditor.DEFAULT_BUFFER, random_seed=ri.ReadEditor.DEFAULT_SEED,
-                 force_edit=ri.ReadEditor.DEFAULT_FORCE, nthreads=ri.ReadEditor.DEFAULT_NTHREADS):
+                 buffer=ri.ReadEditor.DEFAULT_BUFFER, max_nm=VariantCaller.VARIANT_CALL_MAX_NM,
+                 random_seed=ri.ReadEditor.DEFAULT_SEED, force_edit=ri.ReadEditor.DEFAULT_FORCE,
+                 nthreads=ri.ReadEditor.DEFAULT_NTHREADS):
     """Runs the satmut_utils sim workflow.
 
     :param str bam: BAM file to edit into
@@ -280,7 +281,8 @@ def sim_workflow(bam, vcf, race_like, ensembl_id=ri.ReadEditor.DEFAULT_ENSEMBL_I
     :param str | None primers: feature file of primer locations for read masking and primer detection
     :param str outdir: Optional output directory to store generated FASTQs and BAM
     :param int buffer: buffer about the edit span (position + REF len) to ensure lack of error before editing. Default 6.
-    :param int random_seed: seed for random qname sampling
+    :param int max_nm: max edit distance to consider a read/pair for simulation. Default 10.
+    :param int random_seed: seed for random qname sampling. Default 9.
     :param bool force_edit: flag to attempt editing of variants despite a NonconfiguredVariant exception.
     :param int nthreads: Number of threads to use for SAM/BAM operations and alignment. Default 0 (autodetect) \
     for samtools operations. If 0, will pass 1 to bowtie2 --threads.
@@ -303,8 +305,8 @@ def sim_workflow(bam, vcf, race_like, ensembl_id=ri.ReadEditor.DEFAULT_ENSEMBL_I
     # Run the editing workflow
     output_bam, zipped_r1_fastq, zipped_r2_fastq = ri.ReadEditor(
         bam=bam, variants=vcf, ref=ref_fa, race_like=race_like, primers=primers,
-        output_dir=outdir, output_prefix=out_prefix, buffer=buffer, random_seed=random_seed,
-        force_edit=force_edit, nthreads=nthreads).workflow()
+        output_dir=outdir, output_prefix=out_prefix, buffer=buffer, max_nm=max_nm,
+        random_seed=random_seed, force_edit=force_edit, nthreads=nthreads).workflow()
 
     return output_bam, zipped_r1_fastq, zipped_r2_fastq
 
@@ -344,17 +346,18 @@ def call_workflow(fastq1, fastq2, r1_fiveprime_adapters, r1_threeprime_adapters,
     :param int primer_nm_allowance: Max edit distance a R2 can have to match a primer. Default 3.
     :param bool consensus_dedup: should consensus bases be generated during deduplication? Default False.
     :param str umi_regex: regex for matching the UMIs (see umi_tools for docs)
-    :param int contig_del_thresh: max deletion length for which del/N gaps in the merged R2 contig are called
-    :param int min_bq: min base qual; should be >= 1 such that masked primers do not contribute to depth
-    :param int max_nm: max edit distance to consider a read for variant calling
-    :param int min_supporting_qnames: min number of fragments with R1-R2 concordant coverage for which to keep a variant
+    :param int contig_del_thresh: max deletion length for which del/N gaps in the merged R2 contig are called. Default 10.
+    :param int min_bq: min base qual; should be >= 1 such that masked primers do not contribute to depth. Default 30.
+    :param int max_nm: max edit distance to consider a read for variant calling. Default 10.
+    :param int min_supporting_qnames: min number of fragments with R1-R2 concordant calls for which to keep a \
+    variant. Default 2.
     :param int max_mnp_window: max number of consecutive nucleotides to search for MNPs
     :param int nthreads: Number of threads to use for BAM operations. Default 0 (autodetect).
     :param int ntrimmed: Max number of adapters to trim from each read. Default 4.
     :param int overlap_len: number of bases to match in read to trim. Default 8.
     :param int trim_bq: quality score for cutadapt quality trimming at the 3' end. Default 15.
     :param bool omit_trim: flag to turn off adapter and 3' base quality trimming. Default False.
-    :param str mut_sig: mutagenesis signature- one of {NNN, NNK, NNS}. Default NNK.
+    :param str mut_sig: mutagenesis signature- one of {NNN, NNK, NNS}. Default NNN.
     :return tuple: (VCF, BED) filepaths
     :raises NotImplementedError: if mut_sig is not one of NNN, NNK, NNS; or if not 1 <= max_mnp_window <= 3
     """
@@ -363,7 +366,7 @@ def call_workflow(fastq1, fastq2, r1_fiveprime_adapters, r1_threeprime_adapters,
         raise NotImplementedError("Mutation signature %s must be one of {NNN, NNK, NNS}." % mut_sig)
 
     if max_mnp_window not in {1, 2, 3}:
-        raise NotImplementedError("max_mnp_window must be one of {1,2,3}.")
+        raise NotImplementedError("--max_mnp_window must be one of {1,2,3}.")
 
     # Unfortunately sort-order harmony with samtools sort -n requires we know the format of the qname
     # Check to make sure we have either Illumina format or single integer read names
@@ -421,8 +424,8 @@ def call_workflow(fastq1, fastq2, r1_fiveprime_adapters, r1_threeprime_adapters,
         if consensus_dedup:
             sort_cmd = QNAME_SORTS[INT_FORMAT_INDEX]
 
-        rm = ReadMasker(
-            in_bam=preproc_in_bam, feature_file=primers, race_like=race_like, sort_cmd=sort_cmd, outdir=tempdir)
+        rm = ReadMasker(in_bam=preproc_in_bam, feature_file=primers, race_like=race_like, sort_cmd=sort_cmd,
+                        outdir=tempdir, nthreads=nthreads)
         rm.workflow()
         vc_in_bam = rm.out_bam
 
@@ -452,7 +455,7 @@ def main():
             bam=args_dict["alignments"], vcf=args_dict["vcf"], race_like=args_dict["race_like"],
             ensembl_id=args_dict["ensembl_id"], reference_dir=args_dict["reference_dir"],
             ref=args_dict["reference"], primers=args_dict["primers"], outdir=args_dict["outdir"],
-            buffer=args_dict["edit_buffer"], random_seed=args_dict["random_seed"],
+            buffer=args_dict["edit_buffer"], max_nm=args_dict["max_nm"], random_seed=args_dict["random_seed"],
             force_edit=args_dict["force_edit"], nthreads=args_dict["nthreads"])
 
     elif parsed_args.subcommand == CALL_WORKFLOW:

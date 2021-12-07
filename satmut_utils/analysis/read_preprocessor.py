@@ -1303,7 +1303,9 @@ class ReadMasker(object):
 
         # Convert BAM reference coordinates to 1-based for matching to all other 1-based coordinates
         # Need to keep the None values from any softclips for proper indexing into the read
-        reference_positions = [p + 1 if isinstance(p, int) else p for p in align_seg.get_reference_positions(full_length=True)]
+        reference_positions = [p + 1 if isinstance(p, int) else p for p in
+                               align_seg.get_reference_positions(full_length=True)]
+
         reference_positions_noclips = [p for p in reference_positions if p is not None]
         reference_positions_set = set(reference_positions_noclips)
         ref_pos_start = reference_positions_noclips[0]
