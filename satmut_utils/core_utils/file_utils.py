@@ -1,8 +1,6 @@
 #!/usr/bin/env/python
 """Collection of file manipulation utilities."""
 
-import glob
-import gzip
 import os
 import shutil
 import subprocess

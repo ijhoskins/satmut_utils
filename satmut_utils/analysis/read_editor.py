@@ -31,7 +31,6 @@ EDIT_KEY_TUPLE = collections.namedtuple("EDIT_KEY_TUPLE", "qname, mate")
 EDIT_CONFIG_TUPLE = collections.namedtuple("EDIT_CONFIG_TUPLE", "contig, pos, ref, alt, read_pos")
 
 tempfile.tempdir = os.getenv("SCRATCH", "/tmp")
-
 _logger = logging.getLogger(__name__)
 
 
@@ -233,13 +232,14 @@ class ReadEditor(object):
                 af_sum += var.info[vu.VCF_AF_ID]
 
             if af_sum > (1.0 - self.DEFAULT_MAX_ERROR_RATE):
-                warnings.warn(
+                _logger.warning(
                     "Sum of all variant frequencies exceeds (1 - the default max error rate of %f). Some variants "
                     "may not be edited due to preservation of errors." % self.DEFAULT_MAX_ERROR_RATE)
 
             if af_sum > 1.0 and not self.force_edit:
                 raise InvalidVariantConfig(
-                    "Sum of all variant frequencies exceeds 1. Due to sim design constraints, all variants cannot be edited.")
+                    "Sum of all variant frequencies exceeds 1. Due to sim design constraints, "
+                    "all variants cannot be edited.")
 
             vf.reset()
 
@@ -490,8 +490,8 @@ class ReadEditor(object):
                 for pileup_read in pc.pileups:
 
                     # If the edited bases intersect any synthetic primer regions, do not edit
-                    if not pileup_read.is_del and su.MASKED_BQ in set(
-                            pileup_read.alignment.query_qualities[pileup_read.query_position]):
+                    if not (pileup_read.is_del or pileup_read.is_refskip) and su.MASKED_BQ in \
+                            {pileup_read.alignment.query_qualities[pileup_read.query_position]}:
                         continue
 
                     # Do not consider reads/pairs that exceed the edit distance threshold

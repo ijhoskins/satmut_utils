@@ -21,7 +21,6 @@ __status__ = "Development"
 
 DEFAULT_TEMPDIR = os.getenv("SCRATCH", "/tmp")
 tempfile.tempdir = DEFAULT_TEMPDIR
-
 _logger = logging.getLogger(__name__)
 
 

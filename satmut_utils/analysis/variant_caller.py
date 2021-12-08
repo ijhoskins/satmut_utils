@@ -846,7 +846,7 @@ class VariantCaller(object):
             cov_fh.write(fu.FILE_DELIM.join(list(map(str, cov_line))) + fu.FILE_NEWLINE)
 
     def _write_concordant_variants(self, vckt, vcst, reference_candidates_fh):
-        r"""Writes a concordant variant to VCF.
+        """Writes a concordant variant to VCF.
 
         :param collections.namedtuple vckt: VARIANT_CALL_KEY_TUPLE
         :param collections.namedtuple vcst: VARIANT_CALL_SUMMARY_TUPLE
@@ -855,12 +855,12 @@ class VariantCaller(object):
 
         trx_id = vckt.contig.split(APPRIS_CONTIG_DELIM)[APPRIS_TRX_INDEX]
 
-        # Determine the codon, AA change(s) and whether or not the variant matches the POPcode NNK signature
+        # Determine the codon, AA change(s) and whether or not the variant matches the mutagenesis signature
         var_location, var_wt_codons, var_mut_codons, var_wt_aas, var_mut_aas, var_aa_changes, var_aa_positions, \
         var_matches_mut_sig = self.amino_acid_mapper.get_codon_and_aa_changes(
             trx_id=trx_id, pos=vckt.pos, ref=vckt.ref, alt=vckt.alt)
 
-        # Create aN INFO field for the VCF
+        # Create an INFO field for the VCF
         ri = {
             vu.VCF_POS_NT_ID: vcst.POS_NT,
             vu.VCF_REF_NT_ID: vcst.REF_NT,
@@ -1002,9 +1002,6 @@ class VariantCaller(object):
         # which interferes with IGV visualization and is only applicable for structural variants in VCF.
         patch_reference = tempfile.NamedTemporaryFile(suffix=".patch.ref.vcf", delete=False).name
 
-        # We want to write a VCF in both the reference and genomic space; the genomic space variant will have AAs
-        # annotated whereas the reference will not. If variants are called using a genomic reference, the reference
-        # VCF should be the same as the genomic VCF. However, each will have different INFO data.
         reference_vcf = fu.add_extension(out_prefix, self.VARIANT_CALL_REF_CANDIDATE_EXT)
         reference_bed = fu.add_extension(out_prefix, self.VARIANT_CALL_COV_EXT)
 

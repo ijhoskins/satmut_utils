@@ -28,16 +28,6 @@ __maintainer__ = "Ian Hoskins"
 __email__ = "ianjameshoskins@utexas.edu"
 __status__ = "Development"
 
-_logger = logging.getLogger(__name__)
-
-# Consider putting the following in a logging config file
-_logger.setLevel(logging.DEBUG)
-_fhandler = logging.FileHandler("stderr.log")
-_fhandler.setLevel(logging.DEBUG)
-_formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-_fhandler.setFormatter(_formatter)
-_logger.addHandler(_fhandler)
-
 DEFAULT_TEMPDIR = os.getenv("SCRATCH", "/tmp")
 tempfile.tempdir = DEFAULT_TEMPDIR
 
@@ -258,7 +248,6 @@ def get_call_references(reference_dir, ensembl_id, ref, transcript_gff, gff_refe
 
         # Make sure the GFF reference has a samtools index file
         if not os.path.exists(fu.add_extension(gff_reference, FASTA_INDEX_SUFFIX)):
-            _logger.info("Indexing GFF reference FASTA %s." % gff_reference)
             faidx_ref(gff_reference)
 
     return ref_fa, gff, gff_ref
@@ -449,6 +438,22 @@ def main():
     parsed_args = parse_commandline_params(sys.argv[1:])
     args_dict = vars(parsed_args)
 
+    outdir = args_dict["outdir"]
+    if not os.path.exists(outdir):
+        os.mkdir(outdir)
+
+    _logger = logging.getLogger(__name__)
+    _logger.setLevel(logging.DEBUG)
+    _log_handler = logging.FileHandler(os.path.join(outdir, "satmut_utils.log"))
+    _console_handler = logging.StreamHandler()
+    _formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    _log_handler.setFormatter(_formatter)
+    _console_handler.setFormatter(_formatter)
+    _logger.addHandler(_log_handler)
+    _logger.addHandler(_console_handler)
+
+    _logger.info("Started %s" % sys.argv[0])
+
     if parsed_args.subcommand == SIM_WORKFLOW:
 
         _, _, _ = sim_workflow(
@@ -476,8 +481,8 @@ def main():
             trim_bq=args_dict["trim_bq"], omit_trim=args_dict["omit_trim"],
             mut_sig=args_dict["mutagenesis_signature"])
 
+    _logger.info("Completed %s" % sys.argv[0])
+
 
 if __name__ == "__main__":
-    _logger.info("Started %s" % sys.argv[0])
     main()
-    _logger.info("Completed %s" % sys.argv[0])

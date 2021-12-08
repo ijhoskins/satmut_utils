@@ -28,6 +28,7 @@ __email__ = "ianjameshoskins@utexas.edu"
 __status__ = "Development"
 
 tempfile.tempdir = os.getenv("SCRATCH", "/tmp")
+_logger = logging.getLogger(__name__)
 
 VCF_FILETYPE = "vcf"
 VCF_HEADER_CHAR = "#"
@@ -139,9 +140,6 @@ VCF_VG_AA_ALTS_ID = "AA_ALTS"
 VCF_VG_REF_AA_ID = "REF_AA"
 VCF_VG_ALT_AA_ID = "ALT_AA"
 VCF_VG_ALT_AAS_ID = "ALT_AAS"
-
-
-_logger = logging.getLogger(__name__)
 
 
 def get_variant_type(ref, alt, split_mnps=False):

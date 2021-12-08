@@ -20,6 +20,7 @@ __email__ = "ianjameshoskins@utexas.edu"
 __status__ = "Development"
 
 tempfile.tempdir = os.getenv("SCRATCH", "/tmp")
+_logger = logging.getLogger(__name__)
 
 DEFAULT_ERROR_RATE = 0.01
 DEFAULT_INDEL_RATE = 0.005
@@ -108,9 +109,6 @@ PYSAM_ALIGNED_PAIRS_REFB_INDEX = 2
 MD_MATCH = "M"
 MD_MISMATCH = "0"  # precedes base and alternate
 MD_DEL = "^"  # precedes del length
-
-
-__logger = logging.getLogger(__name__)
 
 
 class Strand(aenum.MultiValueEnum):
