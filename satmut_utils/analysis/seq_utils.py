@@ -266,7 +266,7 @@ def sort_bam(bam, output_am=None, output_format="BAM", by_qname=False, nthreads=
     """samtools sort an alignment file.
 
     :param str bam: alignment file
-    :param str output_am: optional output name
+    :param str | None output_am: optional output name
     :param str output_format: One of SAM, BAM, or CRAM
     :param bool by_qname: sort by qname/read name? Default False. Sort by coordinate.
     :param int nthreads: number additional threads to use

@@ -7,8 +7,8 @@ import pysam
 import random
 import tempfile
 
-from analysis.seq_utils import extract_seq, bam_to_fastq, sam_view, reverse_complement, DEFAULT_MIN_BQ, DEFAULT_MAX_BQ, \
-    DNA_BASES, SAM_FLAG_SUPPL, SAM_FLAG_SECONDARY, SAM_FLAG_UNMAP, SAM_FLAG_MUNMAP, SAM_CIGAR_INS, SAM_CIGAR_DEL
+from analysis.seq_utils import extract_seq, sort_bam, bam_to_fastq, sam_view, reverse_complement, \
+    DEFAULT_MIN_BQ, DEFAULT_MAX_BQ, DNA_BASES, SAM_FLAG_SUPPL, SAM_FLAG_SECONDARY, SAM_FLAG_UNMAP, SAM_FLAG_MUNMAP, SAM_CIGAR_INS, SAM_CIGAR_DEL
 import core_utils.file_utils as fu
 from core_utils.string_utils import make_random_str
 from definitions import *
@@ -96,8 +96,8 @@ class DesignConverter(object):
     DEFAULT_OUTDIR = "."
     DEFAULT_NTHREADS = 0
     POS_RANGE_DELIM = ","
-    OUTPUT_PREFIX = "dms_tools"
-    OUTBAM_SUFFIX = "dms_tools.bam"
+    OUTPUT_PREFIX = "design_convert"
+    OUTBAM_SUFFIX = "design_convert.bam"
 
     def __init__(self, in_bam, ref, pos_range, umi_len, no_umis=DEFAULT_NO_UMI, outdir=DEFAULT_OUTDIR,
                  nthreads=DEFAULT_NTHREADS):
@@ -124,6 +124,7 @@ class DesignConverter(object):
         if not os.path.exists(self.outdir):
             os.mkdir(self.outdir)
 
+        self.temp_bam = tempfile.NamedTemporaryFile(suffix=".sort.bam", mode="wb").name
         self.out_bam = os.path.join(self.outdir, fu.replace_extension(
             os.path.basename(self.in_bam), self.OUTBAM_SUFFIX))
 
@@ -209,7 +210,7 @@ class DesignConverter(object):
         """
 
         with pysam.AlignmentFile(paired_bam, mode="rb") as in_af, \
-                pysam.AlignmentFile(self.out_bam, mode="wb", header=in_af.header) as out_af:
+                pysam.AlignmentFile(self.temp_bam, mode="wb", header=in_af.header) as out_af:
 
             used_umis = set()
             filt_reads = set()
@@ -294,10 +295,13 @@ class DesignConverter(object):
         """
 
         # Discard any singletons
-        r1_fastq, r2_fastq = bam_to_fastq(bam=self.out_bam, out_prefix=self.out_prefix, s=os.devnull)
-        zipped_r1_fastq = fu.gzip_file(r1_fastq, force=True)
-        zipped_r2_fastq = fu.gzip_file(r2_fastq, force=True)
-        return zipped_r1_fastq, zipped_r2_fastq
+        with tempfile.NamedTemporaryFile(suffix=".singletons.fq", mode="w", delete=False) as singletons_fh:
+
+            sorted_bam = sort_bam(self.temp_bam, output_am=self.out_bam, output_format="BAM", by_qname=True)
+            r1_fastq, r2_fastq = bam_to_fastq(bam=sorted_bam, out_prefix=self.out_prefix, s=singletons_fh.name)
+            zipped_r1_fastq = fu.gzip_file(r1_fastq, force=True)
+            zipped_r2_fastq = fu.gzip_file(r2_fastq, force=True)
+            return zipped_r1_fastq, zipped_r2_fastq
 
     def workflow(self):
         """Runs the dms_tools2/Enrich2 design conversion workflow.
