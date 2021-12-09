@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Objects for converting reads to other saturation mutagenesis designs."""
+"""Objects for converting reads to other saturation mutagenesis input read requirements."""
 
 import collections
 import logging
