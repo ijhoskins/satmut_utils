@@ -1,4 +1,4 @@
-#!/usr/bin/env/python
+#!/usr/bin/env python3
 """Objects for generating in silico NGS reads."""
 
 import abc

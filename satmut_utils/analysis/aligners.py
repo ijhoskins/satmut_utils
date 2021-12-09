@@ -1,4 +1,4 @@
-#!/usr/bin/env/python
+#!/usr/bin/env python3
 """Aligner interfaces."""
 
 import os
@@ -60,7 +60,7 @@ class BowtieConfig(object):
         dir_files = os.listdir(fasta_dir)
         matches = [self.INDEX_EXTENSIONS_RE.search(f) for f in dir_files if re.match(fasta_basename, f)]
         if not any(matches):
-            raise RuntimeError("No FM-index files found for the reference FASTA")
+            raise RuntimeError("No FM-index files found for the reference FASTA.")
 
     def build_fm_index(self):
         """Builds and FM index with bowtie2.

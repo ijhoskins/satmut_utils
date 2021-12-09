@@ -1,4 +1,4 @@
-#!/usr/bin/env/python
+#!/usr/bin/env python3
 """Collection of VCF/BCF related utilities."""
 
 import aenum
@@ -201,6 +201,7 @@ def tabix_index(feature_file, force_overwrite=True, as_csi=False):
     :param bool force_overwrite: force overwrite of an existing index file? Default True
     :param bool as_csi: create a csi index? Default create tabix (tbi) index
     :return str: path of the tabix-indexed file
+    :raises NotImplementedError: if the feature file is not valid for tabix indexing
     """
 
     input_filepath = os.path.abspath(feature_file)
@@ -380,13 +381,13 @@ class VcfNormalizer(object):
     """Left-normalizes variants and splits or joins multiallelic records, via bcftools norm."""
 
     def __init__(self, ref, split_multiallelics=True, join_multiallelics=False):
-        """Constructor for VcfNormalizer.
+        r"""Constructor for VcfNormalizer.
 
         :param str ref: reference FASTA corresponding to the VCF
         :param bool split_multiallelics: should multiallelic variant records be split into multiple records? Default True.
         :param bool join_multiallelics: should multiallelic variant records be joined into one? Default False.
-
-        Warning: split and join should be mutually exclusive.
+        :raises NotImplementedError: if the ref is not a FASTA file or if both split_multiallelics and \
+        join_multiallelics are True.
         """
 
         self.ref = ref
@@ -515,9 +516,7 @@ class VcfPreprocessor(object):
                                 tag_value = 2
                                 while tag_value > 1:
                                     # Sometimes we may have a variant type that we do not have
-                                    # estimates for in the mutant fraction. This is possible with a large window
-                                    # parameter such that all di_nt_MNPs convert to multi_nt_MNPs. In this
-                                    # case assign the tri_nt_MNP parameters to the missing di_nt_MNP class
+                                    # estimates for in the mutant fraction. In this case set to the SNP parameters.
                                     if str(var_type) not in self.caf_estimates:
                                         caf_median, caf_sd = self.caf_estimates[str(VariantType.SNP)]
                                     else:

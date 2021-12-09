@@ -1,4 +1,4 @@
-#!/usr/bin/env/python
+#!/usr/bin/env python3
 """Objects for converting reads to other saturation mutagenesis designs."""
 
 import collections
@@ -88,8 +88,8 @@ class FilterForPairs(object):
         return self.out_bam
 
 
-class ConvertToDmstools(object):
-    """Converts reads to dms_tools input format."""
+class DesignConverter(object):
+    """Converts reads to dms_tools or Enrich2 required input format."""
 
     DEFAULT_UMI_LEN = 8
     DEFAULT_NO_UMI = False
@@ -293,26 +293,28 @@ class ConvertToDmstools(object):
         :return tuple: (str, str) paths of the R1 and R2 FASTQ files
         """
 
-        r1_fastq, r2_fastq = bam_to_fastq(bam=self.out_bam, out_prefix=self.out_prefix)
+        # Discard any singletons
+        r1_fastq, r2_fastq = bam_to_fastq(bam=self.out_bam, out_prefix=self.out_prefix, s=os.devnull)
         zipped_r1_fastq = fu.gzip_file(r1_fastq, force=True)
         zipped_r2_fastq = fu.gzip_file(r2_fastq, force=True)
         return zipped_r1_fastq, zipped_r2_fastq
 
     def workflow(self):
-        """Runs the dms_tools conversion workflow.
+        """Runs the dms_tools2/Enrich2 design conversion workflow.
 
         :return tuple: (str, str) paths of the R1 and R2 FASTQ files
         """
 
-        _logger.info("Started dms_tools conversion workflow.")
+        _logger.info("Started design conversion workflow.")
 
         # We must first determine if there are any singleton reads or reads with secondary and supplementary alignments
-        # because we have to write paired FASTQs.
-        # Do not rely on SAM flags because the alignments may have been previously intersected, which may lead
-        # to loss of mates (and SAM flags are not typically updated following manipulation).
+        # because we have to write strictly paired FASTQs. Filter them out using SAM flags.
+        # Note however that if in_bam consists of reads intersected with a target tile, we have to manually remove
+        # singletons.
         ffp = FilterForPairs(in_bam=self.in_bam, outdir=self.outdir, nthreads=self.nthreads)
 
-        # Now iterate over the reads, make them flush with the range positions, add UMIs, and exclude non-paired reads
+        # Now iterate over the reads, make them flush with the range positions, exclude reads/pairs with InDels,
+        # then add UMIs/barcodes (for dms_tools2 conversion)
         self._convert_reads(ffp.out_bam)
 
         # Write the FASTQs
@@ -320,7 +322,7 @@ class ConvertToDmstools(object):
 
         nthreads = self.nthreads if self.nthreads != 0 else 1
         align_workflow(
-            f1=zipped_r1_fastq, f2=zipped_r2_fastq, ref=self.ref, outdir=self.outdir, local=True, nthreads=nthreads)
+            f1=zipped_r1_fastq, f2=zipped_r2_fastq, ref=self.ref, outdir=self.outdir, local=False, nthreads=nthreads)
 
-        _logger.info("Completed dms_tools conversion workflow.")
+        _logger.info("Completed design conversion workflow.")
         return zipped_r1_fastq, zipped_r2_fastq

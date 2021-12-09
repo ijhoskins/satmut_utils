@@ -1,4 +1,4 @@
-#!/usr/bin/env/python
+#!/usr/bin/env python3
 """Runs bowtie2 alignment."""
 
 import argparse
@@ -7,6 +7,7 @@ import os
 import sys
 
 from analysis.aligners import BowtieConfig, Bowtie2, DEFAULT_TEMPDIR
+from core_utils.file_utils import replace_extension
 from core_utils.string_utils import none_or_str
 
 
@@ -18,15 +19,7 @@ __maintainer__ = "Ian Hoskins"
 __email__ = "ianjameshoskins@utexas.edu"
 __status__ = "Development"
 
-__logger = logging.getLogger(__name__)
-
-# Consider putting the following in a logging config file
-__logger.setLevel(logging.DEBUG)
-__fhandler = logging.FileHandler("stderr.log")
-__fhandler.setLevel(logging.DEBUG)
-_formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-__fhandler.setFormatter(_formatter)
-__logger.addHandler(__fhandler)
+LOGFILE = replace_extension(os.path.basename(__file__), "stderr.log")
 
 
 def parse_commandline_params(args):
@@ -46,11 +39,11 @@ def parse_commandline_params(args):
     parser.add_argument("-r", "--ref", type=str, required=True,
                         help='Reference FASTA. Should contain a bowtie2 FM index file set.')
 
-    parser.add_argument("-d", "--outdir", type=none_or_str, required=False, default=".",
-                        help='Optional output directory.')
+    parser.add_argument("-d", "--outdir", type=str, required=False, default=".",
+                        help='Optional output directory. Default current working directory.')
 
     parser.add_argument("-o", "--outbam", type=none_or_str, required=False, default=None,
-                        help='Optional output BAM filename.')
+                        help='Optional output BAM filename. Default use basename of FASTQs.')
 
     parser.add_argument("-l", "--local", action="store_true",
                         help='Run a local alignment as opposed to a global alignment.')
@@ -93,11 +86,28 @@ def main():
 
     parsed_args = parse_commandline_params(sys.argv[1:])
 
+    outdir = parsed_args["outdir"]
+    if not os.path.exists(outdir):
+        os.mkdir(outdir)
+
+    _logger = logging.getLogger(__name__)
+    _logger.setLevel(logging.DEBUG)
+    _log_handler = logging.FileHandler(os.path.join(outdir, LOGFILE))
+    _console_handler = logging.StreamHandler()
+    _formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    _log_handler.setFormatter(_formatter)
+    _console_handler.setFormatter(_formatter)
+    _logger.addHandler(_log_handler)
+    _logger.addHandler(_console_handler)
+
+    _logger.info("Started %s" % sys.argv[0])
+
     workflow(f1=parsed_args["fast1"], ref=parsed_args["ref"], f2=parsed_args["fast2"], outdir=parsed_args["outdir"],
              outbam=parsed_args["outbam"], local=parsed_args["local"], nthreads=parsed_args["nthreads"])
 
+    _logger.info("Completed %s" % sys.argv[0])
+
 
 if __name__ == "__main__":
-    __logger.info("Started %s" % sys.argv[0])
     main()
-    __logger.info("Completed %s" % sys.argv[0])
+

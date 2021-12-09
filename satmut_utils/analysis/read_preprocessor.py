@@ -1,11 +1,10 @@
-#!/usr/bin/env/python
+#!/usr/bin/env python3
 """Objects for read pre-processing."""
 
 import collections
 import gzip
 import logging
 import numpy as np
-import os
 import pybedtools
 import pysam
 import regex

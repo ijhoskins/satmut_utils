@@ -1,4 +1,4 @@
-#!/usr/bin/env/python
+#!/usr/bin/env python3
 """Tests for analysis.coordinate_mapper"""
 
 from shutil import copyfile

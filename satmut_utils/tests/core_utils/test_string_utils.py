@@ -1,4 +1,4 @@
-#!/usr/bin/env/python
+#!/usr/bin/env python3
 """Tests for core_utils.string_utils."""
 
 import unittest

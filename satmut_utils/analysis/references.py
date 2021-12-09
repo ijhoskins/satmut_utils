@@ -1,4 +1,4 @@
-#!/usr/bin/env/python
+#!/usr/bin/env python3
 """Utilities for extracting reference files from Ensembl IDs."""
 
 import logging

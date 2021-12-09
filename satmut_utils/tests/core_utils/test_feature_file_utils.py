@@ -1,4 +1,4 @@
-#!/usr/bin/env/python
+#!/usr/bin/env python3
 """ Tests for core_utils.feature_file_utils."""
 
 import collections

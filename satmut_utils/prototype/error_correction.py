@@ -1,4 +1,4 @@
-#!/usr/bin/env/python
+#!/usr/bin/env python3
 """Objects for generating simulated training data for error correction models."""
 
 import logging

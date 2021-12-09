@@ -1,4 +1,4 @@
-#!/usr/bin/env/python
+#!/usr/bin/env python3
 """Runs satmut_utils."""
 
 import argparse
@@ -34,6 +34,16 @@ tempfile.tempdir = DEFAULT_TEMPDIR
 SIM_WORKFLOW = "sim"
 CALL_WORKFLOW = "call"
 
+LOGFILE = fu.replace_extension(os.path.basename(__file__), "stderr.log")
+_logger = logging.getLogger(__name__)
+_logger.setLevel(logging.DEBUG)
+_formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+
+# Set a console handler; a logfile handler will be set it main so it outputs to the user-provided output directory
+_console_handler = logging.StreamHandler()
+_console_handler.setFormatter(_formatter)
+_logger.addHandler(_console_handler)
+
 
 def parse_commandline_params(args):
     """Parses command line parameters.
@@ -65,7 +75,7 @@ def parse_commandline_params(args):
                         help='Optional primer BED file with a strand field. Recommended for removing synthetic errors '
                              'from alignments.')
 
-    parser.add_argument("-o", "--outdir", type=str, default=".",
+    parser.add_argument("-o", "--output_dir", type=str, default=".",
                         help='Optional output directory. Default current working directory.')
 
     parser.add_argument("-j", "--nthreads", type=int, default=FastqPreprocessor.NCORES,
@@ -206,10 +216,11 @@ def get_sim_reference(reference_dir, ensembl_id, ref, outdir=ri.ReadEditor.DEFAU
     # Determine if the provided Ensembl ID is found in the curated APPRIS references
     if ensembl_id is not None:
         if ref is not None:
-            raise RuntimeError("Both an Ensembl ID and a reference FASTA were provided. Please choose one.")
+            _logger.error("Both an Ensembl ID and a reference FASTA were provided. Please choose one.")
 
         ref_fa, _ = get_ensembl_references(reference_dir=reference_dir, ensembl_id=ensembl_id, outdir=outdir)
     else:
+        _logger.info("Copying input reference FASTA and indexing.")
         ref_fa = os.path.join(outdir, os.path.basename(ref))
         copy(ref, ref_fa)
         index_reference(ref_fa)
@@ -242,12 +253,14 @@ def get_call_references(reference_dir, ensembl_id, ref, transcript_gff, gff_refe
         ref_fa, gff = get_ensembl_references(reference_dir=reference_dir, ensembl_id=ensembl_id, outdir=outdir)
         gff_ref = os.path.join(reference_dir, GRCH38_FASTA)
     else:
+        _logger.info("Copying input reference FASTA and indexing.")
         ref_fa = os.path.join(outdir, os.path.basename(ref))
         copy(ref, ref_fa)
         index_reference(ref_fa)
 
         # Make sure the GFF reference has a samtools index file
         if not os.path.exists(fu.add_extension(gff_reference, FASTA_INDEX_SUFFIX)):
+            _logger.info("Indexing the GFF reference FASTA.")
             faidx_ref(gff_reference)
 
     return ref_fa, gff, gff_ref
@@ -442,28 +455,29 @@ def main():
     if not os.path.exists(outdir):
         os.mkdir(outdir)
 
-    _logger = logging.getLogger(__name__)
-    _logger.setLevel(logging.DEBUG)
-    _log_handler = logging.FileHandler(os.path.join(outdir, "satmut_utils.log"))
-    _console_handler = logging.StreamHandler()
-    _formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    # Set a logfile in the user-provided output directory
+    _log_handler = logging.FileHandler(os.path.join(outdir, LOGFILE))
     _log_handler.setFormatter(_formatter)
-    _console_handler.setFormatter(_formatter)
     _logger.addHandler(_log_handler)
-    _logger.addHandler(_console_handler)
 
     _logger.info("Started %s" % sys.argv[0])
 
     if parsed_args.subcommand == SIM_WORKFLOW:
 
+        _logger.info("Starting sim workflow.")
+
         _, _, _ = sim_workflow(
             bam=args_dict["alignments"], vcf=args_dict["vcf"], race_like=args_dict["race_like"],
             ensembl_id=args_dict["ensembl_id"], reference_dir=args_dict["reference_dir"],
-            ref=args_dict["reference"], primers=args_dict["primers"], outdir=args_dict["outdir"],
+            ref=args_dict["reference"], primers=args_dict["primers"], outdir=args_dict["output_dir"],
             buffer=args_dict["edit_buffer"], max_nm=args_dict["max_nm"], random_seed=args_dict["random_seed"],
             force_edit=args_dict["force_edit"], nthreads=args_dict["nthreads"])
 
+        _logger.info("Completed sim workflow.")
+
     elif parsed_args.subcommand == CALL_WORKFLOW:
+
+        _logger.info("Starting call workflow.")
 
         _, _ = call_workflow(
             fastq1=args_dict["fastq1"], fastq2=args_dict["fastq2"],
@@ -471,7 +485,7 @@ def main():
             r1_threeprime_adapters=args_dict["r1_threeprime_adapters"], race_like=args_dict["race_like"],
             ensembl_id=args_dict["ensembl_id"], reference_dir=args_dict["reference_dir"], ref=args_dict["reference"],
             transcript_gff=args_dict["transcript_gff"], gff_reference=args_dict["gff_reference"],
-            targets=VariantCaller.VARIANT_CALL_TARGET,outdir=args_dict["outdir"], primers=args_dict["primers"],
+            targets=args_dict["targets"], outdir=args_dict["output_dir"], primers=args_dict["primers"],
             primer_fa=args_dict["primer_fasta"], primer_nm_allowance=args_dict["primer_nm_allowance"],
             consensus_dedup=args_dict["consensus_deduplicate"], umi_regex=args_dict["umi_regex"],
             contig_del_thresh=args_dict["contig_del_threshold"], min_bq=args_dict["min_bq"],
@@ -480,6 +494,8 @@ def main():
             ntrimmed=args_dict["ntrimmed"], overlap_len=args_dict["overlap_length"],
             trim_bq=args_dict["trim_bq"], omit_trim=args_dict["omit_trim"],
             mut_sig=args_dict["mutagenesis_signature"])
+
+        _logger.info("Completed call workflow.")
 
     _logger.info("Completed %s" % sys.argv[0])
 

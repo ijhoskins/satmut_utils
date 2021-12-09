@@ -1,4 +1,4 @@
-#!/usr/bin/env/python
+#!/usr/bin/env python3
 """Collection of sequence manipulation utilities."""
 
 import aenum

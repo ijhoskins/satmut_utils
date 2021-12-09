@@ -1,4 +1,4 @@
-#!/usr/bin/env/python
+#!/usr/bin/env python3
 """Read editing objects."""
 
 import abc
@@ -8,7 +8,6 @@ import os
 import pysam
 import random
 import tempfile
-import warnings
 
 from analysis.read_preprocessor import QnameVerification, ReadMasker
 from analysis import seq_utils as su
@@ -217,7 +216,8 @@ class ReadEditor(object):
     def _verify_variant_freqs(self):
         """Tests if the variant frequency sum exceeds 1 and if so, raises an exception.
 
-        :raises analysis.read_editor.NonconfiguredVariant: if the frequency sum across all positions exceeds 1
+        :raises analysis.read_editor.NonconfiguredVariant: if a variant does not have an AF tag
+        :raises analysis.read_editor.InvalidVariantConfig: if the frequency sum across all positions exceeds 1.
         """
 
         with pysam.VariantFile(self.variants) as vf:
@@ -664,10 +664,10 @@ class ReadEditor(object):
         zipped_r1_fastq, zipped_r2_fastq = self._write_fastqs()
 
         # We need to realign to re-generate CIGAR and MD tags and for proper visualization of alignments in browsers
-        _logger.info("Locally realigning all reads.")
+        _logger.info("Globally re-aligning edited reads.")
         nthreads = self.nthreads if self.nthreads != 0 else 1
         align_workflow(f1=zipped_r1_fastq, f2=zipped_r2_fastq, ref=self.ref, outdir=self.output_dir,
-                       outbam=self.output_bam, local=True, nthreads=nthreads)
+                       outbam=self.output_bam, local=False, nthreads=nthreads)
 
         # Remove temp files
         fu.safe_remove((self.editor_preprocessor.tempdir, self.temp_edit_bam,), force_remove=True)

@@ -1,4 +1,4 @@
-#!/usr/bin/env/python
+#!/usr/bin/env python3
 """Objects for mapping between transcriptomic and protein coordinates."""
 
 import collections
@@ -217,7 +217,7 @@ class AminoAcidMapper(MapperBase):
         else:
             self.gff_bedtool = pybedtools.BedTool(self.gff)
 
-            _logger.info("Collecting transcript CDS annotations...")
+            _logger.info("Collecting transcript CDS annotations.")
             self.cds_info = self._get_cds_info()
 
         if (self.make_pickle and not pkl_exists) or self.overwrite_pickle:
@@ -419,14 +419,14 @@ class AminoAcidMapper(MapperBase):
 
         if pos > trx_len or pos < 1:
             var_key = vu.VARIANT_FORMAT.format(trx_id, pos, ref, alt)
-            warnings.warn("Variant %s position is not within transcript bounds." % var_key, TranscriptomicCoordNotFound)
+            _logger.warning("Variant %s position is not within transcript bounds." % var_key, TranscriptomicCoordNotFound)
             return MUT_INFO_TUPLE(location=self.INTERGENIC, **self.DEFAULT_KWARGS)
 
         # One more sanity-check
         zbased_pos = pos - 1
         expected_ref = trx_seq[zbased_pos:zbased_pos + len(ref)]
         if ref.upper() != expected_ref.upper():
-            raise RuntimeError(
+            _logger.exception(
                 "REF %s does not match the expected reference sequence of the transcript: %s" % (ref, expected_ref))
 
         # Now that we have ensured our variant is valid, we can check for its placement

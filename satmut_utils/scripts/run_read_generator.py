@@ -1,4 +1,4 @@
-#!/usr/bin/env/python
+#!/usr/bin/env python3
 """Runs basic in silico read generation."""
 
 import argparse
@@ -6,6 +6,7 @@ import sys
 
 from analysis.aligners import *
 from analysis.seq_utils import BAM_SUFFIX
+from core_utils.file_utils import replace_extension
 from prototype.read_generators import *
 from scripts.run_bowtie2_aligner import workflow as ba_workflow
 
@@ -17,15 +18,7 @@ __maintainer__ = "Ian Hoskins"
 __email__ = "ianjameshoskins@utexas.edu"
 __status__ = "Development"
 
-__logger = logging.getLogger(__name__)
-
-# Consider putting the following in a logging config file
-__logger.setLevel(logging.DEBUG)
-__fhandler = logging.FileHandler("stderr.log")
-__fhandler.setLevel(logging.DEBUG)
-__formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-__fhandler.setFormatter(__formatter)
-__logger.addHandler(__fhandler)
+LOGFILE = replace_extension(os.path.basename(__file__), "stderr.log")
 
 
 def parse_commandline_params(args):
@@ -123,6 +116,22 @@ def main():
 
     parsed_args = parse_commandline_params(sys.argv[1:])
 
+    outdir = parsed_args["output_dir"]
+    if not os.path.exists(outdir):
+        os.mkdir(outdir)
+
+    _logger = logging.getLogger(__name__)
+    _logger.setLevel(logging.DEBUG)
+    _log_handler = logging.FileHandler(os.path.join(outdir, LOGFILE))
+    _console_handler = logging.StreamHandler()
+    _formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    _log_handler.setFormatter(_formatter)
+    _console_handler.setFormatter(_formatter)
+    _logger.addHandler(_log_handler)
+    _logger.addHandler(_console_handler)
+
+    _logger.info("Started %s" % sys.argv[0])
+
     workflow(feature_file=parsed_args["feature_file"], output_dir=parsed_args["output_dir"],
              output_prefix=parsed_args["output_prefix"], nreads=parsed_args["nreads"], ref=parsed_args["reference"],
              paired=parsed_args["paired"], rna=parsed_args["rna"], read_length=parsed_args["read_length"],
@@ -130,8 +139,8 @@ def main():
              make_amplicons=parsed_args["make_amplicons"], add_snps=parsed_args["add_snps"],
              add_indels=parsed_args["add_indels"])
 
+    _logger.info("Completed %s" % sys.argv[0])
+
 
 if __name__ == "__main__":
-    __logger.info("Started %s" % sys.argv[0])
     main()
-    __logger.info("Completed %s" % sys.argv[0])

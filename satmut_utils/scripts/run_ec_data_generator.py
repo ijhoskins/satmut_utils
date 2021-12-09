@@ -1,12 +1,14 @@
-#!/usr/bin/env/python
+#!/usr/bin/env python3
 """Runs the training data generation workflow for error correction models."""
 
 import argparse
 import datetime
 import logging
+import os
 import sys
 
 from analysis.read_editor import ReadEditor
+from core_utils.file_utils import replace_extension
 from core_utils.string_utils import none_or_str
 from definitions import DEFAULT_MUT_SIG
 from prototype.variant_generator import VariantGenerator
@@ -20,15 +22,7 @@ __maintainer__ = "Ian Hoskins"
 __email__ = "ianjameshoskins@utexas.edu"
 __status__ = "Development"
 
-__logger = logging.getLogger(__name__)
-
-# Consider putting the following in a logging config file
-__logger.setLevel(logging.DEBUG)
-__fhandler = logging.FileHandler("stderr.log")
-__fhandler.setLevel(logging.DEBUG)
-__formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-__fhandler.setFormatter(__formatter)
-__logger.addHandler(__fhandler)
+LOGFILE = replace_extension(os.path.basename(__file__), "stderr.log")
 
 
 def parse_commandline_params(args):
@@ -69,7 +63,8 @@ def parse_commandline_params(args):
     parser.add_argument("-p", "--primers", type=none_or_str, default="None",
                         help='Primer BED file. Must have strand field. Default no masking.')
 
-    parser.add_argument("-d", "--output_dir", type=str, default=".", help='Output directory for FASTQs and BAM.')
+    parser.add_argument("-d", "--output_dir", type=str, default=".",
+                        help='Optional output directory. Default current working directory.')
 
     parser.add_argument("-s", "--mutagenesis_signature", type=str, default=DEFAULT_MUT_SIG,
                         help='Mutagenesis signature. Only variants matching the mutagensis signature will be generated. '
@@ -165,6 +160,22 @@ def main():
 
     parsed_args = parse_commandline_params(sys.argv[1:])
 
+    outdir = parsed_args["output_dir"]
+    if not os.path.exists(outdir):
+        os.mkdir(outdir)
+
+    _logger = logging.getLogger(__name__)
+    _logger.setLevel(logging.DEBUG)
+    _log_handler = logging.FileHandler(os.path.join(outdir, LOGFILE))
+    _console_handler = logging.StreamHandler()
+    _formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    _log_handler.setFormatter(_formatter)
+    _console_handler.setFormatter(_formatter)
+    _logger.addHandler(_log_handler)
+    _logger.addHandler(_console_handler)
+
+    _logger.info("Started %s" % sys.argv[0])
+
     workflow(negative_summary=parsed_args["negative_summary"], mutant_summary=parsed_args["mutant_summary"],
              negative_bam=parsed_args["negative_bam"], trx_id=parsed_args["trx_id"],
              ref=parsed_args["reference"], gff=parsed_args["transcript_gff"],
@@ -176,8 +187,8 @@ def main():
              random_seed=parsed_args["random_seed"], buffer=parsed_args["edit_buffer"],
              force_edit=parsed_args["force_edit"], nthreads=parsed_args["nthreads"])
 
+    _logger.info("Completed %s" % sys.argv[0])
+
 
 if __name__ == "__main__":
-    __logger.info("Started %s" % sys.argv[0])
     main()
-    __logger.info("Completed %s" % sys.argv[0])

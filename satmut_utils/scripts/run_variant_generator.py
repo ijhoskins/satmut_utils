@@ -1,12 +1,14 @@
-#!/usr/bin/env/python
+#!/usr/bin/env python3
 """Runs variant generation using all possible codon permutations for a transcript."""
 
 import argparse
 import logging
+import os
 import sys
 
 from definitions import DEFAULT_MUT_SIG
 from prototype.variant_generator import VariantGenerator
+from core_utils.file_utils import replace_extension
 from core_utils.string_utils import none_or_str
 
 __author__ = "Ian Hoskins"
@@ -17,15 +19,8 @@ __maintainer__ = "Ian Hoskins"
 __email__ = "ianjameshoskins@utexas.edu"
 __status__ = "Development"
 
-__logger = logging.getLogger(__name__)
 
-# Consider putting the following in a logging config file
-__logger.setLevel(logging.DEBUG)
-__fhandler = logging.FileHandler("stderr.log")
-__fhandler.setLevel(logging.DEBUG)
-__formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-__fhandler.setFormatter(__formatter)
-__logger.addHandler(__fhandler)
+LOGFILE = replace_extension(os.path.basename(__file__), "stderr.log")
 
 
 def parse_commandline_params(args):
@@ -53,8 +48,8 @@ def parse_commandline_params(args):
 
     parser.add_argument("-o", "--out_vcf", type=none_or_str, default="None", help='Optional output VCF basename. Default use ')
 
-    parser.add_argument("-d", "--outdir", type=str, default=VariantGenerator.DEFAULT_OUTDIR,
-                        help='Optional output directory.')
+    parser.add_argument("-d", "--output_dir", type=str, default=VariantGenerator.DEFAULT_OUTDIR,
+                        help='Optional output directory. Default current working directory.')
 
     parser.add_argument("-s", "--mutagenesis_signature", type=str, default=DEFAULT_MUT_SIG,
                         help='Mutagenesis signature. Only variants matching the mutagensis signature will be generated. '
@@ -117,14 +112,29 @@ def main():
 
     parsed_args = parse_commandline_params(sys.argv[1:])
 
+    outdir = parsed_args["output_dir"]
+    if not os.path.exists(outdir):
+        os.mkdir(outdir)
+
+    _logger = logging.getLogger(__name__)
+    _logger.setLevel(logging.DEBUG)
+    _log_handler = logging.FileHandler(os.path.join(outdir, LOGFILE))
+    _console_handler = logging.StreamHandler()
+    _formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    _log_handler.setFormatter(_formatter)
+    _console_handler.setFormatter(_formatter)
+    _logger.addHandler(_log_handler)
+    _logger.addHandler(_console_handler)
+
+    _logger.info("Started %s" % sys.argv[0])
+
     workflow(trx_id=parsed_args["trx_id"], transcript_gff=parsed_args["transcript_gff"], ref=parsed_args["reference"],
-             targets=parsed_args["targets"], out_vcf=parsed_args["out_vcf"], outdir=parsed_args["outdir"],
+             targets=parsed_args["targets"], out_vcf=parsed_args["out_vcf"], outdir=parsed_args["output_dir"],
              mut_sig=parsed_args["mutagenesis_signature"], var_type=parsed_args["var_type"],
              haplotypes=parsed_args["add_haplotypes"], haplotype_len=parsed_args["haplotype_length"],
              random_seed=parsed_args["random_seed"], mnp_bases=parsed_args["mnp_bases"])
 
+    _logger.info("Completed %s" % sys.argv[0])
 
 if __name__ == "__main__":
-    __logger.info("Started %s" % sys.argv[0])
     main()
-    __logger.info("Completed %s" % sys.argv[0])
