@@ -218,8 +218,7 @@ def extract_seq(contig, start, stop, ref):
         seq = fasta.fetch(region=coord_str)
 
     #seq_fa = pysam.faidx(ref, coord_str)
-
-    # seq could wrap on many lines, but first is always header
+    #seq could wrap on many lines, but first is always header
     #seq = "".join([line for line in seq_fa.split(FILE_NEWLINE)[1:]])
 
     return seq
@@ -269,12 +268,19 @@ def sort_bam(bam, output_am=None, output_format="BAM", by_qname=False, nthreads=
     :param str bam: alignment file
     :param str output_am: optional output name
     :param str output_format: One of SAM, BAM, or CRAM
-    :param bool by_qname: sort by qname/read name? Default False. Sort by coodinate.
+    :param bool by_qname: sort by qname/read name? Default False. Sort by coordinate.
     :param int nthreads: number additional threads to use
     :param sequence args: single flags to pass to samtools view
     :param sequence kwargs: key-value pairs to pass to view
     :return str: output file
+    :raises NotImplementedError: if an unrecognized samtools option is provided
+
+    WARNINGS: --input-fmt-option, --output-fmt, and --output-fmt-option are currently not supported.
     """
+
+    single_args = {"write-index"}
+    single_char_kwargs = {"l", "m", "K", "t", "o", "T", "O"}
+    multi_char_kwargs = {"no-PG", "reference", "verbosity"}
 
     file_mode = "w"
     if str(output_format).lower() == BAM_SUFFIX:
@@ -290,9 +296,19 @@ def sort_bam(bam, output_am=None, output_format="BAM", by_qname=False, nthreads=
         call_args += ["-n"]
 
     for f in args:
-        call_args.extend(["-" + f])
+        if f in single_args:
+            call_args.extend(["--" + f])
+        else:
+            call_args.extend(["-" + f])
 
     for k, v in kwargs.items():
+        if k in single_char_kwargs:
+            call_args.extend(["-{} {}".format(k, v)])
+        elif k in multi_char_kwargs:
+            call_args.extend(["--{} {}".format(k, v)])
+        else:
+            raise NotImplementedError("The option %s is not recognized." % k)
+
         call_args.extend(["-{}".format(k), str(v)])
 
     call_args += [bam]
@@ -352,28 +368,6 @@ def cat_bams(bams, output_bam=None):
 
     file_list = list(bams)
     cat_args = ["samtools", "cat", "-o", outname] + file_list
-
-    """
-    pysam.cat(*cat_args, catch_stdout=False)
-    
-    I experience the following error whenenver I run this function from within a script (but not when run from the 
-    command line or when run from an interactice python session!)
-    
-    What is even more baffling is if I step into the pysam.cat call and run each line until it returns, I do not 
-    encounter the error. Furthermore, simply putting a breakpoint in before the call, then immediately continuing, causes
-    the code to run fine! Is there a side effect of running pdb that sorts out the issue?
-    
-    cat: invalid option -- '?'
-    cat: invalid option -- 'U'
-    cat: invalid option -- 'U'
-    cat: invalid option -- 'U'
-
- File "/home1/06285/ihoskins/bioinfo/analysis/seq_utils.py", line 462, in cat_bams
-    pysam.cat(*cat_args, catch_stdout=False)
-  File "/home1/06285/ihoskins/miniconda3/envs/CBS_variants/lib/python3.6/site-packages/pysam/utils.py", line 75, in __call__
-    stderr))
-pysam.utils.SamtoolsError: 'samtools returned with error 1: stdout=None, stderr=[main_cat] ERROR: input is not BAM or CRAM
-    """
     subprocess.call(cat_args)
 
     return outname
@@ -398,7 +392,7 @@ def bam_fixmate(bam, output_bam=None, nthreads=0):
         sort_bam(bam=bam, output_am=qname_sorted.name, by_qname=True, nthreads=nthreads)
         flush_files((qname_sorted,))
 
-        fixmate_args = ["-c", "-m", "-@", nthreads, qname_sorted.name, fixmate_bam.name]
+        fixmate_args = ("-c", "-m", "-@", nthreads, qname_sorted.name, fixmate_bam.name)
         pysam.fixmate(*fixmate_args)
         flush_files((fixmate_bam,))
 
@@ -419,6 +413,10 @@ def bam_to_fastq(bam, out_prefix=None, is_paired=True, nthreads=0, *args, **kwar
     :return tuple: (str, str | None) paths of the R1 and R2 (if present) FASTQ files
     """
 
+    single_char_opts = {"o", "f", "F", "G", "s", "T", "v", "c"}
+    multi_char_opts = {
+        "i1", "i2", "barcode-tag", "quality-tag", "index-format", "reference", "verbosity"}
+
     outfile_prefix = out_prefix
     if out_prefix is None:
         outfile_prefix = remove_extension(os.path.abspath(bam))
@@ -428,14 +426,19 @@ def bam_to_fastq(bam, out_prefix=None, is_paired=True, nthreads=0, *args, **kwar
         call_args.extend(["-" + f])
 
     for k, v in kwargs.items():
-        call_args.extend(["--{} {}".format(k, v)])
+        if k in single_char_opts:
+            call_args.extend(["-{} {}".format(k, v)])
+        elif k in multi_char_opts:
+            call_args.extend(["--{} {}".format(k, v)])
+        else:
+            raise NotImplementedError("The option %s is not recognized." % k)
 
-    r1_fastq = add_extension(add_extension(outfile_prefix, "R1"), "fq")
+    r1_fastq = add_extension(add_extension(outfile_prefix, "R1"), FASTQ_SUFFIX)
     r2_fastq = None
     call_args.extend(["-1", r1_fastq])
 
     if is_paired:
-        r2_fastq = add_extension(add_extension(outfile_prefix, "R2"), "fq")
+        r2_fastq = add_extension(add_extension(outfile_prefix, "R2"), FASTQ_SUFFIX)
         call_args.extend(["-2", r2_fastq])
 
     call_args.extend([bam])
@@ -450,6 +453,7 @@ def get_edit_distance(align_seg):
 
     :param pysam.AlignedSegment align_seg: read object
     :return int: edit distance
+    :raises RuntimeError: if the read object has no NM or MD tags.
     """
 
     if align_seg.has_tag(SAM_EDIT_DIST_TAG):
