@@ -303,13 +303,11 @@ def sort_bam(bam, output_am=None, output_format="BAM", by_qname=False, nthreads=
 
     for k, v in kwargs.items():
         if k in single_char_kwargs:
-            call_args.extend(["-{} {}".format(k, v)])
+            call_args.extend(["-{}".format(k), v])
         elif k in multi_char_kwargs:
-            call_args.extend(["--{} {}".format(k, v)])
+            call_args.extend(["--{}".format(k), v])
         else:
             raise NotImplementedError("The option %s is not recognized." % k)
-
-        call_args.extend(["-{}".format(k), str(v)])
 
     call_args += [bam]
 
@@ -427,9 +425,9 @@ def bam_to_fastq(bam, out_prefix=None, is_paired=True, nthreads=0, *args, **kwar
 
     for k, v in kwargs.items():
         if k in single_char_opts:
-            call_args.extend(["-{} {}".format(k, v)])
+            call_args.extend(["-{}".format(k), v])
         elif k in multi_char_opts:
-            call_args.extend(["--{} {}".format(k, v)])
+            call_args.extend(["--{}".format(k), v])
         else:
             raise NotImplementedError("The option %s is not recognized." % k)
 

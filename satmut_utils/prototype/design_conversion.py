@@ -124,7 +124,7 @@ class DesignConverter(object):
         if not os.path.exists(self.outdir):
             os.mkdir(self.outdir)
 
-        self.temp_bam = tempfile.NamedTemporaryFile(suffix=".sort.bam", mode="wb").name
+        self.temp_bam = tempfile.NamedTemporaryFile(suffix=".sort.bam", mode="wb", delete=False).name
         self.out_bam = os.path.join(self.outdir, fu.replace_extension(
             os.path.basename(self.in_bam), self.OUTBAM_SUFFIX))
 
@@ -297,8 +297,8 @@ class DesignConverter(object):
         # Discard any singletons
         with tempfile.NamedTemporaryFile(suffix=".singletons.fq", mode="w", delete=False) as singletons_fh:
 
-            sorted_bam = sort_bam(self.temp_bam, output_am=self.out_bam, output_format="BAM", by_qname=True)
-            r1_fastq, r2_fastq = bam_to_fastq(bam=sorted_bam, out_prefix=self.out_prefix, s=singletons_fh.name)
+            sorted_bam = sort_bam(bam=self.temp_bam, output_am=self.out_bam, output_format="BAM", by_qname=True)
+            r1_fastq, r2_fastq = bam_to_fastq(sorted_bam, self.out_prefix, True, self.nthreads, s=singletons_fh.name)
             zipped_r1_fastq = fu.gzip_file(r1_fastq, force=True)
             zipped_r2_fastq = fu.gzip_file(r2_fastq, force=True)
             return zipped_r1_fastq, zipped_r2_fastq
