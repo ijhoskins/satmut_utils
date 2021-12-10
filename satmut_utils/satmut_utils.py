@@ -17,6 +17,7 @@ from analysis.variant_caller import VariantCaller
 import core_utils.file_utils as fu
 from core_utils.string_utils import none_or_str
 from definitions import AMP_UMI_REGEX, GRCH38_FASTA, QNAME_SORTS, INT_FORMAT_INDEX, DEFAULT_MUT_SIG, VALID_MUT_SIGS, LOG_FORMATTER
+from . import logger
 from scripts.run_bowtie2_aligner import workflow as baw
 
 
@@ -35,7 +36,6 @@ SIM_WORKFLOW = "sim"
 CALL_WORKFLOW = "call"
 
 LOGFILE = fu.replace_extension(os.path.basename(__file__), "stderr.log")
-logger = logging.getLogger()
 
 
 def parse_commandline_params(args):
