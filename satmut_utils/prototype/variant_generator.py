@@ -24,7 +24,7 @@ __email__ = "ianjameshoskins@utexas.edu"
 __status__ = "Development"
 
 tempfile.tempdir = os.getenv("SCRATCH", "/tmp")
-_logger = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 VAR_ID_TUPLE = collections.namedtuple("VAR_ID_TUPLE", "pos, ref, alt, aa_change, mut_sig_match")
 

@@ -22,7 +22,7 @@ __email__ = "ianjameshoskins@utexas.edu"
 __status__ = "Development"
 
 tempfile.tempdir = os.getenv("SCRATCH", "/tmp")
-_logger = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 
 class ErrorCorrectionDataGenerator(object):
@@ -132,19 +132,19 @@ class ErrorCorrectionDataGenerator(object):
         :return tuple: (str, str, str, str) paths of the truth VCF, edited BAM, R1 FASTQ, R2 FASTQ
         """
 
-        _logger.info("Starting error correction data generation workflow.")
+        logger.info("Starting error correction data generation workflow.")
 
-        _logger.info("Estimating truth set parameters from positive and negative control variant calls.")
+        logger.info("Estimating truth set parameters from positive and negative control variant calls.")
         fp_nvars = self._get_fp_nvars()
         fp_nbases = self._get_fp_nbases()
         caf_estimates = self._get_mutant_caf_estimates()
 
-        _logger.info("%i false positive variants counted in %s." % (fp_nvars, self.negative_summary))
-        _logger.info("%i false positive mismatched bases counted in %s." % (fp_nbases, self.negative_summary))
-        _logger.info("Estimates of the mean and standard deviation of log10 concordant frequencies are %s"
+        logger.info("%i false positive variants counted in %s." % (fp_nvars, self.negative_summary))
+        logger.info("%i false positive mismatched bases counted in %s." % (fp_nbases, self.negative_summary))
+        logger.info("Estimates of the mean and standard deviation of log10 concordant frequencies are %s"
                      % str(caf_estimates))
 
-        _logger.info("Generating all codon-permutated variants.")
+        logger.info("Generating all codon-permutated variants.")
         variant_generator = vg.VariantGenerator(
             gff=self.gff, ref=self.ref, mut_sig=mut_sig, haplotypes=haplotypes, haplotype_len=haplotype_len,
             outdir=self.outdir, random_seed=random_seed)
@@ -152,19 +152,19 @@ class ErrorCorrectionDataGenerator(object):
         all_codon_permuts = variant_generator.workflow(
             trx_id=trx_id, targets=targets, outfile=out_vcf, var_type=var_type, mnp_bases=mnp_bases)
 
-        _logger.info("Subsampling variants/bases for true positives.")
+        logger.info("Subsampling variants/bases for true positives.")
         vs = vu.VcfSubsampler(cf=all_codon_permuts, outdir=self.outdir, random_seed=random_seed)
         subsamp_vcf = vs.subsample_bases(nvars=fp_nvars, nbases=fp_nbases)
 
-        _logger.info("Annotating variants using estimated frequency parameters from the mutant summary file.")
+        logger.info("Annotating variants using estimated frequency parameters from the mutant summary file.")
         vp = vu.VcfPreprocessor(in_vcf=subsamp_vcf, caf_estimates=caf_estimates, ref=self.ref, outdir=self.outdir)
 
-        _logger.info("Editing variants into the negative control alignments.")
+        logger.info("Editing variants into the negative control alignments.")
         outbam, r1_fastq, r2_fastq = ReadEditor(
             bam=self.negative_bam, variants=vp.out_vcf, ref=self.ref, race_like=self.race_like, primers=self.primers,
             output_dir=self.outdir, output_prefix=output_prefix, random_seed=random_seed,
             buffer=buffer, force_edit=force_edit, nthreads=self.nthreads).workflow()
 
-        _logger.info("Completed error correction data generation workflow.")
+        logger.info("Completed error correction data generation workflow.")
 
         return subsamp_vcf, outbam, r1_fastq, r2_fastq

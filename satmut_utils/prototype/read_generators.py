@@ -49,7 +49,7 @@ class ReadGenerator(object):
     def __init__(self, feature_file, ref, paired=True, rna=False,
                  read_length=DEFAULT_READ_LEN, frag_length=DEFAULT_FRAG_LEN, slop_length=DEFAULT_BP_SLOP,
                  make_amplicons=False):
-        r"""Ctor for ReadGenerator.
+        r"""Constructor for ReadGenerator.
 
         :param str feature_file: BED, GFF, GTF file containing features to make reads for; e.g. target BED
         :param str ref: genomic reference FASTA corresponding to the features
@@ -61,6 +61,7 @@ class ReadGenerator(object):
         :param int slop_length: number of bases to slop around targets for DNA read generation
         :param bool make_amplicons: should reads be generated from the ends of the target regions? Default False. \
         Make uniform random ends.
+        :raises InsufficientFragLengthException: if the fragment length is too small for reads to re-align (<20 nt)
         """
 
         self.feature_file = feature_file

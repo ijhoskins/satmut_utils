@@ -62,7 +62,7 @@ MUT_INFO_TUPLE = collections.namedtuple(
 
 DEFAULT_TEMPDIR = os.getenv("SCRATCH", "/tmp")
 tempfile.tempdir = DEFAULT_TEMPDIR
-_logger = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 
 class TranscriptNotFound(Exception):
@@ -211,17 +211,17 @@ class AminoAcidMapper(MapperBase):
         pkl_exists = os.path.exists(self.pkl_filepath)
 
         if self.use_pickle and pkl_exists:
-            _logger.info("Loading pickled transcript CDS annotations.")
+            logger.info("Loading pickled transcript CDS annotations.")
             with open(self.pkl_filepath, "rb") as info_pkl:
                 self.cds_info = pickle.load(info_pkl)
         else:
             self.gff_bedtool = pybedtools.BedTool(self.gff)
 
-            _logger.info("Collecting transcript CDS annotations.")
+            logger.info("Collecting transcript CDS annotations.")
             self.cds_info = self._get_cds_info()
 
         if (self.make_pickle and not pkl_exists) or self.overwrite_pickle:
-            _logger.info("Pickling transcript CDS annotations to %s for %s" % (self.pkl_filepath, self.gff))
+            logger.info("Pickling transcript CDS annotations to %s for %s" % (self.pkl_filepath, self.gff))
             self.generate_pickle()
 
     @staticmethod
@@ -419,14 +419,14 @@ class AminoAcidMapper(MapperBase):
 
         if pos > trx_len or pos < 1:
             var_key = vu.VARIANT_FORMAT.format(trx_id, pos, ref, alt)
-            _logger.warning("Variant %s position is not within transcript bounds." % var_key, TranscriptomicCoordNotFound)
+            logger.warning("Variant %s position is not within transcript bounds." % var_key, TranscriptomicCoordNotFound)
             return MUT_INFO_TUPLE(location=self.INTERGENIC, **self.DEFAULT_KWARGS)
 
         # One more sanity-check
         zbased_pos = pos - 1
         expected_ref = trx_seq[zbased_pos:zbased_pos + len(ref)]
         if ref.upper() != expected_ref.upper():
-            _logger.exception(
+            logger.exception(
                 "REF %s does not match the expected reference sequence of the transcript: %s" % (ref, expected_ref))
 
         # Now that we have ensured our variant is valid, we can check for its placement

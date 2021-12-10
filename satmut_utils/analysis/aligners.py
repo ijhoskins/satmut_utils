@@ -21,19 +21,20 @@ __status__ = "Development"
 
 DEFAULT_TEMPDIR = os.getenv("SCRATCH", "/tmp")
 tempfile.tempdir = DEFAULT_TEMPDIR
-_logger = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 
 class BowtieConfig(object):
     """Class for configuring bowtie2 call."""
 
+    DEFAULT_LOCAL = True
     DEFAULT_NTHREADS = 1
     INDEX_EXTENSIONS_RE = re.compile(r".[0-9].bt2")
     DEFAULT_FLAGS = ["--maxins", "1000", "--no-discordant", "--fr"]
     DEFAULT_SCORES = ["--mp", "4", "--rdg", "6,4", "--rfg", "6,4"]
     #  "-D", "20", "-R", "3", "-N", "1", "-L", "11"
 
-    def __init__(self, ref, local=True, nthreads=DEFAULT_NTHREADS, *args, **kwargs):
+    def __init__(self, ref, local=DEFAULT_LOCAL, nthreads=DEFAULT_NTHREADS, *args, **kwargs):
         """Constructor for BowtieConfig.
 
         :param str ref: path of indexed reference FASTA
@@ -74,14 +75,17 @@ class BowtieConfig(object):
 class Bowtie2(object):
     """Class for bowtie2 alignment."""
 
-    def __init__(self, config, f1, f2=None, output_dir=".", output_bam=None):
+    DEFAULT_OUTDIR = "."
+    DEFAULT_OUTBAM = None
+
+    def __init__(self, config, f1, f2=None, output_dir=DEFAULT_OUTDIR, output_bam=DEFAULT_OUTBAM):
         """Constructor for Bowtie2.
 
         :param aligners.BowtieConfig config: config object
         :param str f1: path to FASTA or FASTQ 1
         :param str | None f2: optional path to FASTA or FASTQ 2
-        :param str output_dir: optional output directory to write the output BAM to
-        :param str | None output_bam: optional output BAM filename. Default use f1 basename.
+        :param str output_dir: optional output directory to write the output BAM to. Default current working directory.
+        :param str | None output_bam: optional output BAM filename. Default None, use f1 basename.
         """
 
         self.config = config
@@ -109,7 +113,7 @@ class Bowtie2(object):
         self.alignment_kwargs = {"rg-id": rg_id}
         self.alignment_kwargs.update(config.kwargs)
 
-        _logger.info("Aligning and writing to %s" % self.output_bam)
+        logger.info("Aligning and writing to %s" % self.output_bam)
         _ = self._align()
 
         su.index_bam(self.output_bam)

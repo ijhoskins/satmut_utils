@@ -29,7 +29,7 @@ __status__ = "Development"
 
 DEFAULT_TEMPDIR = os.getenv("SCRATCH", "/tmp")
 tempfile.tempdir = DEFAULT_TEMPDIR
-_logger = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 MATE_STRAND_POS_TUPLE = collections.namedtuple("MATE_STRAND_POS_TUPLE", "mate, strand, pos, ref")
 CONSENSUS_STATS_TUPLE = collections.namedtuple("CONSENSUS_STATS_TUPLE", "base, bq, nm")
@@ -135,7 +135,7 @@ class QnameVerification(object):
         :raises NotImplementedError: if the read name is not a recognizable format.
         """
 
-        _logger.info("Started qname verification workflow.")
+        logger.info("Started qname verification workflow.")
 
         if self.fastq is not None:
             compatible, format_index = self._verify_fastq()
@@ -145,7 +145,7 @@ class QnameVerification(object):
             compatible, format_index = self._verify_bam()
             return compatible, format_index
 
-        _logger.info("Completed qname verification workflow.")
+        logger.info("Completed qname verification workflow.")
         return False, None
 
 
@@ -235,7 +235,7 @@ class FastqPreprocessor(object):
         -u/--cut enables hard clipping prior to adapter trimming
         """
 
-        _logger.info("Running cutadapt.")
+        logger.info("Running cutadapt.")
 
         common_call_args = ["cutadapt", "--quiet", "--json", self.log_file, "-j", str(self.ncores),
                             "-n", str(self.ntrimmed), "-q", str(self.trim_bq), "-m", str(self.MIN_LENGTH),
@@ -259,7 +259,7 @@ class FastqPreprocessor(object):
         r2_fp_args = ["-G {} ".format(e) for e in self.r2_fiveprime_adapters]
         fq_args = ["-o", self.trimmed_f1, "-p", self.trimmed_f2, self.f1, self.f2]
 
-        _logger.info("Trimming adapters from R1 and R2")
+        logger.info("Trimming adapters from R1 and R2")
         trim_call = common_call_args + r1_tp_args + r1_fp_args + r2_tp_args + r2_fp_args + fq_args
         subprocess.call(trim_call)
 
@@ -396,7 +396,7 @@ class UMIExtractor(object):
     def workflow(self):
         """Runs the UMI extraction workflow."""
 
-        _logger.info("Started UMI extraction workflow.")
+        logger.info("Started UMI extraction workflow.")
 
         r1_fq = self.r1_fastq
         r2_fq = self.r2_fastq
@@ -404,16 +404,16 @@ class UMIExtractor(object):
         # For RACE-like (AMP) data, potentially append the primer sequence (assumed start of R2) to each qname,
         # because multiple separate R2 start sites may have the same UMI/position through R1.
         if self.prepend_primer:
-            _logger.info("Finding originating primers for read pairs.")
+            logger.info("Finding originating primers for read pairs.")
             r1_fq, r2_fq = self._append_primer_name()
 
-        _logger.info("Extracting UMIs for %s." % self.common_basename)
+        logger.info("Extracting UMIs for %s." % self.common_basename)
         self._umitools_extract(r1_fastq=r1_fq, r2_fastq=r2_fq)
 
         if self.prepend_primer:
             fu.safe_remove((r1_fq, r2_fq,))
 
-        _logger.info("Completed UMI extraction workflow.")
+        logger.info("Completed UMI extraction workflow.")
 
 
 class ReadGrouper(object):
@@ -457,9 +457,9 @@ class ReadGrouper(object):
     def _workflow(self):
         """Runs the group workflow."""
 
-        _logger.info("Starting umi_tools group workflow.")
+        logger.info("Starting umi_tools group workflow.")
         self._umitools_group()
-        _logger.info("Completed umi_tools group workflow.")
+        logger.info("Completed umi_tools group workflow.")
 
 
 class ReadDeduplicator(object):
@@ -509,18 +509,18 @@ class ReadDeduplicator(object):
     def _workflow(self):
         """Runs the extraction workflow."""
 
-        _logger.info("Started deduplicating alignments for %s." % self.group_bam)
+        logger.info("Started deduplicating alignments for %s." % self.group_bam)
         dedup_temp = self._umitools_dedup()
 
         # We must filter the resulting deduplicated alignments so that we have no singletons
         # (as a result of one mate not mapping). --unmapped-reads=discard does not discard _pairs_
         # where one mate is unmapped.
-        _logger.info("Filtering deduplicating alignments for mapped pairs.")
+        logger.info("Filtering deduplicating alignments for mapped pairs.")
         su.sam_view(am=dedup_temp, output_am=self.dedup_bam, F=su.SAM_FLAG_UNMAP + su.SAM_FLAG_MUNMAP,
                     nthreads=self.nthreads)
 
         su.index_bam(self.dedup_bam)
-        _logger.info("Completed deduplicating alignments for %s." % self.group_bam)
+        logger.info("Completed deduplicating alignments for %s." % self.group_bam)
 
 
 class ConsensusDeduplicatorPreprocessor(object):
@@ -597,10 +597,10 @@ class ConsensusDeduplicatorPreprocessor(object):
         :return str: temp output BAM
         """
 
-        _logger.info("Sorting by read name and splitting into R1s and R2s.")
+        logger.info("Sorting by read name and splitting into R1s and R2s.")
         qname_sorted = su.sort_bam(bam=in_bam, by_qname=True, nthreads=nthreads)
 
-        _logger.info("Updating group ID tags.")
+        logger.info("Updating group ID tags.")
         updated_bam = cls.update_tags(qname_sorted, group_tag, nthreads)
 
         return updated_bam
@@ -611,21 +611,21 @@ class ConsensusDeduplicatorPreprocessor(object):
         :return str: name of the grouped BAM (a BAM with UMI prepended to R1 UG tags)
         """
 
-        _logger.info("Started preprocessing workflow for consensus deduplication.")
+        logger.info("Started preprocessing workflow for consensus deduplication.")
 
-        _logger.info("Sorting by read name.")
+        logger.info("Sorting by read name.")
         qname_sorted = su.sort_bam(bam=self.group_bam, by_qname=True, nthreads=self.nthreads)
 
-        _logger.info("Updating group ID tags for R2s.")
+        logger.info("Updating group ID tags for R2s.")
         updated_bam = self.update_tags(qname_sorted, self.group_tag, self.nthreads)
 
-        _logger.info("Sorting in preparation for consensus generation.")
+        logger.info("Sorting in preparation for consensus generation.")
         # Sort by the group ID tag (the mate was added to the group tag so no need for -n)
         su.sort_bam(bam=updated_bam, output_am=self.preprocess_bam, nthreads=self.nthreads, t=self.group_tag)
 
         fu.safe_remove((qname_sorted, updated_bam,))
 
-        _logger.info("Completed preprocessing workflow for consensus deduplication.")
+        logger.info("Completed preprocessing workflow for consensus deduplication.")
 
 
 class ConsensusDeduplicator(object):
@@ -1153,10 +1153,10 @@ class ConsensusDeduplicator(object):
     def workflow(self):
         """Runs the ConsensusDeduplicator workflow."""
 
-        _logger.info("Started consensus read generation workflow for %s" % self.in_bam)
+        logger.info("Started consensus read generation workflow for %s" % self.in_bam)
         consensus_bam = self._generate_consensus_reads()
 
-        _logger.info("Completed consensus read generation workflow.")
+        logger.info("Completed consensus read generation workflow.")
         _ = self._realign_consensus_reads(consensus_bam)
 
         su.index_bam(self.out_bam)
@@ -1419,9 +1419,9 @@ class ReadMasker(object):
     def workflow(self):
         """Runs the ReadMasker workflow."""
 
-        _logger.info("Started primer base quality masking for %s" % self.in_bam)
+        logger.info("Started primer base quality masking for %s" % self.in_bam)
 
-        _logger.info("Intersecting alignments with primer features.")
+        logger.info("Intersecting alignments with primer features.")
         intersected_bed = self._get_read_primer_intersection()
 
         with tempfile.NamedTemporaryFile(suffix=".primer.intersected.bam") as primer_intersected:
@@ -1431,12 +1431,12 @@ class ReadMasker(object):
             ffu.intersect_features(ff1=self.in_bam, ff2=self.feature_file, outfile=primer_intersected.name)
             fu.flush_files((primer_intersected,))
 
-            _logger.info("Sorting BAM by qname to enable masking on read stream.")
+            logger.info("Sorting BAM by qname to enable masking on read stream.")
             # samtools sort -n will sort read names numerically instead of lexicographically, and sorts R1s
             # prior to R2s
             qname_sorted_bam = su.sort_bam(primer_intersected.name, by_qname=True, nthreads=self.nthreads)
 
-        _logger.info("Masking synthetic primer regions in reads.")
+        logger.info("Masking synthetic primer regions in reads.")
         with tempfile.NamedTemporaryFile(suffix=".masked.bam") as masked_bam, \
                 tempfile.NamedTemporaryFile(suffix=".primer.nonintersected.bam") as primer_nonintersected:
 
@@ -1456,7 +1456,7 @@ class ReadMasker(object):
         pybedtools.cleanup()
         fu.safe_remove(paths=(qname_sorted_bam, intersected_bed,))
 
-        _logger.info("Completed primer base quality masking.")
+        logger.info("Completed primer base quality masking.")
 
 
 class VariantCallerPreprocessor(object):
@@ -1494,7 +1494,7 @@ class VariantCallerPreprocessor(object):
             self.in_bam = os.path.join(self.output_dir, fu.replace_extension(
                 os.path.basename(self.am), "in.bam"))
 
-            _logger.info("Converting SAM to BAM.")
+            logger.info("Converting SAM to BAM.")
             su.sort_and_index(am=self.am, output_am=self.in_bam, nthreads=self.nthreads)
 
         self.qname_sorted = os.path.join(self.output_dir, fu.replace_extension(
@@ -1511,9 +1511,9 @@ class VariantCallerPreprocessor(object):
     def workflow(self):
         """Preprocesses the alignments: unmapped pair filtering, qname-sorting, and splitting into R1, R2 BAMs."""
 
-        _logger.info("Started variant call preprocessing workflow.")
+        logger.info("Started variant call preprocessing workflow.")
 
-        _logger.info("Sorting and splitting input BAM into R1 and R2.")
+        logger.info("Sorting and splitting input BAM into R1 and R2.")
         su.sort_bam(bam=self.in_bam, output_am=self.qname_sorted, by_qname=True, nthreads=self.nthreads)
 
         su.sam_view(am=self.qname_sorted, output_am=self.r1_calling_bam, nthreads=self.nthreads,
@@ -1522,4 +1522,4 @@ class VariantCallerPreprocessor(object):
         su.sam_view(am=self.qname_sorted, output_am=self.r2_calling_bam, nthreads=self.nthreads,
                     f=su.SAM_FLAG_R2, F=su.SAM_FLAG_UNMAP + su.SAM_FLAG_MUNMAP)
 
-        _logger.info("Completed variant call preprocessing workflow.")
+        logger.info("Completed variant call preprocessing workflow.")

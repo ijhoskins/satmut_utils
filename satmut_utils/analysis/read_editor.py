@@ -30,7 +30,7 @@ EDIT_KEY_TUPLE = collections.namedtuple("EDIT_KEY_TUPLE", "qname, mate")
 EDIT_CONFIG_TUPLE = collections.namedtuple("EDIT_CONFIG_TUPLE", "contig, pos, ref, alt, read_pos")
 
 tempfile.tempdir = os.getenv("SCRATCH", "/tmp")
-_logger = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 
 class ReadEditorPreprocessor(object):
@@ -176,10 +176,10 @@ class ReadEditor(object):
         self.force_edit = force_edit
         self.nthreads = nthreads
 
-        _logger.info("Validating variant configurations.")
+        logger.info("Validating variant configurations.")
         self._verify_variant_freqs()
 
-        _logger.info("Left-normalizing variants, splitting any multi-allelic records, and sorting.")
+        logger.info("Left-normalizing variants, splitting any multi-allelic records, and sorting.")
         self.norm_sort_vcf = os.path.join(output_dir, fu.replace_extension(
             os.path.basename(variants), self.NORM_VCF_SUFFIX))
 
@@ -188,11 +188,11 @@ class ReadEditor(object):
         self.variant_tbi = vu.tabix_index(self.norm_sort_vcf)
         fu.safe_remove((norm_vcf,))
 
-        _logger.info("Pre-processing input files for editing.")
+        logger.info("Pre-processing input files for editing.")
         self.editor_preprocessor = ReadEditorPreprocessor(
             bam=self.bam, primers=primers, ref=ref, race_like=race_like, outdir=output_dir, nthreads=nthreads)
 
-        _logger.info("Getting variant configs.")
+        logger.info("Getting variant configs.")
         self.variant_configs = self._get_variant_configs()
 
         self.variant_config_ids = [
@@ -232,7 +232,7 @@ class ReadEditor(object):
                 af_sum += var.info[vu.VCF_AF_ID]
 
             if af_sum > (1.0 - self.DEFAULT_MAX_ERROR_RATE):
-                _logger.warning(
+                logger.warning(
                     "Sum of all variant frequencies exceeds (1 - the default max error rate of %f). Some variants "
                     "may not be edited due to preservation of errors." % self.DEFAULT_MAX_ERROR_RATE)
 
@@ -353,24 +353,22 @@ class ReadEditor(object):
                 edit_configs[edit_key] = edit_config
 
         # Determine the expected frequency for writing the truth VCF
-        expected_af = float(len(qnames_to_edit) / total_qnames)
-        return expected_af
+        expected_cao = len(qnames_to_edit)
+        expected_caf = float(expected_cao / total_qnames)
+        return expected_cao, expected_caf
 
     @staticmethod
     def _get_concordant_qnames(all_qnames, amenable_qnames):
         """Determines the concordant qnames (overlapping mate coverage) for all and amenable qname subsets.
 
-        :param list all_qnames: all non-masked qnames at the column
+        :param set all_qnames: all non-masked qnames at the column
         :param list amenable_qnames: all non-masked, error-free qnames at the column
         :return tuple: (int, set) total_qnames, amenable_qnames
         """
 
         # Determine the total concordant depth at the column; this will be multiplied by individual variant AFs
         # to compute the integer number of qnames to edit
-        #all_qname_counter = collections.Counter(all_qnames)
-        #all_qnames = {qname for (qname, qname_count) in all_qname_counter.items() if qname_count == 2}
-        all_qnames_set = set(all_qnames)
-        total_qnames = len(all_qnames_set)
+        total_qnames = len(all_qnames)
 
         # Ensure both mates overlap the POS; satmut_utils call requires both mates for variant calls
         amenable_qname_counter = collections.Counter(amenable_qnames)
@@ -439,126 +437,133 @@ class ReadEditor(object):
         """
 
         edit_configs = dict()
-        random.seed(self.random_seed)
 
         with pysam.AlignmentFile(self.editor_preprocessor.edit_background, "rb") as edited_background_af, \
-                pysam.VariantFile(self.variants, "r") as in_vcf, \
-                pysam.VariantFile(self.truth_vcf, "w", header=in_vcf.header) as truth_vcf:
+                pysam.VariantFile(self.variants, "r") as in_vcf:
 
-            # Note this only works for single contig alignments!
-            # This is used for target arg of the pileup call
-            contig = list(self.variant_configs)[0].contig
-            contig_positions = {variant_config.pos for variant_config in self.variant_configs}
-            contig_pos_min = min(contig_positions)
-            contig_pos_max = max(contig_positions)
-            target = su.COORD_FORMAT.format(contig, contig_pos_min, contig_pos_max)
+            # Add pertinent INFO tag headers for the truth VCF
+            info_ids = (
+                (vu.VCF_CAO_ID, 1, "Integer", "Concordant alternate observations, i.e. observations in both mates."),
+                (vu.VCF_CAF_ID, 1, "Float", "Concordant allele frequency in range (0,1). Calculated as CAO/DP.")
+            )
 
-            qname_blacklist = set()
+            vu.update_header(in_vcf.header, info_ids=info_ids)
 
-            # We must use PileupColumns in iteration only
-            for pc in edited_background_af.pileup(
-                    region=target, truncate=True, max_depth=self.MAX_DP, stepper="all",
-                    ignore_overlaps=False, ignore_orphans=False,
-                    min_base_quality=self.MIN_BQ, min_mapping_quality=su.DEFAULT_MAPQ):
+            with pysam.VariantFile(self.truth_vcf, "w", header=in_vcf.header) as truth_vcf:
 
-                # Skip positions that don't match any variant to be edited
-                pc_coord = su.COORD_FORMAT.format(pc.reference_name, pc.reference_pos + 1, pc.reference_pos + 1)
-                if pc_coord not in self.variant_config_id_set:
-                    continue
+                # Note this only works for single contig alignments! This is used for target arg of the pileup call
+                contig = list(self.variant_configs)[0].contig
+                contig_positions = {variant_config.pos for variant_config in self.variant_configs}
+                contig_pos_min = min(contig_positions)
+                contig_pos_max = max(contig_positions)
+                target = su.COORD_FORMAT.format(contig, contig_pos_min, contig_pos_max)
 
-                # Get the variant configs associated with the current coordinate
-                var_indices = {i for i, e in enumerate(self.variant_config_ids) if e == pc_coord}
-                var_configs = [e for i, e in enumerate(self.variant_configs) if i in var_indices]
+                qname_blacklist = set()
 
-                # First calculate the total number of amenable (non-aberrant) qnames at the coordinate;
-                # this is the depth for multiplying by variant AFs to determine the integer number of qnames to edit
-                # Here apply several filters to determine amenable qnames
+                # We must use PileupColumns in iteration only
+                for pc in edited_background_af.pileup(
+                        region=target, truncate=True, max_depth=self.MAX_DP, stepper="all",
+                        ignore_overlaps=False, ignore_orphans=False,
+                        min_base_quality=self.MIN_BQ, min_mapping_quality=su.DEFAULT_MAPQ):
 
-                # Find the longest REF span among the variant configs at the current position
-                # Use this REF sequence for matching against the read
-                var_configs_ref_lens = [len(vc.ref) for vc in var_configs]
-                ref_len_max = max(var_configs_ref_lens)
-                ref_len_max_idx = [i for i, e in enumerate(var_configs_ref_lens) if e == ref_len_max][0]
-                vc_max_ref_len = var_configs_ref_lens[ref_len_max_idx]
-
-                # Both of these lists will be used to determine which qnames have concordant coverage at the column
-                all_qnames = []
-
-                # The amenable list will additionally enforce concordance after the filters below
-                amenable_qnames = []
-
-                for pileup_read in pc.pileups:
-
-                    # If the edited bases intersect any synthetic primer regions, do not edit
-                    if not (pileup_read.is_del or pileup_read.is_refskip) and su.MASKED_BQ in \
-                            {pileup_read.alignment.query_qualities[pileup_read.query_position]}:
+                    # Skip positions that don't match any variant to be edited
+                    pc_coord = su.COORD_FORMAT.format(pc.reference_name, pc.reference_pos + 1, pc.reference_pos + 1)
+                    if pc_coord not in self.variant_config_id_set:
                         continue
 
-                    # Do not consider reads/pairs that exceed the edit distance threshold
-                    # To mirror the variant caller, this should check both mates simultaneously and continue for the pair
-                    # However, this would require significant re-factoring, so just check each read individually
-                    # Note that if one mate exceeds the thresh but the other does not, fragment will contribute to DP
-                    if su.get_edit_distance(pileup_read.alignment) > self.max_nm:
+                    # Get the variant configs associated with the current coordinate
+                    var_indices = {i for i, e in enumerate(self.variant_config_ids) if e == pc_coord}
+                    var_configs = [e for i, e in enumerate(self.variant_configs) if i in var_indices]
+
+                    # First calculate the total number of amenable (non-aberrant) qnames at the coordinate;
+                    # this is the depth for multiplying by variant AFs to determine the integer number of qnames to edit
+                    # Here apply several filters to determine amenable qnames
+
+                    # Find the longest REF span among the variant configs at the current position
+                    # Use this REF sequence for matching against the read
+                    var_configs_ref_lens = [len(vc.ref) for vc in var_configs]
+                    ref_len_max = max(var_configs_ref_lens)
+                    ref_len_max_idx = [i for i, e in enumerate(var_configs_ref_lens) if e == ref_len_max][0]
+                    vc_max_ref_len = var_configs_ref_lens[ref_len_max_idx]
+
+                    # Keep track of the set of all fragment qnames at the position (this is the DP denominator to AF)
+                    all_qnames = set()
+
+                    # The amenable list will additionally enforce concordance after the filters below
+                    amenable_qnames = []
+
+                    for pileup_read in pc.pileups:
+
+                        # If the current edited base intersects any synthetic primer regions, do not edit or count for DP
+                        if not (pileup_read.is_del or pileup_read.is_refskip) and su.MASKED_BQ in \
+                                {pileup_read.alignment.query_qualities[pileup_read.query_position]}:
+                            continue
+
+                        # Do not consider reads/pairs that exceed the edit distance threshold
+                        # To mirror the variant caller, this should check both mates simultaneously and continue for the pair
+                        # However, this would require significant re-factoring, so just check each read individually
+                        # Note that if one mate exceeds the thresh but the other does not, fragment will contribute to DP
+                        if su.get_edit_distance(pileup_read.alignment) > self.max_nm:
+                            continue
+
+                        # Do not consider reads/pairs that do not overlap
+                        if not self._reads_overlap(pileup_read.alignment):
+                            continue
+
+                        # Now at this point, consider any concordant pair with/without error at the column for the
+                        # total column depth,
+                        qname_alias = self._get_qname_alias(pileup_read.alignment.query_name)
+                        all_qnames.add(qname_alias)
+
+                        # If the current read position has a InDel, skip for editing
+                        # This does not check nearby positions; which is the purpose of _ref_matches_window
+                        if pileup_read.is_del or pileup_read.is_refskip:
+                            continue
+
+                        # If the base qualities across the REF span are not all above the min BQ, do not edit
+                        ref_span_quals = list(pileup_read.alignment.query_qualities[
+                                              pileup_read.query_position:pileup_read.query_position + vc_max_ref_len])
+
+                        ref_span_quals_pass = [bq for bq in ref_span_quals if bq >= self.min_bq]
+
+                        if len(ref_span_quals_pass) < vc_max_ref_len:
+                            continue
+
+                        # If the editable read position does not match the reference sequence in a window about the variant
+                        # position, do not edit; this preserves existing errors and prohibits variant conversion by phasing
+                        # with nearby errors
+                        if not self._ref_matches_window(
+                                contig=pileup_read.alignment.reference_name, query_seq=pileup_read.alignment.query_sequence,
+                                query_pos=pileup_read.query_position, ref_len=vc_max_ref_len,
+                                ref_pos=pileup_read.alignment.reference_start + pileup_read.query_position + 1):
+
+                            continue
+
+                        amenable_qnames.append(qname_alias)
+
+                    # Determine count and the set of amenable qnames for editing
+                    total_qnames, amenable_qnames = self._get_concordant_qnames(all_qnames, amenable_qnames)
+
+                    # At this point amenable_qnames are all the "clean" reads at the current column
+                    # Make sure to not edit into reads that have been configured to contain a variant at lower coord
+                    amenable_qnames -= qname_blacklist
+
+                    if len(amenable_qnames) == 0:
+                        logger.warning("No amenable qnames for editing at %s." % pc_coord)
                         continue
 
-                    # Do not consider reads/pairs that do not overlap
-                    if not self._reads_overlap(pileup_read.alignment):
-                        continue
+                    # Get the edit configs for all variants at the column; this will update the qname_blacklist and
+                    # amenable_qnames internally
+                    for var_config in var_configs:
 
-                    # Now at this point, consider any concordant pair with/without error at the column for the
-                    # total column depth,
-                    qname_alias = self._get_qname_alias(pileup_read.alignment.query_name)
-                    all_qnames.append(qname_alias)
+                        # Update the edit_configs dict and determine the truth frequency
+                        expected_cao, expected_caf = self._iterate_over_pileup_reads(
+                            pc, var_config, edit_configs, amenable_qnames, total_qnames, qname_blacklist)
 
-                    # If the current read position has a InDel, skip for editing
-                    # This does not check nearby positions; which is the purpose of _ref_matches_window
-                    if pileup_read.is_del or pileup_read.is_refskip:
-                        continue
+                        # Write the variant and its expected frequency to the truth VCF
+                        self._write_variant_to_truth_vcf(truth_vcf, var_config, expected_cao, expected_caf)
 
-                    # If the base qualities across the REF span are not all above the min BQ, do not edit
-                    ref_span_quals = list(pileup_read.alignment.query_qualities[
-                                          pileup_read.query_position:pileup_read.query_position + vc_max_ref_len])
-
-                    ref_span_quals_pass = [bq for bq in ref_span_quals if bq >= self.min_bq]
-
-                    if len(ref_span_quals_pass) < vc_max_ref_len:
-                        continue
-
-                    # If the editable read position does not match the reference sequence in a window about the variant
-                    # position, do not edit; this preserves existing errors and prohibits variant conversion by phasing
-                    # with nearby errors
-                    if not self._ref_matches_window(
-                            contig=pileup_read.alignment.reference_name, query_seq=pileup_read.alignment.query_sequence,
-                            query_pos=pileup_read.query_position, ref_len=vc_max_ref_len,
-                            ref_pos=pileup_read.alignment.reference_start + pileup_read.query_position + 1):
-
-                        continue
-
-                    amenable_qnames.append(qname_alias)
-
-                # Determine count and the set of amenable qnames for editing
-                total_qnames, amenable_qnames = self._get_concordant_qnames(all_qnames, amenable_qnames)
-
-                # At this point amenable_qnames are all the "clean" reads at the current column
-                # Make sure to not edit into reads that have been configured to contain a variant at lower coordinate
-                amenable_qnames -= qname_blacklist
-
-                if len(amenable_qnames) == 0:
-                    _logger.warning("No amenable qnames for editing at %s." % pc_coord)
-                    continue
-
-                # Get the edit configs for all variants at the column; this will update the qname_blacklist and
-                # amenable_qnames internally
-                for var_config in var_configs:
-
-                    # Update the edit_configs dict and determine the truth frequency
-                    expected_af = self._iterate_over_pileup_reads(
-                        pc, var_config, edit_configs, amenable_qnames, total_qnames, qname_blacklist)
-
-                    # Write the variant and its expected frequency to the truth VCF
-                    self._write_variant_to_truth_vcf(truth_vcf, var_config, expected_af)
-
-        return edit_configs
+            return edit_configs
 
     @staticmethod
     def _unmask_quals(quals):
@@ -632,15 +637,16 @@ class ReadEditor(object):
         return zipped_r1_fastq, zipped_r2_fastq
 
     @staticmethod
-    def _write_variant_to_truth_vcf(truth_vcf_fh, vc, expected_af):
+    def _write_variant_to_truth_vcf(truth_vcf_fh, vc, expected_cao, expected_caf):
         """Writes a variant to the truth VCF containing the expected frequencies for input variants.
 
         :param pysam.VariantFile truth_vcf_fh: truth VCF VariantFile object
         :param analysis.read_editor.VARIANT_CONFIG_TUPLE vc: namedtuple containing variant info
-        :param float expected_af: expected allele frequency of the variant
+        :param int expected_cao: expected counts for the variants
+        :param float expected_caf: expected concordant allele frequency of the variant
         """
 
-        info_dict = {vu.VCF_AF_ID: expected_af}
+        info_dict = {vu.VCF_CAO_ID: expected_cao, vu.VCF_CAF_ID: expected_caf}
 
         # start should be 0-based whereas the variant configs have 1-based coordinates
         new_variant_record = truth_vcf_fh.new_record(
@@ -654,17 +660,18 @@ class ReadEditor(object):
         :return tuple: (str, str, str) paths of the edited and realigned BAM, R1 FASTQ, R2 FASTQ
         """
 
-        _logger.info("Getting edit configs. This could take time if the depth across target positions is high.")
+        logger.info("Getting edit configs. This could take time if the number of target positions and/or the depth "
+                    "across target positions is high.")
         edit_configs = self._get_edit_configs()
 
-        _logger.info("Editing variants.")
+        logger.info("Editing variants.")
         self._iterate_over_reads(edit_configs)
 
-        _logger.info("Writing and gzipping FASTQs.")
+        logger.info("Writing and gzipping FASTQs.")
         zipped_r1_fastq, zipped_r2_fastq = self._write_fastqs()
 
         # We need to realign to re-generate CIGAR and MD tags and for proper visualization of alignments in browsers
-        _logger.info("Globally re-aligning edited reads.")
+        logger.info("Globally re-aligning edited reads.")
         nthreads = self.nthreads if self.nthreads != 0 else 1
         align_workflow(f1=zipped_r1_fastq, f2=zipped_r2_fastq, ref=self.ref, outdir=self.output_dir,
                        outbam=self.output_bam, local=False, nthreads=nthreads)

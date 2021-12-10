@@ -10,7 +10,7 @@ import sys
 from analysis.read_editor import ReadEditor
 from core_utils.file_utils import replace_extension
 from core_utils.string_utils import none_or_str
-from definitions import DEFAULT_MUT_SIG
+from definitions import DEFAULT_MUT_SIG, LOG_FORMATTER
 from prototype.variant_generator import VariantGenerator
 from prototype.error_correction import ErrorCorrectionDataGenerator
 
@@ -23,6 +23,7 @@ __email__ = "ianjameshoskins@utexas.edu"
 __status__ = "Development"
 
 LOGFILE = replace_extension(os.path.basename(__file__), "stderr.log")
+logger = logging.getLogger(__name__)
 
 
 def parse_commandline_params(args):
@@ -164,17 +165,11 @@ def main():
     if not os.path.exists(outdir):
         os.mkdir(outdir)
 
-    _logger = logging.getLogger(__name__)
-    _logger.setLevel(logging.DEBUG)
-    _log_handler = logging.FileHandler(os.path.join(outdir, LOGFILE))
-    _console_handler = logging.StreamHandler()
-    _formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-    _log_handler.setFormatter(_formatter)
-    _console_handler.setFormatter(_formatter)
-    _logger.addHandler(_log_handler)
-    _logger.addHandler(_console_handler)
+    log_handler = logging.FileHandler(os.path.join(outdir, LOGFILE))
+    log_handler.setFormatter(LOG_FORMATTER)
+    logger.addHandler(log_handler)
 
-    _logger.info("Started %s" % sys.argv[0])
+    logger.info("Started %s" % sys.argv[0])
 
     workflow(negative_summary=parsed_args["negative_summary"], mutant_summary=parsed_args["mutant_summary"],
              negative_bam=parsed_args["negative_bam"], trx_id=parsed_args["trx_id"],
@@ -187,7 +182,7 @@ def main():
              random_seed=parsed_args["random_seed"], buffer=parsed_args["edit_buffer"],
              force_edit=parsed_args["force_edit"], nthreads=parsed_args["nthreads"])
 
-    _logger.info("Completed %s" % sys.argv[0])
+    logger.info("Completed %s" % sys.argv[0])
 
 
 if __name__ == "__main__":

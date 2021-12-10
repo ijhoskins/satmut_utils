@@ -23,7 +23,7 @@ __email__ = "ianjameshoskins@utexas.edu"
 __status__ = "Development"
 
 tempfile.tempdir = os.getenv("SCRATCH", "/tmp")
-_logger = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 
 class FilterForPairs(object):
@@ -65,9 +65,12 @@ class FilterForPairs(object):
     def workflow(self):
         """Runs the pair-filtering workflow."""
 
+        logger.info("Filtering out unmapped, supplementary, secondary, and any non-paired reads.")
+
         # First discard supplementary, secondary, unmapped alignments
         preprocessed_bam = sam_view(
-            self.in_bam, None, "BAM", self.nthreads, F=SAM_FLAG_SUPPL + SAM_FLAG_SECONDARY + SAM_FLAG_UNMAP + SAM_FLAG_MUNMAP)
+            self.in_bam, None, "BAM", self.nthreads,
+            F=SAM_FLAG_SUPPL + SAM_FLAG_SECONDARY + SAM_FLAG_UNMAP + SAM_FLAG_MUNMAP)
 
         # This may still not be enough preprocessing if the user intersected the reads and not updated the SAM flags
         # For instance, if one read of a pair does not intersect, it will not be in the input but still contain a
@@ -99,15 +102,15 @@ class DesignConverter(object):
     OUTPUT_PREFIX = "design_convert"
     OUTBAM_SUFFIX = "design_convert.bam"
 
-    def __init__(self, in_bam, ref, pos_range, umi_len, no_umis=DEFAULT_NO_UMI, outdir=DEFAULT_OUTDIR,
+    def __init__(self, in_bam, ref, pos_range, umi_len=DEFAULT_UMI_LEN, no_umis=DEFAULT_NO_UMI, outdir=DEFAULT_OUTDIR,
                  nthreads=DEFAULT_NTHREADS):
-        """Constructor for ConvertToDmstools.
+        """Constructor for DesignConverter.
 
         :param str in_bam: input alignments for a single tile
         :param str ref: reference FASTA
         :param str pos_range: 1-based positions flush with codons spanning the target
-        :param int umi_len: length of randomer UMI. Default 8.
-        :param bool no_umis: do not add UMIs, only make reads flush with the pos_range. Default False
+        :param int umi_len: length of randomer UMI/barcode. Default 8.
+        :param bool no_umis: do not add UMIs, only make reads flush with the pos_range. Default False.
         :param str outdir: output directory. Default current directory.
         :param int nthreads: Number of threads to use for BAM operations. Default 0 (autodetect).
         """
@@ -295,13 +298,12 @@ class DesignConverter(object):
         """
 
         # Discard any singletons
-        with tempfile.NamedTemporaryFile(suffix=".singletons.fq", mode="w", delete=False) as singletons_fh:
-
-            sorted_bam = sort_bam(bam=self.temp_bam, output_am=self.out_bam, output_format="BAM", by_qname=True)
-            r1_fastq, r2_fastq = bam_to_fastq(sorted_bam, self.out_prefix, True, self.nthreads, s=singletons_fh.name)
-            zipped_r1_fastq = fu.gzip_file(r1_fastq, force=True)
-            zipped_r2_fastq = fu.gzip_file(r2_fastq, force=True)
-            return zipped_r1_fastq, zipped_r2_fastq
+        sorted_bam = sort_bam(bam=self.temp_bam, output_am=self.out_bam, output_format="BAM", by_qname=True)
+        r1_fastq, r2_fastq = bam_to_fastq(sorted_bam, self.out_prefix, True, self.nthreads, s=os.devnull)
+        zipped_r1_fastq = fu.gzip_file(r1_fastq, force=True)
+        zipped_r2_fastq = fu.gzip_file(r2_fastq, force=True)
+        fu.safe_remove((sorted_bam,))
+        return zipped_r1_fastq, zipped_r2_fastq
 
     def workflow(self):
         """Runs the dms_tools2/Enrich2 design conversion workflow.
@@ -309,7 +311,7 @@ class DesignConverter(object):
         :return tuple: (str, str) paths of the R1 and R2 FASTQ files
         """
 
-        _logger.info("Started design conversion workflow.")
+        logger.info("Started design conversion workflow.")
 
         # We must first determine if there are any singleton reads or reads with secondary and supplementary alignments
         # because we have to write strictly paired FASTQs. Filter them out using SAM flags.
@@ -319,14 +321,17 @@ class DesignConverter(object):
 
         # Now iterate over the reads, make them flush with the range positions, exclude reads/pairs with InDels,
         # then add UMIs/barcodes (for dms_tools2 conversion)
+        logger.info("Converting reads: filtering pairs with InDels, and trimming/appending sequence to make reads "
+                    "flush with the pos_range.")
         self._convert_reads(ffp.out_bam)
 
-        # Write the FASTQs
+        logger.info("Writing FASTQs for converted reads.")
         zipped_r1_fastq, zipped_r2_fastq = self._write_fastqs()
 
+        logger.info("Globally re-aligning converted reads.")
         nthreads = self.nthreads if self.nthreads != 0 else 1
         align_workflow(
             f1=zipped_r1_fastq, f2=zipped_r2_fastq, ref=self.ref, outdir=self.outdir, local=False, nthreads=nthreads)
 
-        _logger.info("Completed design conversion workflow.")
+        logger.info("Completed design conversion workflow.")
         return zipped_r1_fastq, zipped_r2_fastq

@@ -19,7 +19,7 @@ APPRIS_CONTIG_DELIM = "|"
 APPRIS_TRX_INDEX = 0
 APPRIS_GENE_INDEX = 1
 
-_logger = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 
 class EnsemblIdNotFound(Exception):
@@ -58,7 +58,7 @@ def ensembl_id_exists(reference_dir, ensembl_id):
         for appris_id in ids:
             base_id = appris_id.split(".")[0]
             if ensembl_id_base == base_id:
-                _logger.info(
+                logger.info(
                     "Ensembl ID %s was not found; however, curated reference files contain %s" % (ensembl_id, appris_id))
                 return False, appris_id
         else:
@@ -171,14 +171,14 @@ def index_reference(ref):
 
     # Need to index the reference with samtools and create a FM-index with bowtie2 if it has not been done
     if not os.path.exists(fu.add_extension(ref, su.FASTA_INDEX_SUFFIX)):
-        _logger.info("Indexing FASTA %s." % ref)
+        logger.info("Indexing FASTA %s." % ref)
         faidx_ref(ref)
 
     # Build the bowtie2 index if it doesn't exist
     try:
         _ = BowtieConfig(ref=ref).test_build()
     except RuntimeError:
-        _logger.info("Building FM index files for %s." % ref)
+        logger.info("Building FM index files for %s." % ref)
         # This exception is passed if the reference is not FM-indexed
         _ = BowtieConfig(ref=ref).build_fm_index()
 

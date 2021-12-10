@@ -212,7 +212,7 @@ class TestReadEditor(unittest.TestCase):
 
         self.assertEqual(expected, observed)
 
-    def test_iterate_over_pileup_reads_af(self):
+    def test_iterate_over_pileup_reads_caf(self):
         """Tests that edit configs are appended to the edit dictionary and the expected truth frequency is returned."""
 
         expected = 1.0
@@ -240,8 +240,9 @@ class TestReadEditor(unittest.TestCase):
                 total_amenable_qnames = len(amenable_qnames)
 
                 # Now we can test the method
-                observed = self.ed._iterate_over_pileup_reads(
-                    pc, self.test_variant_config_af1, observed_edit_configs, amenable_qnames, total_amenable_qnames, qname_blacklist)
+                _, observed = self.ed._iterate_over_pileup_reads(
+                    pc, self.test_variant_config_af1, observed_edit_configs, amenable_qnames,
+                    -total_amenable_qnames, qname_blacklist)
 
                 edited_background_af.reset()
                 self.assertEqual(expected, observed)
@@ -273,7 +274,7 @@ class TestReadEditor(unittest.TestCase):
                 total_amenable_qnames = len(amenable_qnames)
 
                 # Now we can test the method
-                _ = self.ed._iterate_over_pileup_reads(
+                _, _ = self.ed._iterate_over_pileup_reads(
                     pc, self.test_variant_config_af1, observed_edit_configs, amenable_qnames, total_amenable_qnames, qname_blacklist)
 
                 qname_alias = self.ed.qname_lookup["0000224875"]

@@ -6,7 +6,7 @@ import sys
 
 from analysis.aligners import *
 from analysis.seq_utils import BAM_SUFFIX
-from core_utils.file_utils import replace_extension
+from definitions import LOG_FORMATTER
 from prototype.read_generators import *
 from scripts.run_bowtie2_aligner import workflow as ba_workflow
 
@@ -19,6 +19,7 @@ __email__ = "ianjameshoskins@utexas.edu"
 __status__ = "Development"
 
 LOGFILE = replace_extension(os.path.basename(__file__), "stderr.log")
+logger = logging.getLogger(__name__)
 
 
 def parse_commandline_params(args):
@@ -120,17 +121,11 @@ def main():
     if not os.path.exists(outdir):
         os.mkdir(outdir)
 
-    _logger = logging.getLogger(__name__)
-    _logger.setLevel(logging.DEBUG)
-    _log_handler = logging.FileHandler(os.path.join(outdir, LOGFILE))
-    _console_handler = logging.StreamHandler()
-    _formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-    _log_handler.setFormatter(_formatter)
-    _console_handler.setFormatter(_formatter)
-    _logger.addHandler(_log_handler)
-    _logger.addHandler(_console_handler)
+    log_handler = logging.FileHandler(os.path.join(outdir, LOGFILE))
+    log_handler.setFormatter(LOG_FORMATTER)
+    logger.addHandler(log_handler)
 
-    _logger.info("Started %s" % sys.argv[0])
+    logger.info("Started %s" % sys.argv[0])
 
     workflow(feature_file=parsed_args["feature_file"], output_dir=parsed_args["output_dir"],
              output_prefix=parsed_args["output_prefix"], nreads=parsed_args["nreads"], ref=parsed_args["reference"],
@@ -139,7 +134,7 @@ def main():
              make_amplicons=parsed_args["make_amplicons"], add_snps=parsed_args["add_snps"],
              add_indels=parsed_args["add_indels"])
 
-    _logger.info("Completed %s" % sys.argv[0])
+    logger.info("Completed %s" % sys.argv[0])
 
 
 if __name__ == "__main__":

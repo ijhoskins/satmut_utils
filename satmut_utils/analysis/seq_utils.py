@@ -20,7 +20,7 @@ __email__ = "ianjameshoskins@utexas.edu"
 __status__ = "Development"
 
 tempfile.tempdir = os.getenv("SCRATCH", "/tmp")
-_logger = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 DEFAULT_ERROR_RATE = 0.01
 DEFAULT_INDEL_RATE = 0.005

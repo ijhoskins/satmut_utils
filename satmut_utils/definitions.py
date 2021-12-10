@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Collection of project definitions."""
 
+import logging
 import os
 
 PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
@@ -65,3 +66,5 @@ QNAME_SORTS = (ILLUMINA_QNAME_SORT, INT_QNAME_SORT)
 
 DEFAULT_MUT_SIG = "NNN"
 VALID_MUT_SIGS = {"NNN", "NNK", "NNS"}
+
+LOG_FORMATTER = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')

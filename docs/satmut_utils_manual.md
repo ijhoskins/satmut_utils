@@ -254,7 +254,7 @@ Flag to indicate input reads or alignments are from a rapid-amplification-of-cDN
 
 Primer BED file with six fields, containing the contig, start, stop, name, score, and strand fields. BED files have a 0-based start position.
 
-6. -o, --outdir
+6. -o, --output_dir
 
 Optional output directory to write results to. Default is current working directory.
 

@@ -28,7 +28,7 @@ __email__ = "ianjameshoskins@utexas.edu"
 __status__ = "Development"
 
 tempfile.tempdir = os.getenv("SCRATCH", "/tmp")
-_logger = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 VCF_FILETYPE = "vcf"
 VCF_HEADER_CHAR = "#"
@@ -349,7 +349,7 @@ class VcfSorter(object):
         if self.out_vcf is None:
             self.out_vcf = tempfile.NamedTemporaryFile(suffix=".sorted.vcf", delete=False).name
 
-        _logger.info("Sorting %s and writing to %s" % (self.in_vcf, self.out_vcf))
+        logger.info("Sorting %s and writing to %s" % (self.in_vcf, self.out_vcf))
         self.sort_vcf()
 
     def _sort_key(self, variant_record):
@@ -414,7 +414,7 @@ class VcfNormalizer(object):
         if out_vcf is None:
             out_vcf = tempfile.NamedTemporaryFile(suffix=".norm.vcf", delete=False).name
 
-        _logger.info("Running bcftools norm on %s and writing to %s" % (in_vcf, out_vcf))
+        logger.info("Running bcftools norm on %s and writing to %s" % (in_vcf, out_vcf))
 
         # -c checks REF base, e will exit if a REF base does not match the coordinate
         norm_call = ["bcftools", "norm", "-c", "e", "-f", self.ref, "-o", out_vcf]
@@ -540,7 +540,7 @@ class VcfPreprocessor(object):
     def workflow(self):
         """Runs the VcfPreprocessor workflow."""
 
-        _logger.info("Starting %s workflow" % __class__.__name__)
+        logger.info("Starting %s workflow" % __class__.__name__)
 
         # First sort the VCF so that records are specially sorted based on variant type
         sorted_vcf = VcfSorter(self.in_vcf).out_vcf
@@ -550,10 +550,10 @@ class VcfPreprocessor(object):
         normed_vcf = vn.run_norm(in_vcf=sorted_vcf)
 
         # Third add VCF INFO tags (default read editor configurations)
-        _logger.info("Adding INFO tags to %s and writing to %s" % (normed_vcf, self.out_vcf))
+        logger.info("Adding INFO tags to %s and writing to %s" % (normed_vcf, self.out_vcf))
         self.add_info_tags(normed_vcf)
 
-        _logger.info("Completed %s workflow" % __class__.__name__)
+        logger.info("Completed %s workflow" % __class__.__name__)
 
 
 class VcfSubsampler(object):
@@ -807,7 +807,7 @@ class MnpToSnp(object):
         :return str: output VCF
         """
 
-        _logger.info("Starting %s workflow" % __class__.__name__)
+        logger.info("Starting %s workflow" % __class__.__name__)
 
         # First sort the VCF so that records are specially sorted based on variant type
         sorted_vcf = VcfSorter(self.in_vcf).out_vcf
@@ -819,7 +819,7 @@ class MnpToSnp(object):
         # Finally split the MNPs into SNPs
         self._split_mnps(normed_vcf)
 
-        _logger.info("Completed %s workflow" % __class__.__name__)
+        logger.info("Completed %s workflow" % __class__.__name__)
 
         return self.out_vcf
 

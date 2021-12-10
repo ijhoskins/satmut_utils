@@ -49,7 +49,7 @@ VARIANT_CALL_SUMMARY_TUPLE = collections.namedtuple(
 
 tempfile.tempdir = os.getenv("SCRATCH", "/tmp")
 
-_logger = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 
 class VariantCaller(object):
@@ -107,7 +107,7 @@ class VariantCaller(object):
         :raises RuntimeError: if no alignments are found in the input BAM
         """
 
-        _logger.info("Initializing %s" % self.__class__.__name__)
+        logger.info("Initializing %s" % self.__class__.__name__)
 
         self.am = am
         self.ref = ref
@@ -139,7 +139,7 @@ class VariantCaller(object):
         # Divide the mapped reads by 2 to approximate pairs
         self.norm_factor = self.VARIANT_CALL_NORM_DP / (self.total_mapped / 2)
 
-        _logger.info("Loading transcript CDS annotations for AA change determination.")
+        logger.info("Loading transcript CDS annotations for AA change determination.")
         self.amino_acid_mapper = cm.AminoAcidMapper(
             gff=self.transcript_gff, ref=self.gff_reference, mut_sig=mut_sig, outdir=output_dir)
 
@@ -931,10 +931,10 @@ class VariantCaller(object):
             (vu.VCF_ALT_NT_ID, ".", "String", "Component alternate nucleotide."),
             (vu.VCF_UP_REF_NT_ID, 1, "String", "-1 upstream reference nucleotide."),
             (vu.VCF_DOWN_REF_NT_ID, 1, "String", "+1 downstream reference nucleotide."),
-            (vu.VCF_DP_ID, 1, "Integer", "Read depth of coverage after quality filters."),
+            (vu.VCF_DP_ID, 1, "Integer", "Fragment-based depth of coverage after quality filters."),
             (vu.VCF_CAO_ID, 1, "Integer", "Concordant alternate observations- alternate found in both mates."),
             (vu.VCF_NORM_CAO_ID, 1, "Float", "Mate-concordant observations per %i pairs." % self.VARIANT_CALL_NORM_DP),
-            (vu.VCF_CAF_ID, 1, "Float", "Concordant allele frequency in range (0,1). Calculated as (CAO*2)/DP."),
+            (vu.VCF_CAF_ID, 1, "Float", "Concordant allele frequency in range (0,1). Calculated as CAO/DP."),
             (vu.VCF_R1_PLUS_AO_ID, 1, "Integer", "Read 1 alternate observations on (+) strand."),
             (vu.VCF_R1_MINUS_AO_ID, 1, "Integer", "Read 1 alternate observations on (-) strand."),
             (vu.VCF_R2_PLUS_AO_ID, 1, "Integer", "Read 2 alternate observations on (+) strand."),
@@ -989,7 +989,7 @@ class VariantCaller(object):
         :raises NotImplementedError: if min_bq is 0 while primers are provided, or the max_mnp_window is < 3
         """
 
-        _logger.info("Starting variant calling workflow.")
+        logger.info("Starting variant calling workflow.")
 
         if self.primers is not None and min_bq == 0:
             raise NotImplementedError("If primers are provided, min_bq must be >= 1 so that synthetic sequences "
@@ -1017,13 +1017,13 @@ class VariantCaller(object):
                 open(reference_bed, "w") as cov_fh, \
                 pysam.VariantFile(patch_reference, "w", header=reference_vcf_header) as reference_candidates_fh:
 
-            _logger.info("Collecting read mismatch data. This may take some time...")
+            logger.info("Collecting read mismatch data. This may take some time...")
             self._iterate_over_reads(af1, af2, min_bq, max_nm, max_mnp_window)
 
-            _logger.info("Calling variants.")
+            logger.info("Calling variants.")
             concordant_counts = self._call_variants(min_supporting_qnames)
 
-            _logger.info("Writing results.")
+            logger.info("Writing results.")
             self._write_results(concordant_counts, cov_fh, reference_candidates_fh)
 
         # Run the patch to remove the INFO END tag, which interferes with visualization of VCFs in IGV
@@ -1042,6 +1042,6 @@ class VariantCaller(object):
         fu.safe_remove(tuple(temp_files))
         # pysam.set_verbosity(verbosity_save)
 
-        _logger.info("Completed variant calling workflow.")
+        logger.info("Completed variant calling workflow.")
 
         return reference_vcf, reference_bed

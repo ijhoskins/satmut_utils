@@ -8,6 +8,7 @@ from shutil import copy
 import sys
 import tempfile
 
+from . import logger
 from analysis.read_preprocessor import FastqPreprocessor, UMIExtractor, ReadGrouper, \
     ConsensusDeduplicatorPreprocessor, ConsensusDeduplicator, ReadMasker, QnameVerification
 import analysis.read_editor as ri
@@ -16,7 +17,7 @@ from analysis.seq_utils import FASTA_INDEX_SUFFIX
 from analysis.variant_caller import VariantCaller
 import core_utils.file_utils as fu
 from core_utils.string_utils import none_or_str
-from definitions import AMP_UMI_REGEX, GRCH38_FASTA, QNAME_SORTS, INT_FORMAT_INDEX, DEFAULT_MUT_SIG, VALID_MUT_SIGS
+from definitions import AMP_UMI_REGEX, GRCH38_FASTA, QNAME_SORTS, INT_FORMAT_INDEX, DEFAULT_MUT_SIG, VALID_MUT_SIGS, LOG_FORMATTER
 from scripts.run_bowtie2_aligner import workflow as baw
 
 
@@ -35,14 +36,6 @@ SIM_WORKFLOW = "sim"
 CALL_WORKFLOW = "call"
 
 LOGFILE = fu.replace_extension(os.path.basename(__file__), "stderr.log")
-_logger = logging.getLogger(__name__)
-_logger.setLevel(logging.DEBUG)
-_formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-
-# Set a console handler; a logfile handler will be set it main so it outputs to the user-provided output directory
-_console_handler = logging.StreamHandler()
-_console_handler.setFormatter(_formatter)
-_logger.addHandler(_console_handler)
 
 
 def parse_commandline_params(args):
@@ -451,20 +444,20 @@ def main():
     parsed_args = parse_commandline_params(sys.argv[1:])
     args_dict = vars(parsed_args)
 
-    outdir = args_dict["outdir"]
+    outdir = args_dict["output_dir"]
     if not os.path.exists(outdir):
         os.mkdir(outdir)
 
     # Set a logfile in the user-provided output directory
-    _log_handler = logging.FileHandler(os.path.join(outdir, LOGFILE))
-    _log_handler.setFormatter(_formatter)
-    _logger.addHandler(_log_handler)
+    log_handler = logging.FileHandler(os.path.join(outdir, LOGFILE))
+    log_handler.setFormatter(LOG_FORMATTER)
+    logger.addHandler(log_handler)
 
-    _logger.info("Started %s" % sys.argv[0])
+    logger.info("Started %s" % sys.argv[0])
 
     if parsed_args.subcommand == SIM_WORKFLOW:
 
-        _logger.info("Starting sim workflow.")
+        logger.info("Starting sim workflow.")
 
         _, _, _ = sim_workflow(
             bam=args_dict["alignments"], vcf=args_dict["vcf"], race_like=args_dict["race_like"],
@@ -473,11 +466,11 @@ def main():
             buffer=args_dict["edit_buffer"], max_nm=args_dict["max_nm"], random_seed=args_dict["random_seed"],
             force_edit=args_dict["force_edit"], nthreads=args_dict["nthreads"])
 
-        _logger.info("Completed sim workflow.")
+        logger.info("Completed sim workflow.")
 
     elif parsed_args.subcommand == CALL_WORKFLOW:
 
-        _logger.info("Starting call workflow.")
+        logger.info("Starting call workflow.")
 
         _, _ = call_workflow(
             fastq1=args_dict["fastq1"], fastq2=args_dict["fastq2"],
@@ -495,9 +488,9 @@ def main():
             trim_bq=args_dict["trim_bq"], omit_trim=args_dict["omit_trim"],
             mut_sig=args_dict["mutagenesis_signature"])
 
-        _logger.info("Completed call workflow.")
+        logger.info("Completed call workflow.")
 
-    _logger.info("Completed %s" % sys.argv[0])
+    logger.info("Completed %s" % sys.argv[0])
 
 
 if __name__ == "__main__":
