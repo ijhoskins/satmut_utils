@@ -8,7 +8,6 @@ from shutil import copy
 import sys
 import tempfile
 
-from . import logger
 from analysis.read_preprocessor import FastqPreprocessor, UMIExtractor, ReadGrouper, \
     ConsensusDeduplicatorPreprocessor, ConsensusDeduplicator, ReadMasker, QnameVerification
 import analysis.read_editor as ri
@@ -36,6 +35,7 @@ SIM_WORKFLOW = "sim"
 CALL_WORKFLOW = "call"
 
 LOGFILE = fu.replace_extension(os.path.basename(__file__), "stderr.log")
+logger = logging.getLogger()
 
 
 def parse_commandline_params(args):
@@ -209,11 +209,11 @@ def get_sim_reference(reference_dir, ensembl_id, ref, outdir=ri.ReadEditor.DEFAU
     # Determine if the provided Ensembl ID is found in the curated APPRIS references
     if ensembl_id is not None:
         if ref is not None:
-            _logger.error("Both an Ensembl ID and a reference FASTA were provided. Please choose one.")
+            logger.error("Both an Ensembl ID and a reference FASTA were provided. Please choose one.")
 
         ref_fa, _ = get_ensembl_references(reference_dir=reference_dir, ensembl_id=ensembl_id, outdir=outdir)
     else:
-        _logger.info("Copying input reference FASTA and indexing.")
+        logger.info("Copying input reference FASTA and indexing.")
         ref_fa = os.path.join(outdir, os.path.basename(ref))
         copy(ref, ref_fa)
         index_reference(ref_fa)
@@ -246,14 +246,14 @@ def get_call_references(reference_dir, ensembl_id, ref, transcript_gff, gff_refe
         ref_fa, gff = get_ensembl_references(reference_dir=reference_dir, ensembl_id=ensembl_id, outdir=outdir)
         gff_ref = os.path.join(reference_dir, GRCH38_FASTA)
     else:
-        _logger.info("Copying input reference FASTA and indexing.")
+        logger.info("Copying input reference FASTA and indexing.")
         ref_fa = os.path.join(outdir, os.path.basename(ref))
         copy(ref, ref_fa)
         index_reference(ref_fa)
 
         # Make sure the GFF reference has a samtools index file
         if not os.path.exists(fu.add_extension(gff_reference, FASTA_INDEX_SUFFIX)):
-            _logger.info("Indexing the GFF reference FASTA.")
+            logger.info("Indexing the GFF reference FASTA.")
             faidx_ref(gff_reference)
 
     return ref_fa, gff, gff_ref
