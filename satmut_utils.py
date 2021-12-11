@@ -9,16 +9,16 @@ from shutil import copy
 import sys
 import tempfile
 
-from satmut_utils.analysis.read_preprocessor import FastqPreprocessor, UMIExtractor, ReadGrouper, \
+from src.analysis.read_preprocessor import FastqPreprocessor, UMIExtractor, ReadGrouper, \
     ConsensusDeduplicatorPreprocessor, ConsensusDeduplicator, ReadMasker, QnameVerification
-import satmut_utils.analysis.read_editor as ri
-from satmut_utils.analysis.references import get_ensembl_references, index_reference, faidx_ref
-from satmut_utils.analysis.seq_utils import FASTA_INDEX_SUFFIX
-from satmut_utils.analysis.variant_caller import VariantCaller
-import satmut_utils.core_utils.file_utils as fu
-from satmut_utils.core_utils.string_utils import none_or_str
-from satmut_utils.definitions import AMP_UMI_REGEX, GRCH38_FASTA, QNAME_SORTS, INT_FORMAT_INDEX, DEFAULT_MUT_SIG, VALID_MUT_SIGS, LOG_FORMATTER
-from satmut_utils.scripts.run_bowtie2_aligner import workflow as baw
+import src.analysis.read_editor as ri
+from src.analysis.references import get_ensembl_references, index_reference, faidx_ref
+from src.analysis.seq_utils import FASTA_INDEX_SUFFIX
+from src.analysis.variant_caller import VariantCaller
+import src.core_utils.file_utils as fu
+from src.core_utils.string_utils import none_or_str
+from src.definitions import AMP_UMI_REGEX, GRCH38_FASTA, QNAME_SORTS, INT_FORMAT_INDEX, DEFAULT_MUT_SIG, VALID_MUT_SIGS, LOG_FORMATTER
+from src.scripts.run_bowtie2_aligner import workflow as baw
 
 
 __author__ = "Ian Hoskins"
