@@ -2,23 +2,23 @@
 """Runs satmut_utils."""
 
 import argparse
+import inspect
 import logging
 import os
 from shutil import copy
 import sys
 import tempfile
 
-from analysis.read_preprocessor import FastqPreprocessor, UMIExtractor, ReadGrouper, \
+from satmut_utils.analysis.read_preprocessor import FastqPreprocessor, UMIExtractor, ReadGrouper, \
     ConsensusDeduplicatorPreprocessor, ConsensusDeduplicator, ReadMasker, QnameVerification
-import analysis.read_editor as ri
-from analysis.references import get_ensembl_references, index_reference, faidx_ref
-from analysis.seq_utils import FASTA_INDEX_SUFFIX
-from analysis.variant_caller import VariantCaller
-import core_utils.file_utils as fu
-from core_utils.string_utils import none_or_str
-from definitions import AMP_UMI_REGEX, GRCH38_FASTA, QNAME_SORTS, INT_FORMAT_INDEX, DEFAULT_MUT_SIG, VALID_MUT_SIGS, LOG_FORMATTER
-from . import logger
-from scripts.run_bowtie2_aligner import workflow as baw
+import satmut_utils.analysis.read_editor as ri
+from satmut_utils.analysis.references import get_ensembl_references, index_reference, faidx_ref
+from satmut_utils.analysis.seq_utils import FASTA_INDEX_SUFFIX
+from satmut_utils.analysis.variant_caller import VariantCaller
+import satmut_utils.core_utils.file_utils as fu
+from satmut_utils.core_utils.string_utils import none_or_str
+from satmut_utils.definitions import AMP_UMI_REGEX, GRCH38_FASTA, QNAME_SORTS, INT_FORMAT_INDEX, DEFAULT_MUT_SIG, VALID_MUT_SIGS, LOG_FORMATTER
+from satmut_utils.scripts.run_bowtie2_aligner import workflow as baw
 
 
 __author__ = "Ian Hoskins"
@@ -36,6 +36,18 @@ SIM_WORKFLOW = "sim"
 CALL_WORKFLOW = "call"
 
 LOGFILE = fu.replace_extension(os.path.basename(__file__), "stderr.log")
+
+# This is necessary to log the messages to the same logger when ran as a script
+# see https://stackoverflow.com/questions/16981921/relative-imports-in-python-3 and
+# https://stackoverflow.com/questions/14132789/relative-imports-for-the-billionth-time
+logger = logging.getLogger(os.path.abspath(os.path.dirname(inspect.getfile(inspect.currentframe()))))
+logger.setLevel(logging.DEBUG)
+
+# Set a console handler
+# Logfile handlers will be set in subpackages and submodules to resolve to a user-provided output directory
+console_handler = logging.StreamHandler()
+console_handler.setFormatter(LOG_FORMATTER)
+logger.addHandler(console_handler)
 
 
 def parse_commandline_params(args):

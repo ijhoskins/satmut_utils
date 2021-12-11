@@ -32,7 +32,6 @@ class BowtieConfig(object):
     INDEX_EXTENSIONS_RE = re.compile(r".[0-9].bt2")
     DEFAULT_FLAGS = ["--maxins", "1000", "--no-discordant", "--fr"]
     DEFAULT_SCORES = ["--mp", "4", "--rdg", "6,4", "--rfg", "6,4"]
-    #  "-D", "20", "-R", "3", "-N", "1", "-L", "11"
 
     def __init__(self, ref, local=DEFAULT_LOCAL, nthreads=DEFAULT_NTHREADS, *args, **kwargs):
         """Constructor for BowtieConfig.
