@@ -17,7 +17,8 @@ from src.analysis.seq_utils import FASTA_INDEX_SUFFIX
 from src.analysis.variant_caller import VariantCaller
 import src.core_utils.file_utils as fu
 from src.core_utils.string_utils import none_or_str
-from src.definitions import AMP_UMI_REGEX, GRCH38_FASTA, QNAME_SORTS, INT_FORMAT_INDEX, DEFAULT_MUT_SIG, VALID_MUT_SIGS, LOG_FORMATTER
+from src.definitions import AMP_UMI_REGEX, GRCH38_FASTA, QNAME_SORTS, INT_FORMAT_INDEX, DEFAULT_MUT_SIG, \
+    VALID_MUT_SIGS, LOG_FORMATTER
 from src.scripts.run_bowtie2_aligner import workflow as baw
 
 
