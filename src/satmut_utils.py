@@ -37,15 +37,8 @@ SIM_WORKFLOW = "sim"
 CALL_WORKFLOW = "call"
 
 LOGFILE = fu.replace_extension(os.path.basename(__file__), "stderr.log")
-
-# This is necessary to log the messages to the same logger when ran as a script
-# see https://stackoverflow.com/questions/16981921/relative-imports-in-python-3 and
-# https://stackoverflow.com/questions/14132789/relative-imports-for-the-billionth-time
-logger = logging.getLogger(os.path.abspath(os.path.dirname(inspect.getfile(inspect.currentframe()))))
+logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)
-
-# Set a console handler
-# Logfile handlers will be set in subpackages and submodules to resolve to a user-provided output directory
 console_handler = logging.StreamHandler()
 console_handler.setFormatter(LOG_FORMATTER)
 logger.addHandler(console_handler)
