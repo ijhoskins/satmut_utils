@@ -9,17 +9,17 @@ from shutil import copy
 import sys
 import tempfile
 
-from src.analysis.read_preprocessor import FastqPreprocessor, UMIExtractor, ReadGrouper, \
+from analysis.read_preprocessor import FastqPreprocessor, UMIExtractor, ReadGrouper, \
     ConsensusDeduplicatorPreprocessor, ConsensusDeduplicator, ReadMasker, QnameVerification
-import src.analysis.read_editor as ri
-from src.analysis.references import get_ensembl_references, index_reference, faidx_ref
-from src.analysis.seq_utils import FASTA_INDEX_SUFFIX
-from src.analysis.variant_caller import VariantCaller
-import src.core_utils.file_utils as fu
-from src.core_utils.string_utils import none_or_str
-from src.definitions import AMP_UMI_REGEX, GRCH38_FASTA, QNAME_SORTS, INT_FORMAT_INDEX, DEFAULT_MUT_SIG, \
+import analysis.read_editor as ri
+from analysis.references import get_ensembl_references, index_reference, faidx_ref
+from analysis.seq_utils import FASTA_INDEX_SUFFIX
+from analysis.variant_caller import VariantCaller
+import core_utils.file_utils as fu
+from core_utils.string_utils import none_or_str
+from definitions import AMP_UMI_REGEX, GRCH38_FASTA, QNAME_SORTS, INT_FORMAT_INDEX, DEFAULT_MUT_SIG, \
     VALID_MUT_SIGS, LOG_FORMATTER
-from src.scripts.run_bowtie2_aligner import workflow as baw
+from scripts.run_bowtie2_aligner import workflow as baw
 
 
 __author__ = "Ian Hoskins"
