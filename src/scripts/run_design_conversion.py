@@ -18,7 +18,7 @@ __maintainer__ = "Ian Hoskins"
 __email__ = "ianjameshoskins@utexas.edu"
 __status__ = "Development"
 
-LOGFILE = replace_extension(os.path.basename(__file__), "stderr.log")
+LOGFILE = replace_extension(os.path.basename(__file__), "log")
 logger = logging.getLogger(__name__)
 
 

@@ -20,7 +20,7 @@ __email__ = "ianjameshoskins@utexas.edu"
 __status__ = "Development"
 
 
-LOGFILE = replace_extension(os.path.basename(__file__), "stderr.log")
+LOGFILE = replace_extension(os.path.basename(__file__), "log")
 logger = logging.getLogger(__name__)
 
 
@@ -130,6 +130,7 @@ def main():
              random_seed=parsed_args["random_seed"], mnp_bases=parsed_args["mnp_bases"])
 
     logger.info("Completed %s" % sys.argv[0])
+
 
 if __name__ == "__main__":
     main()

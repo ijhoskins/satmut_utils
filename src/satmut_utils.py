@@ -2,7 +2,6 @@
 """Runs satmut_utils."""
 
 import argparse
-import inspect
 import logging
 import os
 from shutil import copy
@@ -36,7 +35,7 @@ tempfile.tempdir = DEFAULT_TEMPDIR
 SIM_WORKFLOW = "sim"
 CALL_WORKFLOW = "call"
 
-LOGFILE = fu.replace_extension(os.path.basename(__file__), "stderr.log")
+LOGFILE = fu.replace_extension(os.path.basename(__file__), "log")
 logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)
 console_handler = logging.StreamHandler()

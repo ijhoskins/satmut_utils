@@ -20,7 +20,7 @@ __maintainer__ = "Ian Hoskins"
 __email__ = "ianjameshoskins@utexas.edu"
 __status__ = "Development"
 
-LOGFILE = replace_extension(os.path.basename(__file__), "stderr.log")
+LOGFILE = replace_extension(os.path.basename(__file__), "log")
 logger = logging.getLogger(__name__)
 
 
@@ -50,7 +50,7 @@ def parse_commandline_params(args):
     parser.add_argument("-l", "--local", action="store_true",
                         help='Run a local alignment as opposed to a global alignment.')
 
-    parser.add_argument("-t", "--nthreads", type=int, required=False, default=BowtieConfig.DEFAULT_NTHREADS,
+    parser.add_argument("-j", "--nthreads", type=int, required=False, default=BowtieConfig.DEFAULT_NTHREADS,
                         help='Number of threads to use for alignment.')
 
     parsed_args = vars(parser.parse_args(args))
