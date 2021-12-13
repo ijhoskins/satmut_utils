@@ -1,4 +1,4 @@
-![](docs/satmut_utils_logo.pdf)
+![](./docs/satmut_utils_logo.pdf)
 
 # satmut_utils
 
