@@ -4,6 +4,13 @@
 import logging
 import os
 
+__author__ = "Ian_Hoskins"
+__credits__ = ["Ian Hoskins"]
+__license__ = "GPLv3"
+__maintainer__ = "Ian Hoskins"
+__email__ = "ianjameshoskins@utexas.edu"
+__status__ = "Development"
+
 PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
 PROJECT_LAB = "Can_Cenik_lab"
 PROJECT_AUTHOR = "Ian_Hoskins"

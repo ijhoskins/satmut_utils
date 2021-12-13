@@ -19,8 +19,7 @@ from definitions import *
 
 __author__ = "Ian_Hoskins"
 __credits__ = ["Ian Hoskins"]
-__license__ = "GPL"
-__version__ = "0.1"
+__license__ = "GPLv3"
 __maintainer__ = "Ian Hoskins"
 __email__ = "ianjameshoskins@utexas.edu"
 __status__ = "Development"

@@ -13,8 +13,7 @@ from core_utils.file_utils import FILE_DELIM, FILE_NEWLINE, replace_extension
 
 __author__ = "Ian Hoskins"
 __credits__ = ["Ian Hoskins"]
-__license__ = "GPL"
-__version__ = "0.1"
+__license__ = "GPLv3"
 __maintainer__ = "Ian Hoskins"
 __email__ = "ianjameshoskins@utexas.edu"
 __status__ = "Development"
@@ -231,32 +230,3 @@ def store_coords(feature_file, use_name=True):
         observed_features.add(feature_coords)
 
     return feature_dict
-
-
-def filter_gff(gff, key_file, attr_field, outfile, keep_records=("exon",)):
-    """Filters a GFF/GTF by matching keys from a key file.
-
-    :param str gff: file containing data to filter
-    :param str key_file: file with keys, one per line
-    :param str attr_field: GFF attribute field name for the key in the filter file
-    :param str outfile: output file to write to
-    :param tuple keep_records: records to keep
-    """
-
-    bt = pybedtools.BedTool(gff)
-    keep_records_set = set(keep_records)
-
-    with open(key_file, "r") as key_fh, \
-            open(outfile, "w") as out_fh:
-
-        keys = {k.strip() for k in key_fh}
-
-        for feature in bt:
-
-            if str(feature.fields[2]) not in keep_records_set:
-                continue
-
-            field_id = feature.attrs[attr_field].split(".")[0]
-
-            if field_id in keys:
-                out_fh.write(FILE_DELIM.join(feature.fields) + FILE_NEWLINE)

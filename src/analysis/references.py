@@ -14,6 +14,12 @@ import core_utils.file_utils as fu
 import core_utils.feature_file_utils as ffu
 from definitions import *
 
+__author__ = "Ian_Hoskins"
+__credits__ = ["Ian Hoskins"]
+__license__ = "GPLv3"
+__maintainer__ = "Ian Hoskins"
+__email__ = "ianjameshoskins@utexas.edu"
+__status__ = "Development"
 
 APPRIS_CONTIG_DELIM = "|"
 APPRIS_TRX_INDEX = 0

@@ -18,11 +18,9 @@ import core_utils.feature_file_utils as ffu
 import core_utils.file_utils as fu
 from definitions import *
 
-
 __author__ = "Ian Hoskins"
 __credits__ = ["Ian Hoskins"]
-__license__ = "GPL"
-__version__ = "0.1"
+__license__ = "GPLv3"
 __maintainer__ = "Ian Hoskins"
 __email__ = "ianjameshoskins@utexas.edu"
 __status__ = "Development"
@@ -746,81 +744,3 @@ class VcfSubsampler(object):
                 out_vcf.write(var_record)
 
         return out_filename
-
-
-class MnpToSnp(object):
-
-    DEFAULT_EXT = "to_snp.vcf"
-
-    def __init__(self, in_vcf, ref, outdir="."):
-        """Converts MNP variants in a VCF to per-bp records as SNPs.
-
-        :param str in_vcf: Input VCF
-        :param str ref: reference FASTA corresponding to the VCF
-        :param str outdir: Optional output directory. Default current directory.
-        """
-
-        self.in_vcf = in_vcf
-        self.ref = ref
-        self.outdir = outdir
-        self.out_vcf = os.path.join(outdir, fu.replace_extension(os.path.basename(in_vcf), self.DEFAULT_EXT))
-        self.workflow()
-
-    def _split_mnps(self, norm_vcf):
-        """Splits MNPs into per-bp records
-
-        :param str norm_vcf: bcftools normalized VCF with multiallelics split
-        """
-
-        with pysam.VariantFile(norm_vcf) as in_vf:
-
-            class_module_path = ".".join(
-                [PROJECT_LAB, PROJECT_AUTHOR, os.path.basename(PROJECT_ROOT), __name__, self.__class__.__name__])
-
-            in_vf.header.add_line(VCF_METADATA_CHAR + "source=" + class_module_path)
-
-            with tempfile.NamedTemporaryFile(suffix=".patch.vcf", delete=False) as patch_vcf, \
-                    pysam.VariantFile(patch_vcf, "w", header=in_vf.header) as out_vf:
-
-                for var in in_vf.fetch():
-
-                    if len(var.ref) == 1:
-                        out_vf.write(var)
-                    else:
-                        alt = var.alts[0]  # this is a tuple but we have split multiallelics so there is only 1 element
-                        for i in range(len(var.ref)):
-                            ref_bp = var.ref[i]
-                            alt_bp = alt[i]
-
-                            new_variant_record = out_vf.new_record(
-                                contig=var.contig, start=var.pos - 1 + i, alleles=(ref_bp, alt_bp), info=var.info)
-
-                            out_vf.write(new_variant_record)
-
-                patch_vcf_name = patch_vcf.name
-
-            remove_end_info_tag(patch_vcf_name, self.out_vcf)
-            fu.safe_remove(paths=(patch_vcf_name,))
-
-    def workflow(self):
-        """Runs the MNP to SNP workflow.
-
-        :return str: output VCF
-        """
-
-        logger.info("Starting %s workflow" % __class__.__name__)
-
-        # First sort the VCF so that records are specially sorted based on variant type
-        sorted_vcf = VcfSorter(self.in_vcf).out_vcf
-
-        # Second do a basic check and normalization on the input VCF (requires sorted input)
-        vn = VcfNormalizer(ref=self.ref)
-        normed_vcf = vn.run_norm(in_vcf=sorted_vcf)
-
-        # Finally split the MNPs into SNPs
-        self._split_mnps(normed_vcf)
-
-        logger.info("Completed %s workflow" % __class__.__name__)
-
-        return self.out_vcf
-

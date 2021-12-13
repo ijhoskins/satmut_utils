@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-""" Tests for core_utils.feature_file_utils."""
+"""Tests for core_utils.feature_file_utils."""
 
 import collections
 import pybedtools

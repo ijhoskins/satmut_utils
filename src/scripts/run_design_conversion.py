@@ -10,10 +10,9 @@ from core_utils.file_utils import replace_extension
 from definitions import LOG_FORMATTER
 from prototype.design_conversion import DesignConverter
 
-__author__ = "Ian Hoskins"
+__author__ = "Ian_Hoskins"
 __credits__ = ["Ian Hoskins"]
-__license__ = "MIT"
-__version__ = "1.0"
+__license__ = "GPLv3"
 __maintainer__ = "Ian Hoskins"
 __email__ = "ianjameshoskins@utexas.edu"
 __status__ = "Development"

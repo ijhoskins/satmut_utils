@@ -5,6 +5,13 @@ import os
 import shutil
 import subprocess
 
+__author__ = "Ian Hoskins"
+__credits__ = ["Ian Hoskins"]
+__license__ = "GPLv3"
+__maintainer__ = "Ian Hoskins"
+__email__ = "ianjameshoskins@utexas.edu"
+__status__ = "Development"
+
 FILE_EXT_DELIM = "."
 FILE_DELIM = "\t"
 FILE_NEWLINE = "\n"

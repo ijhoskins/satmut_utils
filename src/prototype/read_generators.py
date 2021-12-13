@@ -19,10 +19,9 @@ from core_utils.feature_file_utils import slop_features, get_genome_file, DEFAUL
 from core_utils.file_utils import safe_remove, FILE_NEWLINE, replace_extension
 from core_utils.string_utils import make_unique_ids, is_number
 
-__author__ = "Ian Hoskins"
+__author__ = "Ian_Hoskins"
 __credits__ = ["Ian Hoskins"]
-__license__ = "GPL"
-__version__ = "0.2"
+__license__ = "GPLv3"
 __maintainer__ = "Ian Hoskins"
 __email__ = "ianjameshoskins@utexas.edu"
 __status__ = "Development"

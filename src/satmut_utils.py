@@ -20,11 +20,10 @@ from definitions import AMP_UMI_REGEX, GRCH38_FASTA, QNAME_SORTS, INT_FORMAT_IND
     VALID_MUT_SIGS, LOG_FORMATTER
 from scripts.run_bowtie2_aligner import workflow as baw
 
-
 __author__ = "Ian Hoskins"
 __credits__ = ["Ian Hoskins"]
-__license__ = "MIT"
-__version__ = "1.0"
+__license__ = "GPLv3"
+__version__ = "1.0.0"
 __maintainer__ = "Ian Hoskins"
 __email__ = "ianjameshoskins@utexas.edu"
 __status__ = "Development"

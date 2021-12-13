@@ -5,7 +5,12 @@ import itertools
 import random
 import string
 
-__author__ = "ianjameshoskins"
+__author__ = "Ian Hoskins"
+__credits__ = ["Ian Hoskins"]
+__license__ = "GPLv3"
+__maintainer__ = "Ian Hoskins"
+__email__ = "ianjameshoskins@utexas.edu"
+__status__ = "Development"
 
 DEFAULT_RANDOMER_LETTERS = string.ascii_uppercase + string.digits
 DEFAULT_RANDOMER_DIGITS = string.digits
@@ -79,23 +84,3 @@ def none_or_int(value):
     if value == 'None':
         return None
     return int(value)
-
-
-def look_ahead(input_iterable, n_ahead=3):
-    """Creates a look-ahead of an iterable and returns a list of tuples from i...i+n_ahead.
-
-    :param iterable input_iterable: any type that implements an iter method
-    :param int n_ahead: number of elements to look ahead
-    :return list: list of tuples of the ith to the ith + n_ahead elements
-
-    WARNING: per the docs, "Once tee() has made a split, the original iterable should not be used anywhere else;
-    otherwise, the iterable could get advanced without the tee objects being informed."
-    """
-
-    # Generate n_ahead number of copies of the input iterable
-    tee_iters = itertools.tee(input_iterable, n_ahead)
-
-    # Shift the teed iterables then zip them together
-    shifted_tee_iters = [list(t)[i:] for i, t in enumerate(tee_iters)]
-    zipped_iters = itertools.zip_longest(*shifted_tee_iters)
-    return zipped_iters
