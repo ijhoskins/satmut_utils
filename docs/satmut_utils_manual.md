@@ -1,3 +1,5 @@
+![](satmut_utils_logo.pdf)
+
 # satmut_utils
 
 [Installation](#Installation)
@@ -57,7 +59,7 @@ cp satmut_utils_refs/* $REF_DIR
 gunzip $REF_DIR/*gz
 ```
 
-Download the [human genome FASTA](https://genome-idx.s3.amazonaws.com/hisat/grch38_genome.tar.gz) and move it to REF\_DIR. Then index it with samtools:
+Download the [human genome FASTA](https://genome-idx.s3.amazonaws.com/hisat/grch38_genome.tar.gz) and move it to REF_DIR. Then index it with samtools:
 ```
 samtools faidx $REF_DIR/GRCh38.fa
 ```
@@ -153,15 +155,15 @@ This algorithm leads to specific calling expectations for consecutive mismatch r
 
 Parameter help:
 ```
-satmut\_utils -h
-satmut\_utils sim -h
-satmut\_utils call -h
+satmut_utils -h
+satmut_utils sim -h
+satmut_utils call -h
 ```
 
 Common arguments to both sim and call subcommands should be provided first, then the subcommand, and then the subcommand-specific arguments.
 
 It is recommended that the user create a new output directory for each job. Default is to output to the current directory.
-```OUTPUT\_DIR="/tmp/satmut\_utils\_test"```
+```OUTPUT_DIR="/tmp/satmut_utils_test"```
 
 ### sim code examples
 
