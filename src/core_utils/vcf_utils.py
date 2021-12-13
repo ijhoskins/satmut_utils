@@ -563,6 +563,7 @@ class VcfSubsampler(object):
     DEFAULT_OUTFILE = None
     DEFAULT_EXT = "subsamp.vcf"
     DEFAULT_SEED = 9
+    DEFAULT_NBASES = None
     DEFAULT_SNP_PROP = 0.4
 
     def __init__(self, cf, outdir=DEFAULT_OUTDIR, random_seed=DEFAULT_SEED, snp_prop=DEFAULT_SNP_PROP):

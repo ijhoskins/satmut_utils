@@ -48,7 +48,6 @@ def is_number(s):
     :param str s: string to check
     :return bool: whether or not the string represents a number
 
-    https://stackoverflow.com/questions/354038/how-do-i-check-if-a-string-is-a-number-float/354130
     """
     try:
         float(s)
@@ -68,6 +67,18 @@ def none_or_str(value):
     if value == 'None':
         return None
     return value
+
+
+def none_or_int(value):
+    """Converts None string to proper type.
+
+    :param str value: str
+    :return int | None: appropriate type
+    """
+
+    if value == 'None':
+        return None
+    return int(value)
 
 
 def look_ahead(input_iterable, n_ahead=3):

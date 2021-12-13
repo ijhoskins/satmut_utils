@@ -139,13 +139,15 @@ class QnameVerification(object):
 
         if self.fastq is not None:
             compatible, format_index = self._verify_fastq()
+            logger.info("Completed qname verification workflow.")
             return compatible, format_index
 
         if self.bam is not None:
             compatible, format_index = self._verify_bam()
+            logger.info("Completed qname verification workflow.")
             return compatible, format_index
 
-        logger.info("Completed qname verification workflow.")
+        logger.info("qname verification failed.")
         return False, None
 
 
