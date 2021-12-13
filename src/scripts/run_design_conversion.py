@@ -19,6 +19,9 @@ __status__ = "Development"
 
 LOGFILE = replace_extension(os.path.basename(__file__), "log")
 logger = logging.getLogger(__name__)
+console_handler = logging.StreamHandler()
+console_handler.setFormatter(LOG_FORMATTER)
+logger.addHandler(console_handler)
 
 
 def parse_commandline_params(args):

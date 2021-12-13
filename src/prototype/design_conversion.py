@@ -296,7 +296,8 @@ class DesignConverter(object):
         """
 
         # Discard any singletons
-        sort_bam(bam=self.temp_flush_bam, output_am=self.temp_sort_bam, output_format="BAM", by_qname=True)
+        sort_bam(bam=self.temp_flush_bam, output_am=self.temp_sort_bam,
+                 output_format="BAM", by_qname=True, nthreads=self.nthreads)
         r1_fastq, r2_fastq = bam_to_fastq(self.temp_sort_bam, self.out_prefix, True, self.nthreads, s=os.devnull)
         zipped_r1_fastq = fu.gzip_file(r1_fastq, force=True)
         zipped_r2_fastq = fu.gzip_file(r2_fastq, force=True)
