@@ -562,7 +562,7 @@ class VcfSubsampler(object):
     DEFAULT_EXT = "subsamp.vcf"
     DEFAULT_SEED = 9
     DEFAULT_NBASES = None
-    DEFAULT_SNP_PROP = 0.4
+    DEFAULT_SNP_PROP = 0.25
 
     def __init__(self, cf, outdir=DEFAULT_OUTDIR, random_seed=DEFAULT_SEED, snp_prop=DEFAULT_SNP_PROP):
         """Constructor for VariantSubsampler.
@@ -570,7 +570,7 @@ class VcfSubsampler(object):
         :param str cf: path to a BCF or VCF (possibly gzipped) file
         :param str outdir: output directory to write subsampled VCF to
         :param int random_seed: seed for variant sampling
-        :param float snp_prop: SNP proportion; di-nt and tri-nt MNPs will be uniformly drawn from the complement
+        :param float snp_prop: SNP proportion; MNPs will be uniformly drawn from the complement. Default 0.25.
         """
 
         self.cf = cf
