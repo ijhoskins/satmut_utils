@@ -1489,7 +1489,7 @@ class VariantCallerPreprocessor(object):
             os.mkdir(self.output_dir)
 
         self.in_bam = self.am
-        if self.am.endswith(su.SAM_SUFFIX) or not os.path.exists(fu.add_extension(self.in_bam, su.BAM_INDEX_SUFFIX)):
+        if self.am.endswith(su.SAM_SUFFIX) or (not os.path.exists(fu.add_extension(self.in_bam, su.BAM_INDEX_SUFFIX))):
 
             self.in_bam = os.path.join(self.output_dir, fu.replace_extension(
                 os.path.basename(self.am), "in.bam"))

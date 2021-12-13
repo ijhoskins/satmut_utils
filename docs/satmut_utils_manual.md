@@ -1,19 +1,29 @@
-![](satmut_utils_logo.pdf)
-
-# satmut_utils
+![](satmut_utils_logo.png)
 
 [Installation](#Installation)
+
 [Reference files](#Reference-files)
+
 [satmut_utils sim](#satmut_utils-sim)
+
 [satmut_utils call](#satmut_utils-call)
+
 [Code examples](#Code-examples)
+
 [sim code examples](#sim-code-examples)
+
 [call code examples](#call-code-examples)
+
 [satmut_utils command-line interface](#satmut_utils-command\-line-interface)
+
 [Common options](#Common-options)
+
 [sim options](#sim-options)
+
 [call options](#call-options)
+
 [Accessory scripts](Accessory-scripts)
+
 [Tests](#Tests)
 
 satmut_utils is a Python package for simulation and variant calling of saturation mutagenesis data. The two main subcommands are:

@@ -1,7 +1,5 @@
 ![](./docs/satmut_utils_logo.png)
 
-# satmut_utils
-
 satmut_utils is a Python package for simulation and variant calling of saturation mutagenesis data. The two main subcommands are:
 1. sim
 2. call
@@ -9,7 +7,6 @@ satmut_utils is a Python package for simulation and variant calling of saturatio
 satmut_utils commands are designed to simulate and call variants in paired-end, targeted RNA-seq datasets. That is, alignments to a single transcript are expected. 
 
 Currently, only Linux and MacOSX operating systems are supported.
-
 
 ## Installation
 
@@ -64,6 +61,8 @@ satmut\_align should be used to generate the BAM file accepted by satmut_utils s
 
 ## Code examples
 
+See the docs/satmut\_utils\_manual.md for more detailed usage information.
+
 Parameter help:
 ```
 satmut_utils -h
@@ -82,7 +81,6 @@ Run sim on *in silico* alignments to generate SNPs, MNPs, and InDels. Structural
 
 ```
 TEST_DIR="tests/test_data"
-
 satmut_utils -i ENST00000398165.7 -x $REF_DIR -o $OUTPUT_DIR -p $TEST_DIR/CBS_sim_primers.bed sim -f -a $TEST_DIR/CBS_sim.bam -v $TEST_DIR/CBS_sim.vcf
 ```
 
@@ -93,7 +91,6 @@ The sim workflow outputs paired FASTQs, a re-aligned BAM file, and a truth VCF c
 Run call on the simulated data by specifying an Ensembl transcript/gene ID and the directory containing curated reference files:
 ```
 TEST_DIR="tests/test_data"
-
 satmut_utils -i ENST00000398165.7 -x $REF_DIR -o $OUTPUT_DIR -p $TEST_DIR/CBS_sim_primers.bed call -1 $TEST_DIR/CBS_sim.R1.fq.gz -2 $TEST_DIR/CBS_sim.R2.fq.gz -v
 ```
 
@@ -104,8 +101,6 @@ If the Ensembl ID is not in the curated set of primary transcripts, or if the us
 ```
 satmut_utils -r $TEST_DIR/CBS.fa -o $OUTPUT_DIR -p $TEST_DIR/CBS_sim_primers.bed call -1 $TEST_DIR/CBS_sim.R1.fq.gz -2 $TEST_DIR/CBS_sim.R2.fq.gz -v -g $TEST_DIR/CBS.gff -k $REF_DIR/GRCh38.fa
 ```
-
-### call outputs
 
 The call workflow produces a VCF of candidate variant calls as well as a BED file reporting fragment coverage across the reference. The output VCF and its corresponding tab-delimited summary.txt file contain records for each mismatched base in an MNP. See the VCF header for column/field descriptions.
 

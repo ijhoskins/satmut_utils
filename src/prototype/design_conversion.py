@@ -126,9 +126,8 @@ class DesignConverter(object):
         if not os.path.exists(self.outdir):
             os.mkdir(self.outdir)
 
-        self.temp_bam = tempfile.NamedTemporaryFile(suffix=".sort.bam", mode="wb", delete=False).name
-        self.out_bam = os.path.join(self.outdir, fu.replace_extension(
-            os.path.basename(self.in_bam), self.OUTBAM_SUFFIX))
+        self.temp_flush_bam = tempfile.NamedTemporaryFile(suffix=".flush.bam", mode="wb", delete=False).name
+        self.temp_sort_bam = tempfile.NamedTemporaryFile(suffix=".qsort.bam", mode="wb", delete=False).name
 
     @staticmethod
     def _trim_read_start(seq, quals, idx):
@@ -212,7 +211,7 @@ class DesignConverter(object):
         """
 
         with pysam.AlignmentFile(paired_bam, mode="rb") as in_af, \
-                pysam.AlignmentFile(self.temp_bam, mode="wb", header=in_af.header) as out_af:
+                pysam.AlignmentFile(self.temp_flush_bam, mode="wb", header=in_af.header) as out_af:
 
             used_umis = set()
             filt_reads = set()
@@ -297,11 +296,11 @@ class DesignConverter(object):
         """
 
         # Discard any singletons
-        sorted_bam = sort_bam(bam=self.temp_bam, output_am=self.out_bam, output_format="BAM", by_qname=True)
-        r1_fastq, r2_fastq = bam_to_fastq(sorted_bam, self.out_prefix, True, self.nthreads, s=os.devnull)
+        sort_bam(bam=self.temp_flush_bam, output_am=self.temp_sort_bam, output_format="BAM", by_qname=True)
+        r1_fastq, r2_fastq = bam_to_fastq(self.temp_sort_bam, self.out_prefix, True, self.nthreads, s=os.devnull)
         zipped_r1_fastq = fu.gzip_file(r1_fastq, force=True)
         zipped_r2_fastq = fu.gzip_file(r2_fastq, force=True)
-        fu.safe_remove((sorted_bam,))
+        fu.safe_remove((self.temp_sort_bam,))
         return zipped_r1_fastq, zipped_r2_fastq
 
     def workflow(self):
@@ -323,6 +322,9 @@ class DesignConverter(object):
         logger.info("Converting reads: filtering pairs with InDels, and trimming/appending sequence to make reads "
                     "flush with the pos_range.")
         self._convert_reads(ffp.out_bam)
+
+        # Data now in temp BAM, clean up the pairs.bam
+        fu.safe_remove((ffp.out_bam,))
 
         logger.info("Writing FASTQs for converted reads.")
         zipped_r1_fastq, zipped_r2_fastq = self._write_fastqs()

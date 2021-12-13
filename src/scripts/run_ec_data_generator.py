@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Runs the training data generation workflow for error correction models."""
+"""Runs the error correction data generation workflow for training models."""
 
 import argparse
 import datetime
@@ -16,8 +16,7 @@ from prototype.error_correction import ErrorCorrectionDataGenerator
 
 __author__ = "Ian Hoskins"
 __credits__ = ["Ian Hoskins"]
-__license__ = "GPL"
-__version__ = "0.3"
+__license__ = "GPLv3"
 __maintainer__ = "Ian Hoskins"
 __email__ = "ianjameshoskins@utexas.edu"
 __status__ = "Development"
