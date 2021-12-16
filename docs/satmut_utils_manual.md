@@ -125,7 +125,9 @@ The heuristic for selecting reads enforces the following rules:
 
 2) Any fragment selected for editing must have error-free coverage in both mates within a symmetric buffer spanning the variant position. This prohibits editing a true variant adjacent to an error, which would convert the variant to higher order (for example, SNP to di-nucleotide MNP).
 
-3) If a primer BED file has been provided, sim enforces that no part of the variant span (POS + REF field length) intersects a read segment arising from synthetic primer. This does *not* mean variants cannot be edited within or overlapping primer regions. It instead requires read-through coverage, which is typically provided by an adjacent, interleaved PCR tile.
+3) If a primer BED file has been provided, sim enforces that no part of the variant span (POS + REF field length) intersects a read segment arising from a synthetic primer. Passing a primer BED file to sim is highly recommended because it enables the avoidance of editing at read termini. Otherwise, under subsequent local alignment of edited reads, variants at read termini may be clipped, leading to their loss from the alignment and causing false negatives.
+
+Note that rule 3 does *not* mean variants cannot be edited within or overlapping primer regions, as long as the position has read-through coverage (typically provided by an adjacent PCR tile). 
 
 Collectively, these rules ensure high fidelity of variant editing at ultra-low frequencies.
 
@@ -160,6 +162,37 @@ F. If D), and the next two mismatches are not adjacent, call a di-nucleotide MNP
 G. After all MNPs within pair have been called, call remaining mismatches as SNPs.
 
 This algorithm leads to specific calling expectations for consecutive mismatch runs/tracts with nearby isolated mismatches. In these cases, consecutive mismatch runs are called as compact MNPs, as opposed to including the isolated mismatch as part of the MNP call.
+
+### Mate pair concordance
+
+Enforcing concordance may lead to under-quantification of variant frequencies in cases where a significant proportion of pairs do not have appreciable overlap between R1 and R2. Insufficient overlap between mates may be due to inadequate primer design and/or overzealous 3’ base quality trimming. Additionally, for RACE-like libraries, a high proportion of fragment lengths greater than the read length may also limit sensitivity.
+
+### satmut_utils frequency calculation
+
+The denominator for the variant frequency calculation- i.e. fragment coverage depth- is determined after filtering on read edit distance (NM tag) and mate pair overlap (concordance). If a primer BED file is provided to satmut_utils, read segments originating from synthetic primer sequence do not contribute to fragment depth (DP).
+When the MNP span (variant reference coordinates) covers both a synthetic primer position and an adjacent position in the amplicon, the minimum depth of coverage in the MNP span is used as the denominator for the frequency: CAF=CAO/DP.
+
+### satmut\_utils call error correction preprocessing steps
+
+satmut\_utils call supports multiple methods for moderating false positives calls. Application of these methods is optional but improves specificity.
+
+1. Synthetic primer base quality masking
+
+To prohibit false positive calls arising from primer synthesis errors, satmut_utils call provides a masking strategy to demarcate read segments originating from synthetic primer sequence. In masking, base qualities for these segments are set to 0 and omitted from variant calls. This step requires the user to provide a primer BED file specifying the primers used in target enrichment.
+
+2. Unique-molecular-identifier (UMI)-based read consensus deduplication
+
+UMIs tag unique molecules prior to target enrichment with PCR, allowing for a more accurate estimation of molecular counts. UMI-based consensus deduplication improves the specificity of calls and variant frequency accuracy, as PCR jackpots are deduplicated/collapsed and some PCR and sequencing errors may be removed in the process of generating the consensus read.
+
+This option assumes UMIs are at the start of R1, and utilizes UMI-tools (Smith et al. 2017) to group read duplicates based on R1 UMI-POS, where POS is the R1 aligned start position. In grouping pairs, the template length is ignored by passing --ignore-tlen. satmut\_utils then employs a consensus deduplication workflow to correct errors within duplicate groups and generate a consensus R1 and R2. The consensus base call at each aligned position of the duplicate group is determined by majority vote. In ties (two duplicates in the UMI group), if one read matches the reference, the reference base is chosen. Otherwise, the base call with the higher base quality is selected. If both bases have the same quality, the consensus base is chosen at random.
+
+Unlike other consensus deduplication tools (Clement et al. 2018; Chen et al. 2019), consensus deduplication is supported for RACE-like libraries. In one RACE-like library preparation method (Anchored Multiplex PCR, Zheng et al. 2014), the R2 starts at a primer and R1 contains a UMI-adapter which ligates to an internal fragmentation site or the 5’ or 3’ end of the molecule.
+
+For RACE-like libraries, as a result of passing umi\_tools the --ignore-tlen option, R2s that share the same R1 UMI-POS but do not share the same R2 start coordinate may be merged into a R2 consensus contig. This logic ensures accurate fragment depth of coverage reporting for RACE-like data, but may create R2 contigs with read lengths greater than the sequencing read length. It may also lead to a small proportion of R2 contigs with internal unknown base calls (N), which arise when merged R2s do not overlap one another.
+
+To disable such merging of RACE-like R2s during consensus deduplication, the user can provide --primer_fasta. When a primer FASTA is provided, the primer from which R2 originates is appended to the UMI prior to grouping. This ensures R2s emanating from different primers are assigned to separate groups, despite sharing the same R1 UMI-POS. Note that fragment depth of coverage will not be as accurate with this option. However, this option prohibits deletion artifacts arising from merging of non-overlapping R2s. See also the --contig\_del\_threshold option.
+
+To recap, when provided RACE-like data, satmut\_utils assembles R2 contigs from multiple R2s sharing a common R1 UMI-position. While not supported, dual UMIs on R1 and R2 may be possible by modification of the source code that calls umi\_tools. 
 
 ## Code examples
 
@@ -459,4 +492,8 @@ To generate error-free, tiled RNA read alignments, provide a transcript referenc
 --make\_amplicons is intended for direct simulation of reads from a transcript FASTA. For general DNA or RNA read generation using a genome FASTA and standard GFF annotations, omit --make\_amplicons. In this mode, generated fragments start and end at random coordinates in the sequence space informed by the --frag\_length argument.
 
 As an example, for 2 x 150 bp chemistry I create ~100 bp interleaved target chunks in BED format and configure the number of reads to generate for each amplicon by the BED score field. Finally, I pass --make\_amplicons and --slop_length 0 so that reads start at the termini of the targets.
+
+
+
+
 

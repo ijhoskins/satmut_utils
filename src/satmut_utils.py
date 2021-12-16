@@ -55,11 +55,11 @@ def parse_commandline_params(args):
     # Enforce that ensembl_id and reference are mutually exclusive and that at least one is provided
     group = parser.add_mutually_exclusive_group(required=True)
 
-    group.add_argument("-i", "--ensembl_id", type=none_or_str, default="None",
+    group.add_argument("-i", "--ensembl_id", required=True, type=none_or_str, default="None",
                        help='Ensembl gene (ENSG) or transcript (ENST) ID to use to select a transcript reference. '
                             'Include minor version number, e.g. ENST00000398165.7')
 
-    group.add_argument("-r", "--reference", type=none_or_str, default="None", help='Reference FASTA for alignment.')
+    group.add_argument("-r", "--reference", required=True, type=none_or_str, default="None", help='Reference FASTA for alignment.')
 
     parser.add_argument("-x", "--reference_dir", type=str, default="./references",
                         help='Directory containing curated reference files.')

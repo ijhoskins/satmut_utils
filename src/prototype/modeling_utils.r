@@ -1,4 +1,6 @@
 # Modeling utils
+
+
 #' Creates a 2x2 contigency table
 #'
 #' @param truth logical or character vector

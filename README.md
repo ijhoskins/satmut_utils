@@ -4,11 +4,23 @@ satmut_utils is a Python package for simulation and variant calling of saturatio
 1. sim
 2. call
 
-satmut_utils commands are designed to simulate and call variants in paired-end, targeted RNA-seq datasets. That is, alignments to a single transcript are expected. 
+satmut_utils commands are designed to simulate and call variants in paired-end, targeted RNA-seq datasets. That is, alignments for a single transcript are expected. 
 
-Currently, only Linux and MacOSX operating systems are supported.
+[Installation](#Installation)
+
+[Reference files](#Reference-files)
+
+[Code examples](#Code-examples)
+
+[Run sim](#Run-sim)
+
+[Run call](#Run-call)
+
+[Tests](#Tests)
 
 ## Installation
+
+Currently, only Linux and MacOSX operating systems are supported. 
 
 To get started, clone the satmut_utils repository, create a conda environment, and download or generate your own reference files. This process is as follows:
 
@@ -22,7 +34,7 @@ git clone https://github.com/ijhoskins/satmut_utils.git
 
 3. Create the conda environment and activate it:
 ```
-cd satmut_utils && conda env create -f satmut_utils_env.yaml && cd ..
+conda env create -f satmut_utils/satmut_utils_env.yaml
 conda activate satmut_utils
 ```
 
@@ -57,7 +69,7 @@ You are now ready to call the command-line executables:
 1. satmut\_utils
 2. satmut\_align
 
-satmut\_align should be used to generate the BAM file accepted by satmut_utils sim. If reads have been aligned with some other method, there is no guarantee sim will complete without error, as certain alignment tags output by bowtie2 are required for sim (e.g. MD tag).
+satmut\_align should be used to generate the BAM file accepted by satmut_utils sim. If reads have been aligned with some other method, there is no guarantee sim will complete without error, as certain alignment tags output by bowtie2 are required for sim.
 
 ## Code examples
 
@@ -84,7 +96,7 @@ TEST_DIR="tests/test_data"
 satmut_utils -i ENST00000398165.7 -x $REF_DIR -o $OUTPUT_DIR -p $TEST_DIR/CBS_sim_primers.bed sim -f -a $TEST_DIR/CBS_sim.bam -v $TEST_DIR/CBS_sim.vcf
 ```
 
-The sim workflow outputs paired FASTQs, a re-aligned BAM file, and a truth VCF containing simulated variants and their expected counts and frequencies.
+The sim workflow outputs paired FASTQs, a realigned BAM file, and a truth VCF containing simulated variants and their expected counts and frequencies.
 
 ### Run call
 
@@ -94,9 +106,9 @@ TEST_DIR="tests/test_data"
 satmut_utils -i ENST00000398165.7 -x $REF_DIR -o $OUTPUT_DIR -p $TEST_DIR/CBS_sim_primers.bed call -1 $TEST_DIR/CBS_sim.R1.fq.gz -2 $TEST_DIR/CBS_sim.R2.fq.gz -v
 ```
 
-Here, we call variants on a simulated dataset with no adapter sequences, so we pass -v. However, in typical cases, the user should provide 5' and 3' adapters for trimming.
+Here, we call variants on a simulated dataset with no adapter sequences, so we pass -v. However, in most cases the user should provide 5' and 3' adapters for trimming.
 
-If the Ensembl ID is not in the curated set of primary transcripts, or if the user wishes to align to a custom reference, several reference files most be provided. [See Reference files](#Reference-files).
+If the Ensembl ID is not in the curated set of primary transcripts, or if you want to align to a custom reference, several reference files most be provided. [Reference files](#Reference-files).
 
 ```
 satmut_utils -r $TEST_DIR/CBS.fa -o $OUTPUT_DIR -p $TEST_DIR/CBS_sim_primers.bed call -1 $TEST_DIR/CBS_sim.R1.fq.gz -2 $TEST_DIR/CBS_sim.R2.fq.gz -v -g $TEST_DIR/CBS.gff -k $REF_DIR/GRCh38.fa
@@ -108,7 +120,7 @@ A number of useful R functions exist in src/prototype/summarization_utils.r for 
 
 ## Reference files
 
-For convenience, a curated transcriptome of primary human transcripts from APPRIS is provided, allowing the user to pass an Ensembl gene or transcript ID to satmut_utils. However, if the requested Ensembl ID is not found in this set, the user must pass their own reference files. These include:
+For convenience, a curated transcriptome of primary human transcripts from APPRIS is provided, allowing the user to pass an Ensembl gene or transcript ID to satmut_utils. However, if the requested Ensembl ID is not found in this set, custom reference files must be passed, which include:
 
 A. Transcript reference (FASTA)
 
@@ -118,11 +130,11 @@ C. GFF reference (FASTA)
 
 Common transcript annotations in GFF format (file B) map coordinates in the genome. For this typical case, file A should specify a transcript FASTA and file C should specify the genome FASTA.
 
-In typical saturation mutagenesis datasets, an intron-less coding sequence, often lacking endogenous untranslated (UTR) regions, is expressed from a vector. In this case, the user can set file A and C to the same composite (vector + target CDS) reference FASTA, then make a custom GFF annotation (file B) with a single exon and CDS feature. See the user manual for more details on creating custom reference files.
+In typical saturation mutagenesis datasets, an intron-less coding sequence, lacking endogenous untranslated regions, is expressed from a vector. In this case, set file A and C to the same composite (vector + coding sequence) reference FASTA, then make a custom GFF annotation (file B) with a single exon and CDS feature. See the user manual for more details on creating custom reference files.
 
 ## Tests
 
-To run unit and smoke tests, execute the following from the satmut_utils repository:
+To run unit tests, execute the following from the satmut_utils repository:
 
 ```nose2 -q```
 

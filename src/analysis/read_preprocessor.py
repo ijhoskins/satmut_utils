@@ -429,7 +429,6 @@ class ReadGrouper(object):
 
         :param str in_bam: input BAM with extracted UMIs
         :param str outdir: optional output directory
-        :param bool rust_group: use the William Zhang's RUST dedup/group? Default False.
         """
 
         self.in_bam = in_bam
@@ -446,7 +445,7 @@ class ReadGrouper(object):
         group_call = ("umi_tools", "group", "-I", self.in_bam, "--paired", "--no-sort-output",
                       "--output-bam", "-S", self.group_bam,
                       "--edit-distance-threshold=%i" % self.UMI_NM_ALLOW,
-                      "--umi-separator=%s" % UMI_SEP,
+                      "--umi-separator=%s" % UMI_SEP, "--ignore-tlen",
                       "--unpaired-reads=discard", "--unmapped-reads=discard",
                       "--multimapping-detection-method", su.SAM_MULTIMAP_TAG,
                       "-E", self.stderr, "--log2stderr",
