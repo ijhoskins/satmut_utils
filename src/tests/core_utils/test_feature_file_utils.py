@@ -156,7 +156,7 @@ class TestSlopFeatures(unittest.TestCase):
             cls.test_bed_b = test_bed_b.name
 
         with tempfile.NamedTemporaryFile("w", suffix=".genome_file.txt", delete=False, dir=cls.tempdir) as genome_file:
-            genome_file_str = fu.FILE_DELIM.join(("chr19", str(58617616),)) + fu.FILE_NEWLINE
+            genome_file_str = fu.FILE_DELIM.join(("chr19", str(59128983),)) + fu.FILE_NEWLINE
             genome_file.write(genome_file_str)
             cls.genome_file = genome_file.name
 

@@ -54,7 +54,7 @@ git clone https://github.com/ijhoskins/satmut_utils.git
 
 3. Create the conda environment:
 ```
-cd satmut_utils && conda env create -f satmut_utils_env.yaml && cd ..
+conda env create -f satmut_utils/satmut_utils_env.yaml
 conda activate satmut_utils
 ```
 

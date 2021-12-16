@@ -242,7 +242,7 @@ class TestReadEditor(unittest.TestCase):
                 # Now we can test the method
                 _, observed = self.ed._iterate_over_pileup_reads(
                     pc, self.test_variant_config_af1, observed_edit_configs, amenable_qnames,
-                    -total_amenable_qnames, qname_blacklist)
+                    total_amenable_qnames, qname_blacklist)
 
                 edited_background_af.reset()
                 self.assertEqual(expected, observed)
@@ -290,7 +290,6 @@ class TestReadEditor(unittest.TestCase):
                 test_res = (test_1, test_2, test_3)
 
                 edited_background_af.reset()
-
                 self.assertTrue(all(test_res))
 
     def test_get_window_indices(self):

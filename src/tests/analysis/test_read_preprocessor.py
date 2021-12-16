@@ -252,7 +252,7 @@ class TestFastqPreprocessor(unittest.TestCase):
         fqp = rp.FastqPreprocessor(f1=self.tileseq_r1_fastq, f2=self.tileseq_r2_fastq,
                                    r1_fiveprime_adapters=",".join((NEB_ADAPTER_P7, PEZY3_ATTB1_P7)),
                                    r1_threeprime_adapters=",".join((NEB_ADAPTER_P5_RC, PEZY3_ATTB2_P5_RC)),
-                                   outdir=self.tempdir, validate=False)
+                                   outdir=self.tempdir)
 
         with open(fqp.trimmed_f1, "r") as r1_out_fh:
             for i, line in enumerate(r1_out_fh):
@@ -267,7 +267,7 @@ class TestFastqPreprocessor(unittest.TestCase):
         fqp = rp.FastqPreprocessor(f1=self.tileseq_r1_fastq, f2=self.tileseq_r2_fastq,
                                    r1_fiveprime_adapters=",".join((NEB_ADAPTER_P7, PEZY3_ATTB1_P7)),
                                    r1_threeprime_adapters=",".join((NEB_ADAPTER_P5_RC, PEZY3_ATTB2_P5_RC)),
-                                   outdir=self.tempdir, validate=False)
+                                   outdir=self.tempdir)
 
         with open(fqp.trimmed_f1, "r") as r1_out_fh:
             for i, line in enumerate(r1_out_fh):
@@ -283,7 +283,7 @@ class TestFastqPreprocessor(unittest.TestCase):
         fqp = rp.FastqPreprocessor(f1=self.tileseq_r1_fastq, f2=self.tileseq_r2_fastq,
                                    r1_fiveprime_adapters=",".join((NEB_ADAPTER_P7, PEZY3_ATTB1_P7)),
                                    r1_threeprime_adapters=",".join((NEB_ADAPTER_P5_RC, PEZY3_ATTB2_P5_RC)),
-                                   outdir=self.tempdir, validate=False)
+                                   outdir=self.tempdir)
 
         with open(fqp.trimmed_f1, "r") as r1_out_fh:
             for i, line in enumerate(r1_out_fh):
@@ -298,7 +298,7 @@ class TestFastqPreprocessor(unittest.TestCase):
         fqp = rp.FastqPreprocessor(f1=self.tileseq_r1_fastq, f2=self.tileseq_r2_fastq,
                                    r1_fiveprime_adapters=",".join((NEB_ADAPTER_P7, PEZY3_ATTB1_P7)),
                                    r1_threeprime_adapters=",".join((NEB_ADAPTER_P5_RC, PEZY3_ATTB2_P5_RC)),
-                                   outdir=self.tempdir, validate=False)
+                                   outdir=self.tempdir)
 
         with open(fqp.trimmed_f2, "r") as r2_out_fh:
             for i, line in enumerate(r2_out_fh):
@@ -313,7 +313,7 @@ class TestFastqPreprocessor(unittest.TestCase):
         fqp = rp.FastqPreprocessor(f1=self.tileseq_r1_fastq, f2=self.tileseq_r2_fastq,
                                    r1_fiveprime_adapters=",".join((NEB_ADAPTER_P7, PEZY3_ATTB1_P7)),
                                    r1_threeprime_adapters=",".join((NEB_ADAPTER_P5_RC, PEZY3_ATTB2_P5_RC)),
-                                   outdir=self.tempdir, validate=False)
+                                   outdir=self.tempdir)
 
         with open(fqp.trimmed_f2, "r") as r2_out_fh:
             for i, line in enumerate(r2_out_fh):
@@ -329,7 +329,7 @@ class TestFastqPreprocessor(unittest.TestCase):
         fqp = rp.FastqPreprocessor(f1=self.tileseq_r1_fastq, f2=self.tileseq_r2_fastq,
                                    r1_fiveprime_adapters=",".join((NEB_ADAPTER_P7, PEZY3_ATTB1_P7)),
                                    r1_threeprime_adapters=",".join((NEB_ADAPTER_P5_RC, PEZY3_ATTB2_P5_RC)),
-                                   outdir=self.tempdir, validate=False)
+                                   outdir=self.tempdir)
 
         with open(fqp.trimmed_f2, "r") as r2_out_fh:
             for i, line in enumerate(r2_out_fh):
@@ -344,7 +344,7 @@ class TestFastqPreprocessor(unittest.TestCase):
         fqp = rp.FastqPreprocessor(f1=self.tileseq_r1_umi_fastq, f2=self.tileseq_r2_umi_fastq,
                                    r1_fiveprime_adapters=",".join((NEB_ADAPTER_P7, PEZY3_ATTB1_P7)),
                                    r1_threeprime_adapters=",".join((NEB_ADAPTER_P5_RC, PEZY3_ATTB2_P5_RC)),
-                                   outdir=self.tempdir, validate=False)
+                                   outdir=self.tempdir)
 
         with open(fqp.trimmed_f1, "r") as r1_out_fh:
             for i, line in enumerate(r1_out_fh):
@@ -359,7 +359,7 @@ class TestFastqPreprocessor(unittest.TestCase):
         fqp = rp.FastqPreprocessor(f1=self.tileseq_r1_umi_fastq, f2=self.tileseq_r2_umi_fastq,
                                    r1_fiveprime_adapters=",".join((NEB_ADAPTER_P7, PEZY3_ATTB1_P7)),
                                    r1_threeprime_adapters=",".join((NEB_ADAPTER_P5_RC, PEZY3_ATTB2_P5_RC)),
-                                   outdir=self.tempdir, validate=False)
+                                   outdir=self.tempdir)
 
         with open(fqp.trimmed_f2, "r") as r2_out_fh:
             for i, line in enumerate(r2_out_fh):
@@ -374,7 +374,7 @@ class TestFastqPreprocessor(unittest.TestCase):
 
         fqp = rp.FastqPreprocessor(f1=self.amp_r1_fastq, f2=self.amp_r2_fastq,
                                    r1_fiveprime_adapters=AMP_CR, r1_threeprime_adapters=AMP_GSP2_TAIL_RC,
-                                   outdir=self.tempdir, validate=False)
+                                   outdir=self.tempdir)
 
         with open(fqp.trimmed_f1, "r") as r1_out_fh:
             for i, line in enumerate(r1_out_fh):
@@ -389,7 +389,7 @@ class TestFastqPreprocessor(unittest.TestCase):
 
         fqp = rp.FastqPreprocessor(f1=self.amp_r1_fastq, f2=self.amp_r2_fastq,
                                    r1_fiveprime_adapters=AMP_CR, r1_threeprime_adapters=AMP_GSP2_TAIL_RC,
-                                   outdir=self.tempdir, validate=False)
+                                   outdir=self.tempdir)
 
         with open(fqp.trimmed_f2, "r") as r2_out_fh:
             for i, line in enumerate(r2_out_fh):

@@ -425,8 +425,8 @@ class AminoAcidMapper(MapperBase):
         zbased_pos = pos - 1
         expected_ref = trx_seq[zbased_pos:zbased_pos + len(ref)]
         if ref.upper() != expected_ref.upper():
-            logger.exception(
-                "REF %s does not match the expected reference sequence of the transcript: %s" % (ref, expected_ref))
+            raise RuntimeError("REF %s does not match the expected reference sequence of the transcript: %s"
+                               % (ref, expected_ref))
 
         # Now that we have ensured our variant is valid, we can check for its placement
         # TODO: consider variant calling/location within intronic sequences
