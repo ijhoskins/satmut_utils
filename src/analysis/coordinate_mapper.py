@@ -70,7 +70,7 @@ class TranscriptNotFound(Exception):
 
 
 class TranscriptomicCoordNotFound(Warning):
-    """Warning for when a genomic coordinate is outside of transcript bounds."""
+    """Warning for when a coordinate is outside of transcript bounds."""
     pass
 
 
@@ -406,11 +406,11 @@ class AminoAcidMapper(MapperBase):
         the transcript bounds, then either '5_UTR' or '3_UTR' is returned for location; if the variant is outside the \
         transcript bounds, 'intergenic' is returned; if no CDS exists for the transcript, 'untranslated' is returned.
         :raises TranscriptNotFound: if the transcript ID was not found in the mapper object
+        :raises RuntimeError: if the REF field of the variant does not match the reference sequence
         """
 
         if trx_id not in self.cds_info:
-            raise TranscriptNotFound(
-                "No transcript %s found in the annotations. Do you need to recreate the data structure?" % trx_id)
+            raise TranscriptNotFound("No transcript %s found in the annotations." % trx_id)
 
         # cds_start_offset is 0-based offset of the first base of the start codon
         # cds_stop_offset is 0-based offset of the base _after_ the stop codon
@@ -418,18 +418,22 @@ class AminoAcidMapper(MapperBase):
 
         if pos > trx_len or pos < 1:
             var_key = vu.VARIANT_FORMAT.format(trx_id, pos, ref, alt)
-            logger.warning("Variant %s position is not within transcript bounds." % var_key, TranscriptomicCoordNotFound)
+            msg_str = "Variant %s position is not within transcript bounds." % var_key
+            TranscriptomicCoordNotFound(msg_str)
+            logger.warning(msg_str)
             return MUT_INFO_TUPLE(location=self.INTERGENIC, **self.DEFAULT_KWARGS)
 
         # One more sanity-check
         zbased_pos = pos - 1
         expected_ref = trx_seq[zbased_pos:zbased_pos + len(ref)]
         if ref.upper() != expected_ref.upper():
-            raise RuntimeError("REF %s does not match the expected reference sequence of the transcript: %s"
-                               % (ref, expected_ref))
+            var_key = vu.VARIANT_FORMAT.format(trx_id, pos, ref, alt)
+            msg_str = "REF %s of %s does not match the expected reference sequence of the transcript: %s" \
+                      % (ref, var_key, expected_ref)
+            logger.exception(msg_str)
+            raise RuntimeError(msg_str)
 
         # Now that we have ensured our variant is valid, we can check for its placement
-        # TODO: consider variant calling/location within intronic sequences
         if cds_start_offset is None and cds_stop_offset is None:
             return MUT_INFO_TUPLE(location=self.UNTRANSLATED, **self.DEFAULT_KWARGS)
         elif zbased_pos < cds_start_offset:
@@ -465,6 +469,7 @@ def translate(codon):
 
     :param str codon: codon string
     :return str: shorthand amino acid string
+    :raises RuntimeError: if the codon is not in the recognized set of 64 codons
     """
 
     if codon not in CODON_AA_DICT:
