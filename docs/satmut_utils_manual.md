@@ -62,19 +62,19 @@ conda activate satmut_utils
 
 Create a reference directory:
 ```
-REF_DIR="./path_to_refs"
+REF_DIR="/tmp/path_to_refs"
 mkdir $REF_DIR
 git clone https://github.com/ijhoskins/satmut_utils_refs.git
 cp satmut_utils_refs/* $REF_DIR
 gunzip $REF_DIR/*gz
 ```
 
-Download the [human genome FASTA](https://genome-idx.s3.amazonaws.com/hisat/grch38_genome.tar.gz) and move it to REF_DIR. Then index it with samtools:
+Download the [human genome FASTA](ftp://ftp.ensembl.org/pub/release-84/fasta/homo_sapiens/dna/Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz) move it to the REF\_DIR, then index it with samtools:
 ```
+mv ~/Downloads/Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz $REF_DIR/GRCh38.fa.gz
+gunzip $REF_DIR/GRCh38.fa.gz
 samtools faidx $REF_DIR/GRCh38.fa
 ```
-
-Other genome reference files for other organisms are available [here](http://daehwankimlab.github.io/hisat2/download/)
 
 5. Navigate to the satmut\_utils repository and install the package:
 ```

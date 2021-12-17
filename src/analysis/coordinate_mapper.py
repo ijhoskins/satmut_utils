@@ -419,7 +419,7 @@ class AminoAcidMapper(MapperBase):
         if pos > trx_len or pos < 1:
             var_key = vu.VARIANT_FORMAT.format(trx_id, pos, ref, alt)
             msg_str = "Variant %s position is not within transcript bounds." % var_key
-            TranscriptomicCoordNotFound(msg_str)
+            warnings.warn(msg_str, TranscriptomicCoordNotFound)
             logger.warning(msg_str)
             return MUT_INFO_TUPLE(location=self.INTERGENIC, **self.DEFAULT_KWARGS)
 
