@@ -92,7 +92,7 @@ Common arguments to both sim and call subcommands should be provided first, then
 Run sim on *in silico* alignments to generate SNPs, MNPs, and InDels. Structural variants and gene fusions are not currently supported.
 
 ```
-TEST_DIR="tests/test_data"
+TEST_DIR="satmut_utils/src/tests/test_data"
 satmut_utils -i ENST00000398165.7 -x $REF_DIR -o $OUTPUT_DIR -p $TEST_DIR/CBS_sim_primers.bed sim -f -a $TEST_DIR/CBS_sim.bam -v $TEST_DIR/CBS_sim.vcf
 ```
 
@@ -102,7 +102,7 @@ The sim workflow outputs paired FASTQs, a realigned BAM file, and a truth VCF co
 
 Run call on the simulated data by specifying an Ensembl transcript/gene ID and the directory containing curated reference files:
 ```
-TEST_DIR="tests/test_data"
+TEST_DIR="satmut_utils/src/tests/test_data"
 satmut_utils -i ENST00000398165.7 -x $REF_DIR -o $OUTPUT_DIR -p $TEST_DIR/CBS_sim_primers.bed call -1 $TEST_DIR/CBS_sim.R1.fq.gz -2 $TEST_DIR/CBS_sim.R2.fq.gz -v
 ```
 

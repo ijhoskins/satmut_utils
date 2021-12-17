@@ -47,6 +47,28 @@ get_precision<- function(cont_table){
   return(res)
 }
 
+
+#' Gets the F score from precision and recall
+#'
+#' @param prec precision value
+#' @param rec recall value
+#' @return numeric F score
+get_fscore<- function(prec, rec){
+  res<- 2 * prec*rec / (prec+rec)
+  return(res)
+}
+
+#' Gets the F score from a 2x2 table
+#'
+#' @param cont_table table of counts
+#' @return numeric F score
+get_fscore_from_table<- function(cont_table){
+  prec<- get_precision(cont_table)
+  rec<- get_sensitivity(cont_table)
+  res<- get_fscore(prec, rec)
+  return(res)
+}
+
 #' Creates a PR curve used test and logistic model
 #'
 #' @param test_dt data.table of test data and selected features
