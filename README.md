@@ -55,6 +55,9 @@ gunzip $REF_DIR/*gz
 
 Download the [human genome FASTA](ftp://ftp.ensembl.org/pub/release-84/fasta/homo_sapiens/dna/Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz) move it to the REF\_DIR, then index it with samtools:
 ```
+# In browser, download the human genome:
+ftp://ftp.ensembl.org/pub/release-84/fasta/homo_sapiens/dna/Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz
+
 mv ~/Downloads/Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz $REF_DIR/GRCh38.fa.gz
 gunzip $REF_DIR/GRCh38.fa.gz
 samtools faidx $REF_DIR/GRCh38.fa
