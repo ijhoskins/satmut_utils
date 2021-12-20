@@ -152,6 +152,7 @@ class QnameVerification(object):
 class FastqPreprocessor(object):
     """Class for pre-processing FASTQs prior to alignment."""
 
+    OUTDIR = "."
     TRIM_QUALITY = 15
     OVERLAP_LEN = 8
     NCORES = 0
