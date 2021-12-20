@@ -35,9 +35,9 @@ def parse_commandline_params(args):
     parser = argparse.ArgumentParser(description="%s arguments" % __name__)
 
     # Add new arguments for command line passing of files, options, etc; see argparse docs
-    parser.add_argument("-f1", "--fast1", type=str, required=True, help='R1 FASTA or FASTQ.')
+    parser.add_argument("-1", "--fast1", type=str, required=True, help='R1 FASTA or FASTQ.')
 
-    parser.add_argument("-f2", "--fast2", type=str, required=False, default=None, help='R2 FASTA or FASTQ.')
+    parser.add_argument("-2", "--fast2", type=str, required=False, default=None, help='R2 FASTA or FASTQ.')
 
     parser.add_argument("-r", "--ref", type=str, required=True,
                         help='Reference FASTA. Should contain a bowtie2 FM index file set.')

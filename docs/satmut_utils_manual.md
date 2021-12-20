@@ -85,7 +85,7 @@ You are now ready to call the command-line executables:
 1. satmut\_utils
 2. satmut\_align
 
-satmut\_align should be used to generate the BAM file accepted by satmut_utils sim. If reads have been aligned with some other method, there is no guarantee sim will complete without error, as certain alignment tags output by bowtie2 are required for sim (e.g. MD tag).
+satmut\_align (a wrapper around bowtie2) should be used to generate the BAM file accepted by satmut_utils sim. If reads have been aligned with some other method, there is no guarantee sim will complete without error, as certain alignment tags output by bowtie2 are required for sim (e.g. MD tag). If input FASTQs have not been adapter trimmed, the user can call satmut\_trim (a wrapper around cutadapt) prior to alignment.
 
 ## Reference files
 
@@ -205,7 +205,7 @@ satmut_utils call -h
 
 Common arguments to both sim and call subcommands should be provided first, then the subcommand, and then the subcommand-specific arguments.
 
-It is recommended that the user create a new output directory for each job. Default is to output to the current directory.
+It is recommended that a new output directory is created for each job. Default is to output to the current directory.
 ```OUTPUT_DIR="/tmp/satmut_utils_test"```
 
 ### sim code examples
@@ -492,8 +492,4 @@ To generate error-free, tiled RNA read alignments, provide a transcript referenc
 --make\_amplicons is intended for direct simulation of reads from a transcript FASTA. For general DNA or RNA read generation using a genome FASTA and standard GFF annotations, omit --make\_amplicons. In this mode, generated fragments start and end at random coordinates in the sequence space informed by the --frag\_length argument.
 
 As an example, for 2 x 150 bp chemistry I create ~100 bp interleaved target chunks in BED format and configure the number of reads to generate for each amplicon by the BED score field. Finally, I pass --make\_amplicons and --slop_length 0 so that reads start at the termini of the targets.
-
-
-
-
 
