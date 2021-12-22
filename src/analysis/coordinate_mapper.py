@@ -472,8 +472,10 @@ def translate(codon):
     :raises RuntimeError: if the codon is not in the recognized set of 64 codons
     """
 
-    if codon not in CODON_AA_DICT:
+    codon_upper = codon.upper()
+
+    if codon_upper not in CODON_AA_DICT:
         raise RuntimeError("Unrecognized codon %s." % codon)
 
-    aa = CODON_AA_DICT[codon]
+    aa = CODON_AA_DICT[codon_upper]
     return aa

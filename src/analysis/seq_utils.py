@@ -214,7 +214,7 @@ def extract_seq(contig, start, stop, ref):
 
     # Use pysam.faidx for fast random access of seqs
     with pysam.FastaFile(ref) as fasta:
-        seq = fasta.fetch(region=coord_str)
+        seq = fasta.fetch(region=coord_str).upper()
 
     #seq_fa = pysam.faidx(ref, coord_str)
     #seq could wrap on many lines, but first is always header
