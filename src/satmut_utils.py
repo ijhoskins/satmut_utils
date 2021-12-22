@@ -120,13 +120,12 @@ def parse_commandline_params(args):
 
     parser_call.add_argument("-2", "--fastq2", required=True, type=str, help='R2 FASTQ.')
 
-    group2 = parser_call.add_mutually_exclusive_group(required=True)
-    group2.add_argument("-v", "--omit_trim", action="store_true",
-                        help='Flag to turn off adapter and 3\' base quality trimming. Useful for simulated data '
-                             'that has no adapters.')
+    parser_call.add_argument("-v", "--omit_trim", action="store_true",
+                             help='Flag to turn off adapter and 3\' base quality trimming. Useful for simulated data '
+                                  'that has no adapters.')
 
-    group2.add_argument("--r1_fiveprime_adapters", type=none_or_str, default="None",
-                        help='Comma-delimited R1 5\' adapters, or None if no R1 5\' adapters exist.')
+    parser_call.add_argument("--r1_fiveprime_adapters", type=none_or_str, default="None",
+                             help='Comma-delimited R1 5\' adapters, or None if no R1 5\' adapters exist.')
 
     parser_call.add_argument("--r1_threeprime_adapters", type=none_or_str, default="None",
                              help='Comma-delimited R1 3\' adapters, or None if no R1 3\' adapters exist.')
