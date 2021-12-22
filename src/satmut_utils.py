@@ -125,10 +125,17 @@ def parse_commandline_params(args):
                         help='Flag to turn off adapter and 3\' base quality trimming. Useful for simulated data '
                              'that has no adapters.')
 
-    group2.add_argument("-5", "--r1_fiveprime_adapters", type=str,
-                        help='Comma-delimited R1 5\' adapters.')
+    group2.add_argument("--r1_fiveprime_adapters", type=none_or_str, default="None",
+                        help='Comma-delimited R1 5\' adapters, or None if no R1 5\' adapters exist.')
 
-    parser_call.add_argument("-3", "--r1_threeprime_adapters", type=str, help='Comma-delimited R1 3\' adapters.')
+    parser_call.add_argument("--r1_threeprime_adapters", type=none_or_str, default="None",
+                             help='Comma-delimited R1 3\' adapters, or None if no R1 3\' adapters exist.')
+
+    parser_call.add_argument("--r2_fiveprime_adapters", type=none_or_str, default="None",
+                             help='Comma-delimited R2 5\' adapters, or None if no R2 5\' adapters exist.')
+
+    parser_call.add_argument("--r2_threeprime_adapters", type=none_or_str, default="None",
+                             help='Comma-delimited R2 3\' adapters, or None if no R2 3\' adapters exist.')
 
     parser_call.add_argument("-g", "--transcript_gff", type=str,
                              help='GFF file with transcript metafeatures and exon features. The records must be from 5\' '
@@ -170,7 +177,7 @@ def parse_commandline_params(args):
                                   'with vector-transgene alignment. Default %i.' % FastqPreprocessor.NTRIMMED)
 
     parser_call.add_argument("-l", "--overlap_length", type=int, default=FastqPreprocessor.OVERLAP_LEN,
-                             help='Number of read bases overlapping the adapter sequence(s) to consider for trimming. '
+                             help='Number of read bases overlapping the adapter sequence(s) to consider for cutadapt trimming. '
                                   'Default %i.' % FastqPreprocessor.OVERLAP_LEN)
 
     parser_call.add_argument("-b", "--trim_bq", type=int, default=FastqPreprocessor.TRIM_QUALITY,
@@ -310,7 +317,12 @@ def sim_workflow(bam, vcf, race_like, ensembl_id=ri.ReadEditor.DEFAULT_ENSEMBL_I
     return output_bam, zipped_r1_fastq, zipped_r2_fastq
 
 
-def call_workflow(fastq1, fastq2, r1_fiveprime_adapters, r1_threeprime_adapters, race_like,
+def call_workflow(fastq1, fastq2,
+                  r1_fiveprime_adapters=FastqPreprocessor.DEFAULT_ADAPTER,
+                  r1_threeprime_adapters=FastqPreprocessor.DEFAULT_ADAPTER,
+                  r2_fiveprime_adapters=FastqPreprocessor.DEFAULT_ADAPTER,
+                  r2_threeprime_adapters=FastqPreprocessor.DEFAULT_ADAPTER,
+                  race_like=ReadMasker.DEFAULT_RACE_LIKE,
                   ensembl_id=VariantCaller.VARIANT_CALL_ENSEMBL_ID,
                   reference_dir=VariantCaller.VARIANT_CALL_REFERENCE_DIR,
                   ref=VariantCaller.VARIANT_CALL_REF, transcript_gff=VariantCaller.VARIANT_CALL_GFF,
@@ -329,11 +341,13 @@ def call_workflow(fastq1, fastq2, r1_fiveprime_adapters, r1_threeprime_adapters,
 
     :param str fastq1: path of the R1 FASTQ
     :param str fastq2: path of the R2 FASTQ
-    :param str r1_fiveprime_adapters: comma-delimited 5' adapters to trim from R1
-    :param str r1_threeprime_adapters: comma-delimited 3' adapters to trim from R1
+    :param str | None r1_fiveprime_adapters: comma-delimited 5' adapters to trim from R1. Default None.
+    :param str | None r1_threeprime_adapters: comma-delimited 3' adapters to trim from R1. Default None.
+    :param str | None r2_fiveprime_adapters: comma-delimited 5' adapters to trim from R2. Default None.
+    :param str | None r2_threeprime_adapters: comma-delimited 3' adapters to trim from R2. Default None.
     :param bool race_like: is the data produced by RACE-like (e.g. AMP) data? Default False.
     :param str | None ensembl_id: Ensembl gene or transcript ID, with version number
-    :param str reference_dir: directory containing curated APPRIS reference files. Default ./references.
+    :param str reference_dir: directory containing curated APPRIS reference files. Default /tmp/references.
     :param str | None ref: path to reference FASTA used in alignment. Must be bowtie2 FM-index and samtools faidx indexed.
     :param str | None transcript_gff: GFF/GTF file containing transcript metafeatures and exon features, in 5' to 3' \
     order, regardless of strand. Ordering is essential.
@@ -397,7 +411,8 @@ def call_workflow(fastq1, fastq2, r1_fiveprime_adapters, r1_threeprime_adapters,
     # Run the FASTQ preprocessing workflow which includes adapter trimming and 3' BQ trimming
     fqp = FastqPreprocessor(
         f1=fqp_r1, f2=fqp_r2, r1_fiveprime_adapters=r1_fiveprime_adapters, r1_threeprime_adapters=r1_threeprime_adapters,
-        outdir=tempdir, ncores=nthreads, trim_bq=trim_bq, ntrimmed=ntrimmed, overlap_len=overlap_len, no_trim=omit_trim)
+        r2_fiveprime_adapters=r2_fiveprime_adapters, r2_threeprime_adapters=r2_threeprime_adapters, outdir=tempdir,
+        ncores=nthreads, trim_bq=trim_bq, ntrimmed=ntrimmed, overlap_len=overlap_len, no_trim=omit_trim)
 
     # Run local alignment; handle the ncores/nthreads option for cutadapt versus bowtie2 options
     bowtie2_nthreads = 1 if nthreads == 0 else nthreads
@@ -479,7 +494,9 @@ def main():
         _, _ = call_workflow(
             fastq1=args_dict["fastq1"], fastq2=args_dict["fastq2"],
             r1_fiveprime_adapters=args_dict["r1_fiveprime_adapters"],
-            r1_threeprime_adapters=args_dict["r1_threeprime_adapters"], race_like=args_dict["race_like"],
+            r1_threeprime_adapters=args_dict["r1_threeprime_adapters"],
+            r2_fiveprime_adapters=args_dict["r2_fiveprime_adapters"],
+            r2_threeprime_adapters=args_dict["r2_threeprime_adapters"], race_like=args_dict["race_like"],
             ensembl_id=args_dict["ensembl_id"], reference_dir=args_dict["reference_dir"], ref=args_dict["reference"],
             transcript_gff=args_dict["transcript_gff"], gff_reference=args_dict["gff_reference"],
             targets=args_dict["targets"], outdir=args_dict["output_dir"], primers=args_dict["primers"],

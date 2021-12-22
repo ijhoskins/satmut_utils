@@ -152,6 +152,7 @@ class QnameVerification(object):
 class FastqPreprocessor(object):
     """Class for pre-processing FASTQs prior to alignment."""
 
+    DEFAULT_ADAPTER = None
     OUTDIR = "."
     TRIM_QUALITY = 15
     OVERLAP_LEN = 8
@@ -163,15 +164,18 @@ class FastqPreprocessor(object):
     ADAPTER_DELIM = ","
     LOG_SUFFIX = ".cutadapt.json"
 
-    def __init__(self, f1, f2, r1_fiveprime_adapters, r1_threeprime_adapters,
+    def __init__(self, f1, f2, r1_fiveprime_adapters=DEFAULT_ADAPTER, r1_threeprime_adapters=DEFAULT_ADAPTER,
+                 r2_fiveprime_adapters=DEFAULT_ADAPTER, r2_threeprime_adapters=DEFAULT_ADAPTER,
                  outdir=".", ncores=NCORES, trim_bq=TRIM_QUALITY, ntrimmed=NTRIMMED,
                  overlap_len=OVERLAP_LEN, no_trim=TRIM_FLAG):
         """Constructor for FastqPreprocessor.
 
         :param str f1: path of the R1 FASTQ
         :param str f2: path of the R2 FASTQ
-        :param str r1_fiveprime_adapters: 5' adapters to be trimmed from R1s
-        :param str r1_threeprime_adapters: 3' adapters to be trimmed from R1s
+        :param str | None r1_fiveprime_adapters: 5' adapters to be trimmed from R1. Default None.
+        :param str | None r1_threeprime_adapters: 3' adapters to be trimmed from R1. Default None.
+        :param str | None r2_fiveprime_adapters: 5' adapters to be trimmed from R2. Default None.
+        :param str | None r2_threeprime_adapters: 3' adapters to be trimmed from R2. Default None.
         :param str outdir: Output directory to write preprocessed FASTQs to
         :param int ncores: Number of CPU cores to use in trimming. Default 0, autodetect.
         :param int trim_bq: quality score for quality trimming at the 3' end. Default 15.
@@ -182,21 +186,30 @@ class FastqPreprocessor(object):
 
         self.f1 = f1
         self.f2 = f2
-
         self.r1_fiveprime_adapters = None
         self.r1_threeprime_adapters = None
         self.r2_fiveprime_adapters = None
         self.r2_threeprime_adapters = None
+
         if not no_trim:
-            self.r1_fiveprime_adapters = tuple(
-                [e.strip(fu.FILE_SPACE) for e in r1_fiveprime_adapters.split(self.ADAPTER_DELIM)])
 
-            self.r1_threeprime_adapters = tuple(
-                [e.strip(fu.FILE_SPACE) for e in r1_threeprime_adapters.split(self.ADAPTER_DELIM)])
+            # Need to determine adapters for each read separately as we cannot assume the rev comp of each
+            # adapter exists on the mate; this is common in standard Illumina library prep kits
+            if r1_fiveprime_adapters is not None:
+                self.r1_fiveprime_adapters = tuple(
+                    [e.strip(fu.FILE_SPACE) for e in r1_fiveprime_adapters.split(self.ADAPTER_DELIM)])
 
-            # No need to provide the R2 adapters as they are the reverse complements of the R1 adapters
-            self.r2_fiveprime_adapters = tuple([su.reverse_complement(e) for e in self.r1_threeprime_adapters])
-            self.r2_threeprime_adapters = tuple([su.reverse_complement(e) for e in self.r1_fiveprime_adapters])
+            if r1_threeprime_adapters is not None:
+                self.r1_threeprime_adapters = tuple(
+                    [e.strip(fu.FILE_SPACE) for e in r1_threeprime_adapters.split(self.ADAPTER_DELIM)])
+
+            if r2_fiveprime_adapters is not None:
+                self.r2_fiveprime_adapters = tuple(
+                    [e.strip(fu.FILE_SPACE) for e in r2_fiveprime_adapters.split(self.ADAPTER_DELIM)])
+
+            if r2_threeprime_adapters is not None:
+                self.r2_threeprime_adapters = tuple(
+                    [e.strip(fu.FILE_SPACE) for e in r2_threeprime_adapters.split(self.ADAPTER_DELIM)])
 
         self.outdir = outdir
         self.ncores = ncores
@@ -236,43 +249,47 @@ class FastqPreprocessor(object):
         -u/--cut enables hard clipping prior to adapter trimming
         """
 
-        logger.info("Running cutadapt.")
+        logger.info("Started cutadapt trimming.")
 
         common_call_args = ["cutadapt", "--quiet", "--json", self.log_file, "-j", str(self.ncores),
                             "-n", str(self.ntrimmed), "-q", str(self.trim_bq), "-m", str(self.MIN_LENGTH),
                             "-O", str(self.overlap_len)]
 
-        # In Tile-seq experiments
-        # R1s are tagged with P7 adapter, readthrough P5 RC; terminal F primer may have ATTB1 site at 5' end
-        # R2s are tagged with P5 adapter, readthrough P7 RC; terminal R primer may have ATTB2 site at 5' end
-        # trim_call += ["-a", NEB_ADAPTER_P5_RC, "-a", PEZY3_ATTB2_P5_RC, "-A", NEB_ADAPTER_P7_RC, "-G", PEZY3_ATTB2_P5,
-        # "-o", self.trimmed_f1, "-p", self.trimmed_f2, self.f1, self.f2]
+        if self.r1_fiveprime_adapters is not None:
+            r1_fp_args = ["-g {} ".format(e) for e in self.r1_fiveprime_adapters]
+            common_call_args += r1_fp_args
 
-        # For AMP library trimming after umitools extract, we need to trim the R2 common region read-through
-        # as well as the R1 GSP2 tail read-through
-        # trim_call = common_call_args + ["-a", ARCHERDX_GSP2_TAIL_RC, "-g", ARCHERDX_CR, "-A", ARCHERDX_CR_RC,
-        # "-o", self.trimmed_f1, "-p", self.trimmed_f2, self.f1, self.f2]
+        if self.r1_threeprime_adapters is not None:
+            r1_tp_args = ["-a {} ".format(e) for e in self.r1_threeprime_adapters]
+            common_call_args += r1_tp_args
 
-        r1_tp_args = ["-a {} ".format(e) for e in self.r1_threeprime_adapters]
-        r1_fp_args = ["-g {} ".format(e) for e in self.r1_fiveprime_adapters]
+        if self.r2_fiveprime_adapters is not None:
+            r2_fp_args = ["-G {} ".format(e) for e in self.r2_fiveprime_adapters]
+            common_call_args += r2_fp_args
 
-        r2_tp_args = ["-A {} ".format(e) for e in self.r2_threeprime_adapters]
-        r2_fp_args = ["-G {} ".format(e) for e in self.r2_fiveprime_adapters]
+        if self.r2_threeprime_adapters is not None:
+            r2_tp_args = ["-A {} ".format(e) for e in self.r2_threeprime_adapters]
+            common_call_args += r2_tp_args
+
         fq_args = ["-o", self.trimmed_f1, "-p", self.trimmed_f2, self.f1, self.f2]
 
-        logger.info("Trimming adapters from R1 and R2")
-        trim_call = common_call_args + r1_tp_args + r1_fp_args + r2_tp_args + r2_fp_args + fq_args
+        trim_call = common_call_args + fq_args
         subprocess.call(trim_call)
+
+        logger.info("Completed cutadapt trimming.")
 
     def workflow(self):
         """Runs the FastqPreprocessor workflow."""
 
+        logger.info("Started FASTQ preprocessor workflow.")
         self.run_cutadapt()
+        logger.info("Completed FASTQ preprocessor workflow.")
 
 
 class UMIExtractor(object):
-    """Object for extracting UMIs from reads, and optionally appending primer tags for RACE-like (e.g. AMP) data"""
+    """Class for extracting UMIs from reads, and optionally appending primer tags for RACE-like (e.g. AMP) data."""
 
+    DEFAULT_OUTDIR = "."
     UMI_FQ_SUFFIX = "umi.fq"
     R1_PRIMER_SUFFIX = ".r1.gsp2.fq"
     R2_PRIMER_SUFFIX = ".r2.gsp2.fq"
@@ -283,7 +300,7 @@ class UMIExtractor(object):
     UNKNOWN_PRIMER_CHAR = "X"
 
     def __init__(self, r1_fastq, r2_fastq, umi_regex, primer_fasta=PRIMER_FASTA, primer_nm_allow=PRIMER_NM_ALLOW,
-                 outdir="."):
+                 outdir=DEFAULT_OUTDIR):
         """Constructor for UMIExtractor.
 
         :param str r1_fastq: R1 FASTQ
@@ -291,7 +308,7 @@ class UMIExtractor(object):
         :param str umi_regex: regex for matching the UMIs (see umi_tools for docs)
         :param str | None primer_fasta: primer FASTA
         :param int primer_nm_allow: Edit distance allowance for primer matching Default 3.
-        :param str outdir: Output directory
+        :param str outdir: Optional output directory. Default current working directory.
         """
 
         self.r1_fastq = r1_fastq
@@ -420,16 +437,17 @@ class UMIExtractor(object):
 class ReadGrouper(object):
     """Class for grouping UMIs in a BAM by addition of alignment tags."""
 
+    DEFAULT_OUTDIR = "."
     GROUP_BAM_SUFFIX = "group.bam"
     STATS_SUFFIX = "group.txt"
     STDERR_SUFFIX = "umitools_group.stderr"
     UMI_NM_ALLOW = 1
 
-    def __init__(self, in_bam, outdir="."):
+    def __init__(self, in_bam, outdir=DEFAULT_OUTDIR):
         """Constructor for ReadGrouper.
 
         :param str in_bam: input BAM with extracted UMIs
-        :param str outdir: optional output directory
+        :param str outdir: Optional output directory. Default current working directory.
         """
 
         self.in_bam = in_bam
@@ -463,18 +481,19 @@ class ReadGrouper(object):
 
 
 class ReadDeduplicator(object):
-    """Object for deduplicating reads generated from UMI-grouped BAMs."""
+    """Class for deduplicating reads generated from UMI-grouped BAMs."""
 
+    DEFAULT_OUTDIR = "."
     DEFAULT_NTHREADS = 0
     DEDUP_BAM_SUFFIX = "dedup.bam"
     DEDUP_STDERR_SUFFIX = "umitools_dedup.stderr"
 
-    def __init__(self, group_bam, outdir=".", nthreads=DEFAULT_NTHREADS):
+    def __init__(self, group_bam, outdir=DEFAULT_OUTDIR, nthreads=DEFAULT_NTHREADS):
         """Constructor for ReadDeduplicator.
 
         :param str group_bam: grouped input BAM
         :param str ref: reference FASTA
-        :param str outdir: Output directory
+        :param str outdir: Optional output directory. Default current working directory.
         :param int nthreads: number threads for sort operations
         """
 
@@ -535,7 +554,7 @@ class ConsensusDeduplicatorPreprocessor(object):
 
         :param str group_bam: grouped input BAM
         :param str group_tag: BAM tag to store the group ID
-        :param str outdir: Output directory
+        :param str outdir: Optional output directory. Default current working directory.
         :param int nthreads: number threads for sort operations
         """
 
@@ -629,8 +648,10 @@ class ConsensusDeduplicatorPreprocessor(object):
 
 
 class ConsensusDeduplicator(object):
+    """Class for consensus deduplication starting from a UMI-grouped BAM."""
 
     DEFAULT_NTHREADS = 0
+    DEFAULT_BAM = None
     DEFAULT_OUTDIR = "."
     UMI_NM_ALLOW = 1
     DEDUP_BAM_SUFFIX = ReadDeduplicator.DEDUP_BAM_SUFFIX
@@ -638,14 +659,14 @@ class ConsensusDeduplicator(object):
     N_DUPLICATES_TAG = "ND"
     CONTIG_DEL_THRESH = 10  # candidate dels must be less than or equal to this value
 
-    def __init__(self, in_bam, ref, group_tag=UMITOOLS_UG_TAG, outdir=DEFAULT_OUTDIR, out_bam=None,
+    def __init__(self, in_bam, ref, group_tag=UMITOOLS_UG_TAG, outdir=DEFAULT_OUTDIR, out_bam=DEFAULT_BAM,
                  nthreads=DEFAULT_NTHREADS, contig_del_thresh=CONTIG_DEL_THRESH):
         """Constructor for ConsensusDeduplicator.
 
         :param str in_bam: input alignments with UMI network/group ID in alignment tag
         :param str ref: reference FASTA
         :param str group_tag: BAM tag for the group ID. Default UG.
-        :param str outdir: Output directory
+        :param str outdir: Optional output directory. Default current working directory.
         :param str | None out_bam: Optional filepath of the output BAM.
         :param int nthreads: number of threads to use for alignment
         :param int contig_del_thresh: max deletion length for which del/N gaps in the merged R2 contig are called
@@ -1185,7 +1206,7 @@ class ReadMasker(object):
         :param str feature_file: BED or GTF/GFF file of primer locations
         :param bool race_like: is the data produced by RACE-like (e.g. AMP) data? Default False.
         :param tuple sort_cmd: sort command and key dependent on the qname format
-        :param str outdir: optional output dir for the results
+        :param str outdir: Optional output directory. Default current working directory.
         :param int nthreads: number threads to use for SAM/BAM file manipulations. Default 0 (autodetect).
         """
 
@@ -1462,18 +1483,19 @@ class ReadMasker(object):
 class VariantCallerPreprocessor(object):
     """Class for preprocessing alignments prior to variant calling."""
 
+    DEFAULT_OUTDIR = "."
     DEFAULT_NTHREADS = 0
     QNAME_SUFFIX = "qname.sort.bam"
     R1_SUFFIX = "R1.call.bam"
     R2_SUFFIX = "R2.call.bam"
 
-    def __init__(self, am, ref, output_dir=None, nthreads=DEFAULT_NTHREADS):
+    def __init__(self, am, ref, output_dir=DEFAULT_OUTDIR, nthreads=DEFAULT_NTHREADS):
         r"""Constructor for VariantCallerPreprocessor.
 
         :param str am: SAM/BAM file to enumerate variants in
         :param str ref: path to reference FASTA used in alignment. Must be samtools faidx indexed.
         :param str targets: BED, GFF, or GTF file containing targeted regions to enumerate variants for
-        :param str | None output_dir: output dir to use for output files; if None, will create a tempdir
+        :param str output_dir: Optional output directory. Default current working directory.
         :param int nthreads: number threads to use for SAM/BAM file manipulations. Default 0 (autodetect).
         """
 
@@ -1481,9 +1503,6 @@ class VariantCallerPreprocessor(object):
         self.ref = ref
         self.output_dir = output_dir
         self.nthreads = nthreads
-
-        if output_dir is None:
-            self.output_dir = tempfile.mkdtemp(suffix=__class__.__name__)
 
         if not os.path.exists(self.output_dir):
             os.mkdir(self.output_dir)

@@ -54,7 +54,7 @@ logger = logging.getLogger(__name__)
 class VariantCaller(object):
     """Class for calling variants across target regions."""
 
-    VARIANT_CALL_REFERENCE_DIR = "./references"
+    VARIANT_CALL_REFERENCE_DIR = "/tmp/references"
     VARIANT_CALL_ENSEMBL_ID = None
     VARIANT_CALL_REF = None
     VARIANT_CALL_GFF = None
