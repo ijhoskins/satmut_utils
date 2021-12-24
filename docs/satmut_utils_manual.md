@@ -60,32 +60,46 @@ conda activate satmut_utils
 
 4. If using Ensembl identifiers, download reference files. If using custom reference files, [see Reference files](#Reference-files).
 
-Create a reference directory:
+Create a reference directory and get the curated human transcript reference files:
 ```
-REF_DIR="/tmp/path_to_refs"
+REF_DIR="/tmp/satmut_utils_refs"
 mkdir $REF_DIR
 git clone https://github.com/ijhoskins/satmut_utils_refs.git
 cp satmut_utils_refs/* $REF_DIR
 gunzip $REF_DIR/*gz
 ```
 
-Download the [human genome FASTA](ftp://ftp.ensembl.org/pub/release-84/fasta/homo_sapiens/dna/Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz) move it to the REF\_DIR, then index it with samtools:
+Download the human genome FASTA (if need be, with a FTP client application). If you already have the GRCh38 FASTA, you may use it provided the chromosome names start with a single integer (NCBI format, not the UCSC "chr" format). This is important for compatibility with the curated transcript annotations.
+
+Move or soft link the genome FASTA to the REF\_DIR using the name GRCh38.fa, then index it with samtools:
+
 ```
+\# FTP link to NCBI-formatted genome ftp://ftp.ensembl.org/pub/release-84/fasta/homo_sapiens/dna/Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz
+
 mv ~/Downloads/Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz $REF_DIR/GRCh38.fa.gz
 gunzip $REF_DIR/GRCh38.fa.gz
 samtools faidx $REF_DIR/GRCh38.fa
 ```
 
 5. Navigate to the satmut\_utils repository and install the package:
+
 ```
-cd satmut_utils && pip install .
+cd satmut_utils
+python3 -m pip install --upgrade build
+python3 -m build
+pip install .
 ```
 
 You are now ready to call the command-line executables:
-1. satmut\_utils
-2. satmut\_align
 
-satmut\_align (a wrapper around bowtie2) should be used to generate the BAM file accepted by satmut_utils sim. If reads have been aligned with some other method, there is no guarantee sim will complete without error, as certain alignment tags output by bowtie2 are required for sim (e.g. MD tag). If input FASTQs have not been adapter trimmed, the user can call satmut\_trim (a wrapper around cutadapt) prior to alignment.
+1. satmut\_utils
+2. satmut\_trim
+3. satmut\_align
+
+satmut\_utils is the primary command, with subcommands sim and call.
+ 
+satmut\_trim is a wrapper around cutadapt enabling pre-processing of reads prior to  satmut_utils sim. satmut\_align should be used to generate the BAM file accepted by sim. If reads have been aligned with some other method, there is no guarantee sim will complete without error, as alignment tags output by bowtie2 are required for sim.
+
 
 ## Reference files
 

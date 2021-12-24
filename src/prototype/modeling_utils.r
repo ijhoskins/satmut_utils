@@ -9,13 +9,17 @@ library(gbm)
 library(glmnet)
 library(mltools)
 
+
+# Factors in R should have these levels for the following functions to work
+cont_table_factor_levels =c("FALSE", "TRUE")
+
 #' Creates a 2x2 contigency table
 #'
 #' @param truth logical or character vector
 #' @param predicted logical or character vector
 #' @return table 2x2 truth by predicted
 create_cont_table<- function(truth, predicted){
-  res<- table(truth,predicted, dnn=c("Truth", "Predicted"))
+  res<- table(truth, predicted, dnn=c("Truth", "Predicted"))
   return(res)
 }
 

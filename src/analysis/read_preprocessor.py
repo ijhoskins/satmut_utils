@@ -1197,6 +1197,8 @@ class ReadMasker(object):
     DEFAULT_OUTDIR = "."
     DEFAULT_NTHREADS = 0
     DEFAULT_RACE_LIKE = False
+    DEFAULT_AMPLICON_START_BUFFER = 15
+    DEFAULT_RACE_LIKE_START_BUFFER = 3
 
     def __init__(self, in_bam, feature_file, race_like=DEFAULT_RACE_LIKE, sort_cmd=QNAME_SORTS[ILLUMINA_FORMAT_INDEX],
                  outdir=DEFAULT_OUTDIR, nthreads=DEFAULT_NTHREADS):
@@ -1230,8 +1232,12 @@ class ReadMasker(object):
         self.primer_strand_offset = ffu.BED_INTERSECT_WB_B_BED_STRAND_OFFSET if self.feature_file_type == ffu.BED_FILETYPE \
             else ffu.BED_INTERSECT_WB_B_GFF_STRAND_OFFSET
 
-        # Store primer coordinates
-        self.primer_info = ffu.store_coords(feature_file=feature_file, use_name=False, start_buffer=5)
+        # Store primer coordinates; use a more stringent buffer for RACE-like data as fragments may be amplified
+        # by more than one R primer; use a loose buffer for amplicon data- it would be unusual for reads to start
+        # within 15 nts of each other as primers are rarely tiled back to back on the same strand; thus, any reads
+        # exhibiting this behavior are likely reads that have not been fully adapter-trimmed, or alignment artifacts
+        start_buff = self.DEFAULT_RACE_LIKE_START_BUFFER if race_like else self.DEFAULT_AMPLICON_START_BUFFER
+        self.primer_info = ffu.store_coords(feature_file=feature_file, use_name=False, start_buffer=start_buff)
 
     def _get_read_primer_intersection(self):
         """Applies a custom bedtools sort pipeline to get primers associated with each read.
