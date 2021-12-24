@@ -46,7 +46,7 @@ def parse_commandline_params(args):
                         help='Optional output directory. Default current working directory.')
 
     parser.add_argument("-o", "--outbam", type=none_or_str, required=False, default=Bowtie2.DEFAULT_OUTBAM,
-                        help='Optional output BAM filename. Default use basename of FASTQs.')
+                        help='Optional output BAM filename written to --output_dir. Default use basename of FASTQs.')
 
     parser.add_argument("-l", "--local", action="store_true",
                         help='Run a local alignment as opposed to a global alignment.')

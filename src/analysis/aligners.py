@@ -110,11 +110,7 @@ class Bowtie2(object):
 
         self.alignment_kwargs = {"rg-id": rg_id}
         self.alignment_kwargs.update(config.kwargs)
-
-        logger.info("Aligning and writing to %s" % self.output_bam)
-        _ = self._align()
-
-        su.index_bam(self.output_bam)
+        self.workflow()
 
     def _align(self):
         """Aligns reads.
@@ -166,3 +162,18 @@ class Bowtie2(object):
             tobam_p.stdout.close()
 
             return align_p.poll(), tobam_p.poll(), sort_p.poll()
+
+    def workflow(self):
+        """Runs the bowtie2 alignment workflow.
+
+        :return str: name of the output BAM.
+        """
+
+        logger.info("Started bowtie2 aligner workflow.")
+
+        logger.info("Writing output BAM %s" % self.output_bam)
+        _ = self._align()
+
+        su.index_bam(self.output_bam)
+
+        logger.info("Completed bowtie2 aligner workflow.")

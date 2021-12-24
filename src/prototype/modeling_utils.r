@@ -330,7 +330,7 @@ create_kfolds<- function(train_dt, kfolds=10){
 }
 
 
-#' Prepares a training dataset by coercing types
+#' Prepares a training dataset for modeling by coercing types
 #' 
 #' @param train_dt data.table training data
 #' @param truth_dt data.table containing truth variants
@@ -384,21 +384,23 @@ prep_train_dt<- function(train_dt, truth_dt){
   # Remove any outlier variants with higher frequency (background or systematic errors)
   copy_train_filt_dt<- copy_train_dt[CAF < 0.3]
   
-  # Standardize the numeric data
-  copy_train_filt_std_dt<- scale_numeric_features(copy_train_filt_dt, standardize=TRUE)
+  # Standardize the numeric data; don't worry about this for now as relevant models 
+  # typically do this internally
+  #copy_train_filt_std_dt<- scale_numeric_features(copy_train_filt_dt, standardize=TRUE)
   
-  return(copy_train_filt_std_dt)
+  return(copy_train_filt_dt)
 }
 
-#' Hyperparameter tuning for several models
+
+#' Hyperparameter tuning for several models using resampling
 #' 
 #' @param in_dt data.table input data (should contain both train, test) with Truth column
 #' @param model character one of c("elasticnet", "knn", "rf", "gbm", "svm"). Default rf.
-#' @param nvmin integer min number of variables to tune for knn model. Default 2.
+#' @param nvmin integer min number of variables to tune for knn model. Default 3.
 #' @param nvmax integer max number of variables to tune for knn model Default 10.
 #' @param prob_cutoff numeric probability cutoff to use for binary classification. Default 0.5.
 #' @return train object or character for method="knn", where first element is train object, second is acc for nvmin:nvmax, and third is chosen nvar
-hyperparam_tune<- function(in_dt, model="rf", nvmin=2, nvmax=10, prob_cutoff=0.5){
+hyperparam_tune<- function(in_dt, model="rf", nvmin=3, nvmax=10, prob_cutoff=0.5){
   
   if(model=="elasticnet"){
     
@@ -407,14 +409,15 @@ hyperparam_tune<- function(in_dt, model="rf", nvmin=2, nvmax=10, prob_cutoff=0.5
     
   } else if(model=="knn"){
     
-    knn_cv_res<- train(Truth~., in_dt, method="knn")
+    knn_cv_res<- train(Truth~., in_dt, method="knn", tuneGrid=expand.grid(
+      k=seq(3,5,7,9)))
     
     # Need to also run manual CV to tune number of features
     knn_kfolds<- create_kfolds(in_dt, kfolds=5)
     knn_train_dt<- in_dt[!knn_kfolds[[1]]]
     knn_test_dt<- in_dt[knn_kfolds[[1]]]
     
-    # Need to use best subset selection to pick features
+    # Use best subset selection to pick features
     model_accs<- vector(mode="numeric", length=nvmax-nvmin+1)
     nvars<- nvmin:nvmax 
     names(model_accs)<- as.character(nvars)
@@ -454,18 +457,25 @@ hyperparam_tune<- function(in_dt, model="rf", nvmin=2, nvmax=10, prob_cutoff=0.5
     
   } else if(model=="rf"){
     
-    rf_cv_res<- train(Truth~., in_dt, method="rf")
+    rf_cv_res<- train(Truth~., in_dt, method="rf", tuneGrid=expand.grid(
+      mtry=seq(nvmin, nvmax), ntree=c(250,500,1000)))
+    
     return(rf_cv_res)
     
   } else if(model=="gbm"){
     
-    gbm_cv_res<- train(Truth~., in_dt, method="gbm")
+    # ntrees should not be too high for GBM as this can lead to over-fitting
+    # also low values for interaction.depth (stumps) typically work well
+    gbm_cv_res<- train(Truth~., in_dt, method="gbm", tuneGrid=expand.grid(
+      interaction.depth=seq(1,5), ntrees=c(50,100,200)))
+    
     return(gbm_cv_res)
     
   } else if(model=="svm"){
     
     # Tune different costs
-    svm_cv_res<- train(Truth~., in_dt, method="svmLinear", tuneGrid=expand.grid(C=seq(0, 2, length=20)))
+    svm_cv_res<- train(Truth~., in_dt, method="svmLinear", 
+                       tuneGrid=expand.grid(C=seq(0, 2, length=10)))
     return(svm_cv_res)
     
   }
@@ -593,16 +603,11 @@ run_nested_cv<- function(in_dt,  model="rf", prob_cutoff=0.5, kfolds=10){
 #' @return character vector of features to use, selected with best subset for optimal nvars/nfeatures
 run_nested_cv_complete<- function(in_dt,  model="rf", prob_cutoff=0.5, kfolds=10){
   
-  # Save 5% of the data for independent testing
   set.seed(9)
-  test_indices<- sample(1:nrow(in_dt), round(nrow(in_dt)*0.05))
-  independent_test_dt<- in_dt[test_indices,]
-
-  cv_dt<- in_dt[!test_indices,]
+  cv_dt<- copy(in_dt)
   kfolds_list<- create_kfolds(cv_dt, kfolds)
   
-  # Now test the models
-  # Omit the first fold because we use it for hyper-parameter
+  # Test models
   cv_perf<- matrix(nrow=kfolds, ncol=3)
   for(i in 1:kfolds){
     
@@ -612,6 +617,7 @@ run_nested_cv_complete<- function(in_dt,  model="rf", prob_cutoff=0.5, kfolds=10
     if(model=="elasticnet"){
       
       elasticnet_cv_res<- hyperparam_tune(train_dt, model="elasticnet")
+      print(elasticnet_cv_res$bestTune)
       
       elasticnet_model<- glmnet(x=as.matrix(as.data.frame(train_dt[,-c("Truth")])), 
                                 y=train_dt[,Truth], family="binomial",
@@ -624,6 +630,7 @@ run_nested_cv_complete<- function(in_dt,  model="rf", prob_cutoff=0.5, kfolds=10
     } else if(model=="knn"){
       
       knn_cv_res<- hyperparam_tune(train_dt, model="knn")
+      print(knn_cv_res[[1]]$bestTune$k)
       
       # After choosing nvars, select the best features
       best_subset_res<- regsubsets(Truth~., train_dt, nvmax=knn_cv_res[[3]])
@@ -640,15 +647,19 @@ run_nested_cv_complete<- function(in_dt,  model="rf", prob_cutoff=0.5, kfolds=10
     } else if(model=="rf"){
       
       rf_cv_res<- hyperparam_tune(train_dt, model="rf")
+      print(rf_cv_res$bestTune)
       
       # Consider tuning mtrees parameter
-      rf_model<- randomForest(Truth~., train_dt, mtry=rf_cv_res$bestTune$mtry)
+      rf_model<- randomForest(
+        Truth~., train_dt, mtry=rf_cv_res$bestTune$mtry, ntree=rf_cv_res$bestTune$ntree)
+      
       model_predict<- predict(rf_model, test_dt, type="prob")
       prediction_labels<- factor(model_predict[,2]>=prob_cutoff, levels=c("FALSE", "TRUE"))
       
     } else if(model=="gbm"){
       
       gbm_cv_res<- hyperparam_tune(train_dt, model="gbm")
+      print(gbm_cv_res$bestTune)
       
       # The outcome needs to be 0 or 1
       train_dt[,Truth_int:=as.integer(as.logical(Truth))]
@@ -668,6 +679,7 @@ run_nested_cv_complete<- function(in_dt,  model="rf", prob_cutoff=0.5, kfolds=10
     } else if(model=="svm"){
       
       svm_cv_res<- hyperparam_tune(train_dt, model="svm")
+      print(svm_cv_res$bestTune)
       
       # This is a "support vector classifier" with linear kernel, but use SVM naming
       svm_model<- svm(Truth~., train_dt, kernel="linear", cost=svm_cv_res$bestTune$C)

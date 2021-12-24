@@ -180,12 +180,14 @@ class DuplicateFeatureException(Exception):
     pass
 
 
-def store_coords(feature_file, use_name=True):
+def store_coords(feature_file, use_name=True, start_buffer=0):
     r"""Stores primer coordinates from a feature file in a consistent dictionary format.
 
     :param str feature_file: BED, GFF, or GTF
     :param bool use_name: Should the feature name field be used as the key? Default True. Otherwise, use the contig \
     and coordinate range as the key.
+    :param int start_buffer: buffer about the start of the primer for allowable_coords. Useful for capturing the small
+    proportion of reads that start slightly upstream of primer 5' ends (downstream for - strand primers).
     :return collections.OrderedDict: {"contig:start-stop" | name: COORD_TUPLE}
     :raises RuntimeError: if the strand field is absent or contains an invalid character
     """
@@ -216,9 +218,9 @@ def store_coords(feature_file, use_name=True):
             # If we don't know the strand of the primer, do not proceed
             raise RuntimeError("Absent strand information for %s" % FILE_DELIM.join(feature.fields))
         elif feature_strand == su.Strand.PLUS:
-            allowable_coords = frozenset(range(feature.start + 1, feature.start + feature_len + 1))
+            allowable_coords = frozenset(range(feature.start + 1 - start_buffer, feature.start + feature_len + 1))
         elif feature_strand == su.Strand.MINUS:
-            allowable_coords = frozenset(range(feature.stop - feature_len + 1, feature.stop + 1))
+            allowable_coords = frozenset(range(feature.stop - feature_len + 1, feature.stop + 1 + start_buffer))
         else:
             raise RuntimeError("Unrecognized strand for feature %s" % FILE_DELIM.join(feature.fields))
 

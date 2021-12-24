@@ -70,7 +70,7 @@ def parse_commandline_params(args):
                         help='Optional output directory. Default current working directory.')
 
     parser.add_argument("-s", "--mutagenesis_signature", type=str, default=DEFAULT_MUT_SIG,
-                        help='Mutagenesis signature. Only variants matching the mutagensis signature will be generated. '
+                        help='Mutagenesis signature. Only variants matching the signature will be generated. '
                              'One of {NNN, NNK, NNS}. Default %s.' % DEFAULT_MUT_SIG)
 
     parser.add_argument("-o", "--output_prefix", type=none_or_str,

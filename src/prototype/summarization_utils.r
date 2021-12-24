@@ -4,118 +4,14 @@
 library(data.table)
 library(e1071)
 
-VCF_SUMMARY_V0.2_COLCLASSES = c("#CHROM"="character", "POS"="integer", "ID"="character", "REF"="character", "ALT"="character", "QUAL"="numeric", "FILTER"="character", 
-                                 "DP"="integer", "AO"="integer", "AD"="integer", "CAO"="integer", "CR"="numeric", "CDR"="numeric", "AF"="numeric", "CF"="numeric", 
-                                 "NORM_AO"="numeric", "NORM_CAO"="numeric", "R1_AO"="integer", "R2_AO"="integer", "R1_MOD_RP"="numeric", "R1_MED_RP"="numeric", 
-                                 "R2_MOD_RP"="numeric", "R2_MED_RP"="numeric", "R1_MOD_BQ"="numeric", "R1_MED_BQ"="numeric", "R2_MOD_BQ"="numeric", "R2_MED_BQ"="numeric", 
-                                 "R1_MOD_NM"="numeric", "R1_MED_NM"="numeric", "R2_MOD_NM"="numeric", "R2_MED_NM"="numeric", "POS_NT"="integer", 
-                                 "REF_NT"="character", "ALT_NT"="character", "EXON_ID"="factor", "LOCATION"="character", "REF_CODON"="character", "ALT_CODON"="character",
-                                 "REF_AA"="character", "ALT_AA"="character", "AAM_AA_CHANGE"="character", "AAM_AA_POS"="character", "POPCODE_NNK_SIGNATURE"="logical",
-                                 "AAM_AA_MOTIFS"="character", "AAM_AA_MOTIF_POS"="character", "AAM_F1_STOPS"="integer", "AAM_F1_STOP_POS"="character", 
-                                 "AAM_F2_STOPS"="integer", "AAM_F2_STOP_POS"="character",  "AAM_F3_STOPS"="integer", "AAM_F3_STOP_POS"="character", 
-                                 "AAM_AROMATICITY"="numeric", "AAM_GRAVY"="numeric", "AAM_INSTABILITY"="numeric", "AAM_ISOELECTRIC_POINT"="numeric")
-
-
-VCF_SUMMARY_V0.3_COLCLASSES = c("#CHROM"="character", "POS"="integer", "ID"="character", "REF"="character", "ALT"="character", "QUAL"="numeric", "FILTER"="character", 
+VCF_SUMMARY_V1.0_COLCLASSES = c("#CHROM"="character", "POS"="integer", "ID"="character", "REF"="character", "ALT"="character", "QUAL"="numeric", "FILTER"="character", 
                                 "POS_NT"="integer", "REF_NT"="character", "ALT_NT"="character", "DP"="integer", "CAO"="integer", "NORM_CAO"="numeric", "CAF"="numeric",
                                 "R1_PLUS_AO"="integer", "R1_MINUS_AO"="integer", "R2_PLUS_AO"="integer", "R2_MINUS_AO"="integer",
                                 "R1_PLUS_MED_RP"="numeric", "R1_MINUS_MED_RP"="numeric", "R2_PLUS_MED_RP"="numeric", "R2_MINUS_MED_RP"="numeric",
                                 "R1_PLUS_MED_BQ"="numeric", "R1_MINUS_MED_BQ"="numeric", "R2_PLUS_MED_BQ"="numeric", "R2_MINUS_MED_BQ"="numeric",
                                 "R1_PLUS_MED_NM"="numeric", "R1_MINUS_MED_NM"="numeric", "R2_PLUS_MED_NM"="numeric", "R2_MINUS_MED_NM"="numeric",
-                                "EXON_ID"="factor", "LOCATION"="character", "REF_CODON"="character", "ALT_CODON"="character", "REF_AA"="character", "ALT_AA"="character", 
-                                "AAM_AA_CHANGE"="character", "AAM_AA_POS"="character", "POPCODE_NNK_SIGNATURE"="logical", "AAM_AA_MOTIFS"="character", "AAM_AA_MOTIF_POS"="character",
-                                "AAM_F1_STOPS"="integer", "AAM_F1_STOP_POS"="character", "AAM_F2_STOPS"="integer", "AAM_F2_STOP_POS"="character", 
-                                "AAM_F3_STOPS"="integer", "AAM_F3_STOP_POS"="character", "AAM_AROMATICITY"="numeric", "AAM_GRAVY"="numeric", 
-                                "AAM_INSTABILITY"="numeric", "AAM_ISOELECTRIC_POINT"="numeric")
-
-# Added Kozak motifs and nucleotide statistics
-VCF_SUMMARY_V0.5_COLCLASSES = c("#CHROM"="character", "POS"="integer", "ID"="character", "REF"="character", "ALT"="character", "QUAL"="numeric", "FILTER"="character", 
-                                "POS_NT"="integer", "REF_NT"="character", "ALT_NT"="character", "DP"="integer", "CAO"="integer", "NORM_CAO"="numeric", "CAF"="numeric",
-                                "R1_PLUS_AO"="integer", "R1_MINUS_AO"="integer", "R2_PLUS_AO"="integer", "R2_MINUS_AO"="integer",
-                                "R1_PLUS_MED_RP"="numeric", "R1_MINUS_MED_RP"="numeric", "R2_PLUS_MED_RP"="numeric", "R2_MINUS_MED_RP"="numeric",
-                                "R1_PLUS_MED_BQ"="numeric", "R1_MINUS_MED_BQ"="numeric", "R2_PLUS_MED_BQ"="numeric", "R2_MINUS_MED_BQ"="numeric",
-                                "R1_PLUS_MED_NM"="numeric", "R1_MINUS_MED_NM"="numeric", "R2_PLUS_MED_NM"="numeric", "R2_MINUS_MED_NM"="numeric",
-                                "EXON_ID"="factor", "LOCATION"="character", "REF_CODON"="character", "ALT_CODON"="character", "REF_AA"="character", "ALT_AA"="character", 
-                                "AAM_AA_CHANGE"="character", "AAM_AA_POS"="character", "POPCODE_NNK_SIGNATURE"="logical", 
-                                "AAM_KOZAK_MOTIFS"="character", "AAM_KOZAK_MOTIF_POS"="character","AAM_AA_MOTIFS"="character", "AAM_AA_MOTIF_POS"="character",
-                                "AAM_F1_STOPS"="integer", "AAM_F1_STOP_POS"="character", "AAM_F2_STOPS"="integer", "AAM_F2_STOP_POS"="character", 
-                                "AAM_F3_STOPS"="integer", "AAM_F3_STOP_POS"="character", "AAM_AROMATICITY"="numeric", "AAM_GRAVY"="numeric", 
-                                "AAM_INSTABILITY"="numeric", "AAM_ISOELECTRIC_POINT"="numeric", "AAM_GC_CONTENT"="numeric", "AAM_SHANNON_INDEX"="numeric", 
-                                "AAM_MIN_DELTA_DELTA_G"="numeric", "AAM_MED_DELTA_DELTA_G"="numeric")
-
-VCF_SUMMARY_V0.4_COLCLASSES = copy(VCF_SUMMARY_V0.3_COLCLASSES)
-VCF_SUMMARY_V0.6_COLCLASSES = copy(VCF_SUMMARY_V0.5_COLCLASSES)
-VCF_SUMMARY_V0.7_COLCLASSES = copy(VCF_SUMMARY_V0.5_COLCLASSES)
-VCF_SUMMARY_V0.8_COLCLASSES = c("#CHROM"="character", "POS"="integer", "ID"="character", "REF"="character", "ALT"="character", "QUAL"="numeric", "FILTER"="character", 
-                                "POS_NT"="integer", "REF_NT"="character", "ALT_NT"="character", "DP"="integer", "CAO"="integer", "NORM_CAO"="numeric", "CAF"="numeric",
-                                "R1_PLUS_AO"="integer", "R1_MINUS_AO"="integer", "R2_PLUS_AO"="integer", "R2_MINUS_AO"="integer",
-                                "R1_PLUS_MED_RP"="numeric", "R1_MINUS_MED_RP"="numeric", "R2_PLUS_MED_RP"="numeric", "R2_MINUS_MED_RP"="numeric",
-                                "R1_PLUS_MED_BQ"="numeric", "R1_MINUS_MED_BQ"="numeric", "R2_PLUS_MED_BQ"="numeric", "R2_MINUS_MED_BQ"="numeric",
-                                "R1_PLUS_MED_NM"="numeric", "R1_MINUS_MED_NM"="numeric", "R2_PLUS_MED_NM"="numeric", "R2_MINUS_MED_NM"="numeric",
-                                "EXON_ID"="factor", "LOCATION"="character", "REF_CODON"="character", "ALT_CODON"="character", "REF_AA"="character", "ALT_AA"="character", 
-                                "AAM_AA_CHANGE"="character", "AAM_AA_POS"="character", "POPCODE_NNK_SIGNATURE"="logical", 
-                                "AAM_KOZAK_MOTIFS"="character", "AAM_KOZAK_MOTIF_POS"="character","AAM_AA_MOTIFS"="character", "AAM_AA_MOTIF_POS"="character",
-                                "AAM_F1_STOPS"="integer", "AAM_F2_STOPS"="integer", "AAM_F3_STOPS"="integer", "AAM_AROMATICITY"="numeric", "AAM_GRAVY"="numeric", 
-                                "AAM_INSTABILITY"="numeric", "AAM_ISOELECTRIC_POINT"="numeric", "AAM_GC_CONTENT"="numeric", "AAM_SHANNON_INDEX"="numeric", 
-                                "AAM_MIN_DELTA_DELTA_G"="numeric")
-
-VCF_SUMMARY_V0.9_COLCLASSES = copy(VCF_SUMMARY_V0.8_COLCLASSES)
-
-VCF_SUMMARY_V0.2_NONSCALE_FEATURES = c("R1_MOD_RP", "R1_MED_RP", "R2_MOD_RP", "R2_MED_RP", 
-                                       "R1_MOD_BQ", "R1_MED_BQ", "R2_MOD_BQ", "R2_MED_BQ", 
-                                       "R1_MOD_NM", "R1_MED_NM", "R2_MOD_NM", "R2_MED_NM",
-                                       "AAM_F1_STOPS", "AAM_F2_STOPS", "AAM_F3_STOPS", 
-                                       "AAM_AA_MOTIF_COUNT")
-
-VCF_SUMMARY_V0.3_NONSCALE_FEATURES = c("AAM_F1_STOPS", "AAM_F2_STOPS", "AAM_F3_STOPS", "AAM_AA_MOTIF_COUNT")
-VCF_SUMMARY_V0.4_NONSCALE_FEATURES = copy(VCF_SUMMARY_V0.3_NONSCALE_FEATURES)
-
-VCF_SUMMARY_V0.5_NONSCALE_FEATURES = append(copy(VCF_SUMMARY_V0.3_NONSCALE_FEATURES), 
-                                            c("AAM_GC_CONTENT", "AAM_SHANNON_INDEX", 
-                                              "AAM_MIN_DELTA_DELTA_G", "AAM_MED_DELTA_DELTA_G"))
-VCF_SUMMARY_V0.6_NONSCALE_FEATURES = copy(VCF_SUMMARY_V0.5_NONSCALE_FEATURES)
-VCF_SUMMARY_V0.7_NONSCALE_FEATURES = copy(VCF_SUMMARY_V0.5_NONSCALE_FEATURES)
-
-VCF_SUMMARY_V0.8_NONSCALE_FEATURES = append(copy(VCF_SUMMARY_V0.3_NONSCALE_FEATURES), 
-                                            c("AAM_GC_CONTENT", "AAM_SHANNON_INDEX", "AAM_MIN_DELTA_DELTA_G"))
-
-VCF_SUMMARY_V0.9_NONSCALE_FEATURES = copy(VCF_SUMMARY_V0.8_NONSCALE_FEATURES)
-
-VCF_SUMMARY_V0.4_RLS_ANNOT_FEATURES = c(
-  "TYPE", "TILE", "VAR_TYPE", "POS", "REF", "ALT", "UP_REF_NT", "DOWN_REF_NT", 
-  "REF_CODON", "ALT_CODON", "REF_AA", "AAM_AA_POS", "ALT_AA", 
-  "AAM_AA_CHANGE", "AAM_AA_MOTIFS", "AAM_F1_STOPS", "AAM_F2_STOPS", "AAM_F3_STOPS", 
-  "AAM_AROMATICITY", "AAM_GRAVY", "AAM_INSTABILITY", "AAM_ISOELECTRIC_POINT", "AAM_AA_MOTIF_COUNT")
-
-VCF_SUMMARY_V0.5_RLS_ANNOT_FEATURES = c(
-  "TYPE", "TILE", "VAR_TYPE", "POS", "REF", "ALT",  "UP_REF_NT", "DOWN_REF_NT", 
-  "REF_CODON", "ALT_CODON", "REF_AA", "AAM_AA_POS", "ALT_AA", 
-  "AAM_AA_CHANGE", "AAM_AA_MOTIFS", "AAM_F1_STOPS", "AAM_F2_STOPS", "AAM_F3_STOPS", 
-  "AAM_AROMATICITY", "AAM_GRAVY", "AAM_INSTABILITY", "AAM_ISOELECTRIC_POINT", 
-  "AAM_AA_MOTIF_COUNT", "AAM_GC_CONTENT", "AAM_SHANNON_INDEX", 
-  "AAM_MIN_DELTA_DELTA_G")
-
-VCF_SUMMARY_V0.6_RLS_ANNOT_FEATURES = copy(VCF_SUMMARY_V0.5_RLS_ANNOT_FEATURES)
-VCF_SUMMARY_V0.7_RLS_ANNOT_FEATURES = copy(VCF_SUMMARY_V0.5_RLS_ANNOT_FEATURES)
-
-# Removed AAM stop positions and median delta G stats
-VCF_SUMMARY_V0.8_RLS_ANNOT_FEATURES = c(
-  "TYPE", "TILE", "VAR_TYPE", "POS", "REF", "ALT",  "UP_REF_NT", "DOWN_REF_NT", 
-  "REF_CODON", "ALT_CODON", "REF_AA", "AAM_AA_POS", "ALT_AA", 
-  "AAM_AA_CHANGE", "AAM_AA_MOTIFS", "AAM_F1_STOPS", "AAM_F2_STOPS", "AAM_F3_STOPS", 
-  "AAM_AROMATICITY", "AAM_GRAVY", "AAM_INSTABILITY", "AAM_ISOELECTRIC_POINT", 
-  "AAM_AA_MOTIF_COUNT", "AAM_GC_CONTENT", "AAM_SHANNON_INDEX")
-
-VCF_SUMMARY_V0.9_RLS_ANNOT_FEATURES = copy(VCF_SUMMARY_V0.8_RLS_ANNOT_FEATURES)
-
-VCF_SUMMARY_V0.2_FEATURES_CORRECT = c("R1_AO", "R2_AO", "AO", "CAO", "NORM_AO", "NORM_CAO")
-VCF_SUMMARY_V0.3_FEATURES_CORRECT = c("R1_PLUS_AO", "R2_PLUS_AO", "R1_MINUS_AO", "R2_MINUS_AO", "CAO", "NORM_CAO")
-VCF_SUMMARY_V0.4_FEATURES_CORRECT = copy(VCF_SUMMARY_V0.3_FEATURES_CORRECT)
-VCF_SUMMARY_V0.5_FEATURES_CORRECT = copy(VCF_SUMMARY_V0.3_FEATURES_CORRECT)
-VCF_SUMMARY_V0.6_FEATURES_CORRECT = copy(VCF_SUMMARY_V0.3_FEATURES_CORRECT)
-VCF_SUMMARY_V0.7_FEATURES_CORRECT = copy(VCF_SUMMARY_V0.3_FEATURES_CORRECT)
-VCF_SUMMARY_V0.8_FEATURES_CORRECT = copy(VCF_SUMMARY_V0.3_FEATURES_CORRECT)
-VCF_SUMMARY_V0.9_FEATURES_CORRECT = copy(VCF_SUMMARY_V0.3_FEATURES_CORRECT)
+                                "LOCATION"="character", "REF_CODON"="character", "ALT_CODON"="character", "REF_AA"="character", "ALT_AA"="character", 
+                                "AA_CHANGE"="character", "AA_POS"="character", "MATCHES_MUT_SIG"="character")
 
 AA_CODONS_LIST<- list("A"=c("GCC", "GCT", "GCA", "GCG"), "C"=c("TGC", "TGT"), "D"=c("GAC", "GAT"), "E"=c("GAG", "GAA"), "F"=c("TTC", "TTT"), 
                  "G"=c("GGC", "GGG", "GGA", "GGT"), "H"=c("CAC", "CAT"), "I"=c("ATC", "ATT", "ATA"), "K"=c("AAG", "AAA"), 
@@ -173,13 +69,13 @@ binding_motifs<- c("Puf3"="TGTAAATA", "Whi3"="TGCAT", "polyU"="TTTTTTA", "OSPHOS
 #'
 #' @param indir character path of input directory
 #' @return data.table of all samples in the input dir
-read_vcf_summary_files<- function(indir=".", colclasses=VCF_SUMMARY_V0.9_COLCLASSES){
+read_vcf_summary_files<- function(indir=".", colclasses=VCF_SUMMARY_V1.0_COLCLASSES){
   
-  vcf_summary_file_pattern<- "reference.variant.candidates.vcf.summary.txt"
+  vcf_summary_file_pattern<- "var.cand.vcf.summary.txt"
   vcf_summary_files<- dir(path=indir, pattern=vcf_summary_file_pattern, full.names=TRUE)
   
   if(length(vcf_summary_files)==0){
-    stop(paste("No reference.variant.candidates.vcf.summary.txt files found in directory", vcf_summary_file_pattern))
+    stop(paste("No var.cand.vcf.summary.txt files found in directory", vcf_summary_file_pattern))
   }
          
   vcf_summary_files_split<- sapply(strsplit(as.character(vcf_summary_files), "/", fixed=TRUE), tail, 1)
@@ -195,7 +91,7 @@ read_vcf_summary_files<- function(indir=".", colclasses=VCF_SUMMARY_V0.9_COLCLAS
 }
 
 
-#' Gets a data.table matching coordinate positions to PCR tile
+#' Gets a data.table matching coordinate positions to CBS PCR tile
 #'
 #' @param design_version character one of v0.1 or v0.2, specifying CBS primer tile design version
 #' @return data.table with POS and TILE columns
@@ -244,10 +140,14 @@ get_var_type<- function(ref, alt, split_mnps=TRUE){
       if(len_ref == 2){
         return("di_nt_MNP")
       }
-      hd<- hamming.distance(ref_c, alt_c)
+      hd<- hamming.distance(sub(",", "", ref_c, fixed=T), sub(",", "", alt_c, fixed=T))
       if(len_ref == 3){
         if(hd == 2){
-          return("di_nt_MNP")
+          if(grepl(",", ref, fixed=T)){
+            return("2_nt_HAPLO")
+          } else {
+            return("di_nt_MNP")
+          }
         } else {
           return("tri_nt_MNP")
         }
@@ -275,46 +175,6 @@ get_var_type<- function(ref, alt, split_mnps=TRUE){
 }
 
 
-
-#' Adds a fraction ID to alias sample name
-#'
-#' @param in_dt data.table in vcf.summary.txt format
-#' @param mapping_dt data.table mapping sample name to desired fraction label
-#' @param as_int leave the fractions as integers?
-#' @return data.table annotated with Fraction column
-add_fraction_ids<- function(in_dt, mapping_dt, endo_fraction=10, as_int=TRUE){
-  
-  copy_dt<- copy(in_dt)
-  sample_matches<- match(in_dt$Sample, mapping_dt$Sample)
-  copy_dt[,Fraction:=mapping_dt[sample_matches, Fraction]]
-  
-  if(as_int){
-    return(copy_dt)
-  }
-  
-  # Need to add character to int column, so first change to factor
-  copy_dt[,Fraction:=as.factor(Fraction)]
-  copy_dt[Fraction==as.character(endo_fraction), Fraction:="Endo"]
-  copy_dt[,Fraction:=factor(Fraction)]
-  return(copy_dt)
-}
-
-
-#' Adds a fraction labels to alias fraction number
-#'
-#' @param in_dt data.table in vcf.summary.txt format
-#' @param mapping_dt data.table mapping sample name to desired fraction label
-#' @return data.table annotated with Fraction column
-add_fraction_labels<- function(in_dt, mapping_dt){
-  
-  copy_dt<- copy(in_dt)
-  sample_matches<- match(in_dt$Fraction, mapping_dt$Fraction)
-  copy_dt[,Fraction_label:=mapping_dt[sample_matches, Fraction_label]]
-  copy_dt[,Fraction_label:=as.factor(Fraction_label)]
-  return(copy_dt)
-}
-
-
 #' Annotates data.table of vcf.summary.txt formatted data
 #'
 #' @param in_dt data.table in vcf.summary.txt format
@@ -335,20 +195,16 @@ annotate_calls<- function(in_dt, mapping_dt=NULL, tile_positions_dt=NULL){
   
   copy_dt[,TYPE:=get_var_type(REF, ALT), by=seq_len(nrow(copy_dt))]
   copy_dt[,SUBST:=as.factor(paste(REF_NT, ALT_NT, sep=":"))]
-  
-  copy_dt[,AAM_AA_MOTIF_COUNT:=length(unlist(strsplit(AAM_AA_MOTIFS, ","))), 
-          by=seq_len(nrow(copy_dt))]
-  
+
   copy_dt[,TYPE:=as.factor(TYPE)]
   copy_dt[,REF_NT:=as.factor(REF_NT)]
   copy_dt[,ALT_NT:=as.factor(ALT_NT)]
-  copy_dt[,EXON_ID:=as.factor(EXON_ID)]
   copy_dt[,`#CHROM`:=as.factor(`#CHROM`)]
   copy_dt[,FILTER:=as.factor(FILTER)]
   copy_dt[,UP_REF_NT:=as.factor(UP_REF_NT)]
   copy_dt[,DOWN_REF_NT:=as.factor(DOWN_REF_NT)]
-  copy_dt[,AAM_AA_POS2:=as.numeric(sapply(
-    as.character(AAM_AA_POS), summarize_str_list)),
+  copy_dt[,AA_POS2:=as.numeric(sapply(
+    as.character(AA_POS), summarize_str_list)),
           by=seq_len(nrow(copy_dt))]
   
   copy_dt[, VAR_TYPE:=ifelse(REF_AA==ALT_AA, "Silent", "Missense"), 
@@ -385,13 +241,13 @@ summarize_counts<- function(in_dt){
   
   # Multi-AA changes are separated and each AA change called unique
   # At some point we may actually want to consider them different
-  calls_by_sample$AA_changes<- in_dt[,length(unique(unlist(strsplit(AAM_AA_CHANGE, ",")))),by=.(Sample)]$V1
-  calls_by_sample$AA_changes_SNPs<- in_dt[nchar(REF)==1, length(unique(unlist(strsplit(AAM_AA_CHANGE, ",")))),by=.(Sample)]$V1
-  calls_by_sample$AA_changes_MNPs<- in_dt[nchar(REF)>1, length(unique(unlist(strsplit(AAM_AA_CHANGE, ",")))),by=.(Sample)]$V1
+  calls_by_sample$AA_changes<- in_dt[,length(unique(unlist(strsplit(AA_CHANGE, ",")))),by=.(Sample)]$V1
+  calls_by_sample$AA_changes_SNPs<- in_dt[nchar(REF)==1, length(unique(unlist(strsplit(AA_CHANGE, ",")))),by=.(Sample)]$V1
+  calls_by_sample$AA_changes_MNPs<- in_dt[nchar(REF)>1, length(unique(unlist(strsplit(AA_CHANGE, ",")))),by=.(Sample)]$V1
   
   # If the variants are off, so are the AA changes
-  calls_by_sample$AA_changes_di_nt_MNPs<- in_dt[TYPE=="di_nt_MNP", length(unique(unlist(strsplit(AAM_AA_CHANGE, ",")))),by=.(Sample)]$V1
-  calls_by_sample$AA_changes_tri_nt_MNPs<- in_dt[TYPE=="tri_nt_MNP", length(unique(unlist(strsplit(AAM_AA_CHANGE, ",")))),by=.(Sample)]$V1
+  calls_by_sample$AA_changes_di_nt_MNPs<- in_dt[TYPE=="di_nt_MNP", length(unique(unlist(strsplit(AA_CHANGE, ",")))),by=.(Sample)]$V1
+  calls_by_sample$AA_changes_tri_nt_MNPs<- in_dt[TYPE=="tri_nt_MNP", length(unique(unlist(strsplit(AA_CHANGE, ",")))),by=.(Sample)]$V1
   
   names(calls_by_sample)<- c("Sample", "Variant_calls", "Variant_calls_SNPs", "Variant_calls_MNPs", "Variant_calls_di_nt_MNPs", "Variant_calls_tri_nt_MNPs",
                              "AA_changes", "AA_changes_SNPs", "AA_changes_MNPs", "AA_changes_di_nt_MNPs", "AA_changes_tri_nt_MNPs")
@@ -421,7 +277,7 @@ melt_summarized_counts<- function(calls_by_sample, id_vars=c("Sample")){
 #' @param fill_var character of a numeric variable to use for fill color
 #' @param na_val numeric or integer value to use for NA values
 #' @param transform_fun character name of a transformation function for the fill_var
-plot_heatmap<- function(in_dt, var1="AAM_AA_CHANGE", var2="Fraction", fill_var="NORM_CAO", na_val=0.1, 
+plot_heatmap<- function(in_dt, var1="AA_CHANGE", var2="Sample", fill_var="NORM_CAO", na_val=0.1, 
                         transform_fun="log2", agg_fun="median", scale_spec="row"){
   
   library(gplots)
@@ -451,52 +307,6 @@ plot_heatmap<- function(in_dt, var1="AAM_AA_CHANGE", var2="Fraction", fill_var="
 }
 
 
-#' Combines mutant fractions by aggregating numeric values
-#'
-#' @param in_dt data.table in vcf.summary.txt format
-#' @param agg_fun function to use to aggregate for each (VAR_ID, POS_NT) level
-combine_fractions<- function(in_dt,  agg_fun=mean){
-  
-  dt_copy<- copy(in_dt)
-  dt_copy[,`:=`(POS=as.factor(POS), VAR_ID=as.factor(VAR_ID), 
-                POS_NT=as.factor(POS_NT), EXON_ID=as.factor(EXON_ID))]
-  
-  # Remove the negative control sample, which should have Fraction==NA
-  dt_copy<- dt_copy[!is.na(Fraction),]
-  
-  # Do away with the columns since we are combining now
-  dt_copy[,Sample:=NULL]
-  dt_copy[,Fraction:=NULL]
-  
-  dt_keys<- c("VAR_ID", "POS_NT")
-  
-  numeric_col_classes<- sapply(dt_copy, class)
-  which_numeric<- numeric_col_classes%in%c("integer", "numeric", "single", "double")
-  
-  numeric_cols_dt<- dt_copy[,which_numeric,with=FALSE]
-  nonnumeric_cols_dt<- dt_copy[,!which_numeric,with=FALSE]
-  
-  collapse_nonnumeric_dt<- nonnumeric_cols_dt[,lapply(.SD, head, 1), 
-                                              by=.(VAR_ID, POS_NT)]
-  
-  numeric_cols_dt[,VAR_ID:=nonnumeric_cols_dt[,VAR_ID]]
-  numeric_cols_dt[,POS_NT:=nonnumeric_cols_dt[,POS_NT]]
-  
-  numeric_sd_cols<- names(numeric_cols_dt)
-  # Need to explicitly remove the "by" columns, as numeric_sd_cols is evaluated lazily
-  numeric_sd_cols<- numeric_sd_cols[!numeric_sd_cols%in%dt_keys]
-  
-  recomp_numeric_dt<- numeric_cols_dt[,lapply(.SD, agg_fun),
-                                      by=.(VAR_ID, POS_NT), 
-                                      .SDcols=numeric_sd_cols]
-  
-  merged_dt<- merge(recomp_numeric_dt, collapse_nonnumeric_dt, by=dt_keys)
-  
-  merged_dt[,CAF:=(CAO*2)/DP]
-  return(merged_dt)
-}
-
-
 # Lack of normalization of features that depend on DP cause lack of generalization to other datasets
 
 #' Centers with the robust median
@@ -505,9 +315,9 @@ combine_fractions<- function(in_dt,  agg_fun=mean){
 #' @param standardize logical indicating the data should also be standardized after centering.
 #' @return numeric vector centered and possibly standardized
 robust_center<- function(x, standardize=FALSE){
-  centered_x<- x - median(x)
+  centered_x<- x - median(x, na.rm=TRUE)
   if(standardize==TRUE){
-    centered_x<- centered_x / sd(centered_x)
+    centered_x<- centered_x / sd(centered_x, na.rm=TRUE)
   }
   return(centered_x)
 }
@@ -516,20 +326,19 @@ robust_center<- function(x, standardize=FALSE){
 #' Scales numeric and integer columns of a data.table
 #'
 #' @param in_dt input data.table, can contain both numeric and non-numeric columns
-#' @param version character one of v0.2 or v0.3, specifying VariantCaller version
 #' @param standardize logical indicating the data should be standardized after centering.
+#' @param nonscale_features character of integer or numeric features to not scale.
 #'
 #' @return data.table with numeric and integer columns centered and possibly standardized
-scale_numeric_features<- function(in_dt, standardize=FALSE, nonscale_features=VCF_SUMMARY_V0.9_NONSCALE_FEATURES){
+scale_numeric_features<- function(in_dt, standardize=FALSE, nonscale_features=c("POS", "POS_NT", "AA_POS")){
   
   dt_copy<- copy(in_dt)
-  dt_copy[,`:=`(Sample=as.factor(Sample), 
-                POS=as.factor(POS), 
-                VAR_ID=as.factor(VAR_ID), 
-                POS_NT=as.factor(POS_NT), 
-                EXON_ID=as.factor(EXON_ID))]
   
-  # Don't scale features that don't explicitly need it
+  # Add a sample name if the dataset does not have one already
+  if(!"Sample"%in%names(dt_copy)){
+    dt_copy[,Sample:="Mock_sample"]
+  }
+  
   nonscale_dt<- dt_copy[,..nonscale_features]
   remain_dt<- dt_copy[,-..nonscale_features]
   
@@ -553,9 +362,6 @@ scale_numeric_features<- function(in_dt, standardize=FALSE, nonscale_features=VC
   
   numeric_cols_scaled_dt[,Sample:=NULL]
   recombined_dt<- cbind(nonnumeric_cols_dt, numeric_cols_scaled_dt, nonscale_dt)
-  
-  recombined_dt[,POS:=as.integer(as.character(POS))]
-  recombined_dt[,POS_NT:=as.integer(as.character(POS_NT))]
   
   return(recombined_dt)
 }
@@ -667,91 +473,6 @@ subtract_xtalk<- function(x, xtalk_prop){
 }
 
 
-#' Subtracts proportion of frequency potentially caused by barcode crosstalk
-#'
-#' @param in_dt data.table in vcf.summary.txt format, with MNPs collapsed
-#' @param xtalk_prop numeric estimate of barcode crosstalk proportion
-#' @return data.table with numeric features corrected for barcode crosstalk
-remove_xtalk<- function(in_dt, xtalk_prop=0.014, features_to_correct=VCF_SUMMARY_V0.9_FEATURES_CORRECT){
-  
-  copy_dt<- copy(in_dt)
-  setkey(copy_dt, VAR_ID)
-  
-  nonfeature_dt<- copy_dt[,-..features_to_correct]
-  to_correct_dt<- copy_dt[,..features_to_correct]
-  to_correct_dt[,VAR_ID:=nonfeature_dt[,VAR_ID]]
-  to_correct_dt[,TYPE:=nonfeature_dt[,TYPE]]
-  
-  # Find the set of sample-unique IDs
-  counts_by_varid<- copy_dt[,.N,by=.(VAR_ID, TYPE)]
-  
-  uniq_ids<- counts_by_varid[N==1, as.character(unique(VAR_ID))]
-  
-  noncorrected_dt<- to_correct_dt[VAR_ID%in%uniq_ids,]
-  
-  corrected_dt<- to_correct_dt[
-    !VAR_ID%in%uniq_ids, lapply(.SD, subtract_xtalk, xtalk_prop), 
-    by=.(VAR_ID, TYPE), .SDcols=features_to_correct]
-  
-  feature_dt<- rbind(corrected_dt, noncorrected_dt)
-  setkey(feature_dt, VAR_ID)
-  feature_dt[,VAR_ID:=NULL]
-  feature_dt[,TYPE:=NULL]
-  
-  combined_dt<- cbind(nonfeature_dt, feature_dt)
-
-  filtered_dt<- combined_dt[CAO>=1,]
-  filtered_dt[,CAF:=(CAO*2)/DP]
-  
-  return(filtered_dt)
-}
-
-
-#' Gets the fraction ranges for each number of fractions present for each VAR_ID
-#'
-#' @param in_dt data.table in vcf.summary.txt format
-#' @return data.table with proportions of each fraction range for each number of fractions observed
-#' @details useful in comparison of polysome fraction data to random null distributions
-get_ranges_by_nfractions<- function(in_dt){
-  
-  # First uniquify the input because MNPs are represented by component bps
-  uniq_dt<- unique(in_dt[,.(Fraction,VAR_ID)])
-  
-  # First find the number of fractions each variant ID is in
-  fractions_by_varid<- uniq_dt[,.(nfractions=.N), by=.(VAR_ID)]
-  
-  # Then compute the fraction range for each variant ID
-  fractions_by_varid$Fraction_range<- uniq_dt[,get_range(Fraction), by=.(VAR_ID)]$V1
-  
-  # Now sum the occurences for each [nfractions x ranges]
-  nfractions_ranges_totals<- fractions_by_varid[,.N, by=.(nfractions, Fraction_range)]
-  
-  # The denominator will be the sums for just the nfractions
-  nfractions_totals<- fractions_by_varid[,.N,by=.(nfractions)]
-  
-  # Get the match indices for reassignment of the denominator and assign
-  nfractions_ranges_totals_match_indices<- match(nfractions_ranges_totals$nfractions, nfractions_totals$nfractions)
-  nfractions_ranges_totals[,nfractions_total:=nfractions_totals[nfractions_ranges_totals_match_indices,N]]
-  
-  # Finally compute the proportion of each range for each nfractions
-  nfractions_ranges_totals[,Proportion_ranges:=N/nfractions_total]
-  
-  # Add placeholders for ranges that do no exist for nfractions; i is nfractions, j is Fraction_range
-  nfractions_ranges_totals[,nfractions.Fraction_range:=paste(nfractions, Fraction_range, sep=".")]
-  for(i in 1:9){
-    for(j in 0:8){
-      combo<- paste(i,j,sep=".")
-      if(!(combo%in%nfractions_ranges_totals$nfractions.Fraction_range)){
-        nfractions_ranges_totals<- rbind(nfractions_ranges_totals, data.table(
-          nfractions=i, Fraction_range=j, N=NA, nfractions_total=NA, Proportion_ranges=0.0, nfractions.Fraction_range=combo))
-      }
-    }
-  }
-  setkey(nfractions_ranges_totals, nfractions, Fraction_range)
-  return(nfractions_ranges_totals)
-}
-
-
 numeric_median<- function(x){
   res<- as.numeric(median(x))
   return(res)
@@ -820,11 +541,11 @@ collapse_mnps<- function(in_dt, key_features=c("Sample", "VAR_ID"), agg_fun=nume
 #'
 #' @param in_dt data.table in vcf.summary.txt format
 #' @return data.table without multi-AA change variants (e.g. p.K247R,p.L248L)
-#' @details needed to coerce AAM_AA_POS to integer for plotting
+#' @details needed to coerce AA_POS to integer for plotting
 remove_multi_aas<- function(in_dt){
   copy_dt<- copy(in_dt)
-  filt_dt<- copy_dt[!grepl(",", AAM_AA_CHANGE),]
-  filt_dt[,AAM_AA_POS:=as.integer(AAM_AA_POS)]
+  filt_dt<- copy_dt[!grepl(",", AA_CHANGE),]
+  filt_dt[,AA_POS:=as.integer(AA_POS)]
   return(filt_dt)
 }
 
@@ -879,87 +600,6 @@ subtract_af<- function(in_dt){
 standardize_vector<- function(x){
   res<- (x-mean(x, na.rm=TRUE))/sd(x, na.rm=TRUE)
   return(res)
-}
-
-
-#' Quantifies the ribosome loading score for a variant
-#'
-#' @param in_dt data.table in vcf.summary.txt format
-#' @param key_features character vector of keys for grouping prior to RLS calculation
-#' @return data.table giving mapping between keys and RLS
-#' @details Can Cenik's method which normalizes to input frequency
-get_rls<- function(in_dt, key_features=c("VAR_ID"), annot_features=VCF_SUMMARY_V0.9_RLS_ANNOT_FEATURES){
-  
-  copy_dt<- copy(in_dt)
-  
-  key_features_no_var_id<- key_features[!key_features=="VAR_ID"]
-  
-  # The translational activity will be the sum of the 
-  # products between fraction and intensity measure
-  score_dt<- copy_dt[
-    ,.(Normalized_score_CAO=sum(Fraction * NORM_CAO) / sum(NORM_CAO),
-       Normalized_score_CAF=sum(Fraction * CAF) / sum(CAF)), 
-    by=key_features]
-  
-  # Could this be a problem if by is an empty list?
-  stdized_score_dt<- score_dt[
-    ,`:=`(RLS_CAO=standardize_vector(Normalized_score_CAO),
-          RLS_CAF=standardize_vector(Normalized_score_CAF))]
-  
-  # by=key_features_no_var_id]
-  
-  key_annot_features<- unique(append(annot_features, key_features))
-  
-  annot_dt<- unique(copy_dt[,key_annot_features, with=FALSE])
-  
-  norm_merged_annot_dt<- merge(stdized_score_dt, annot_dt, by=key_features, all.x=TRUE)
-  
-  norm_merged_annot_dt[
-    ,AAM_AA_POS2:=as.numeric(sapply(as.character(AAM_AA_POS), summarize_str_list)),
-    by=seq_len(nrow(norm_merged_annot_dt))]
-  
-  return(norm_merged_annot_dt)
-}
-
-  
-#' Runs goodness of fit tests for individual variant IDs 
-#'
-#' @param in_dt data.table in vcf.summary.txt format
-#' @return data.table with raw goodness of fit p-values appended as new column
-get_fraction_intensity_goodness_of_fit<- function(in_dt, intensity_var="CAO"){
-  
-  copy_dt<- copy(in_dt)
-  
-  # First define the prior probabilities based on all variants
-  
-  # TODO: consider AF?
-  chisq_priors_dt<- copy_dt[,lapply(.SD, sum), by=.(Fraction), .SDcols=intensity_var]
-  chisq_priors<- round(chisq_priors_dt[[intensity_var]])
-  chisq_prior_probs<- chisq_priors / sum(chisq_priors)
-  
-  # Then run goodness of fit tests for each VAR_ID
-  counts_by_varid_fraction<- copy_dt[,
-                                     lapply(.SD, round), 
-                                     by=.(VAR_ID, Fraction), 
-                                     .SDcols=intensity_var]
-  
-  # Use merge to add in the unused Fraction levels
-  uniq_varids<- copy_dt[,unique(VAR_ID)]
-  len_uniq_varids<- length(uniq_varids)
-  uniq_fractions<- copy_dt[,unique(Fraction)]
-  all_levels_dt<- data.table(VAR_ID=rep(uniq_varids, each=length(uniq_fractions)), 
-                             Fraction=rep(uniq_fractions, times=len_uniq_varids),
-                             Prior=rep(chisq_prior_probs, times=len_uniq_varids))
-  
-  counts_by_varid_fraction_complete<- merge(counts_by_varid_fraction, all_levels_dt, all=TRUE)
-  counts_by_varid_fraction_complete[is.na(CAO), CAO:=0]
-  
-  # Now that we have all VAR_ID and Fraction records, run the chi-sq test
-  res_dt<- counts_by_varid_fraction_complete[,.(pvalue=chisq.test(
-    x=CAO, p=Prior, simulate.p.value=TRUE, B=500)$p.value), 
-    by=.(VAR_ID)]
-  
-  return(res_dt)
 }
 
 
@@ -1075,43 +715,6 @@ expand_wobble_pairs<- function(hydrotrnaseq_summarized_dt){
 }
 
 
-#' Gets the fraction-unique variant IDs
-#'
-#' @param in_dt data.table in vcf.summary.txt format
-#' @param negative_fraction integer fraction number giving the cytoplasmic fraction
-#' @return character variant IDs
-get_uniq_varids<- function(in_dt, negative_fraction=10){
-  varid_counts_dt<- in_dt[Fraction!=negative_fraction, .N, by=.(VAR_ID)]
-  uniq_varids<- varid_counts_dt[N==1,VAR_ID]
-  return(uniq_varids)
-}
-
-
-#' Gets the variant IDs that are found in all fractions
-#'
-#' @param in_dt data.table in vcf.summary.txt format
-#' @param negative_fraction integer fraction number giving the cytoplasmic fraction
-#' @return character variant IDs
-get_complete_varids<- function(in_dt, negative_fraction=10){
-  varid_counts_dt<- in_dt[Fraction!=negative_fraction, .N, by=.(VAR_ID)]
-  complete_varids<- varid_counts_dt[N==9, VAR_ID]
-  return(complete_varids)
-}
-
-
-#' Annotates the number of fractions a variant was found in 
-#'
-#' @param in_dt data.table in vcf.summary.txt format
-#' @return data.table with additional nfractions column
-annotate_fraction_number<- function(in_dt){
-  copy_dt<- copy(in_dt)
-  varid_counts_dt<- copy_dt[,.N, by=.(VAR_ID)]
-  varid_match<- copy_dt[,match(VAR_ID, varid_counts_dt[,VAR_ID])]
-  copy_dt[,nfractions:=varid_counts_dt[varid_match, N]]
-  return(copy_dt)
-}
-
-
 #' Converts human to mouse gene name conventions
 #'
 #' @param x character vector of human gene names
@@ -1154,7 +757,7 @@ postprocess_vcf_summary_dt<- function(in_dt, mapping_dt=NULL, tile_positions_dt=
 }
 
 
-#' Annotates and collapses per-bp records into per-variant records
+#' Computes coverage (DP) over positions
 #'
 #' @param in_dt data.table in vcf.summary.txt format
 #' @param key_features character vector of keys to merge on. (Include your other variables).
@@ -1178,19 +781,6 @@ waterfall_ecdf<- function(in_dt, key_features=c("Sample"), stepsize=10){
 }
 
 
-#' Random samples from fraction set given nfractions to sample and replicate times
-#'
-#' @param fractions integer vector of values to sample from, without replacement
-#' @param nfractions integer number of fractions to sample
-#' @param times integer replication times
-#' @return data.table with probabilities for each fraction range
-sample_fractions<- function(fractions=seq(1,9), nfractions=2, times=10000){
-  res<- replicate(n=times, expr=get_range(sample(fractions, nfractions)))
-  res_props<- table(res)/length(res)
-  return(as.data.table(res_props))
-}
-
-
 #' Re-computes CAF by averaging CAF over positions in MNPs
 #'
 #' @param in_dt data.table vcf.summary.txt per-bp calls prior to collapse
@@ -1199,80 +789,6 @@ recompute_caf<- function(in_dt){
   copy_dt<- copy(in_dt)
   recomp_dt<- copy_dt[,CAF:=max(CAO/DP), by=.(VAR_ID)]
   return(recomp_dt)
-}
-
-
-#' Compute the proportion of variants in fractions
-#'
-#' @param in_dt data.table vcf.summary.txt collapsed per-variant calls
-#' @return data.table with proportions for each variant
-props_of_variants<- function(in_dt){
-  
-  fractions<- in_dt[,unique(Fraction)]
-  
-  res1<- vector(mode="numeric", length=length(fractions))
-  res2<- vector(mode="numeric", length=length(fractions))
-  res3<- vector(mode="numeric", length=length(fractions))
-  res4<- vector(mode="numeric", length=length(fractions))
-    
-  for(i in 1:length(fractions)){
-    frac<- fractions[i]
-    
-    other_var_ids<- in_dt[Fraction!=frac, unique(VAR_ID)]
-    num_var_ids<- length(other_var_ids)
-    
-    res1[i]<- in_dt[Fraction==frac, 
-                   sum(unique(VAR_ID)%in%other_var_ids)/num_var_ids]
-    
-    res2[i]<- in_dt[Fraction==frac, 
-                    sum(!unique(VAR_ID)%in%other_var_ids)/.N]
-    
-    distal_other_var_ids<- in_dt[
-      !Fraction%in%c(frac-1,frac,frac+1), 
-      unique(VAR_ID)]
-    
-    res3[i]<- in_dt[Fraction==frac, 
-                    sum(unique(VAR_ID)%in%distal_other_var_ids)/.N]
-    
-   proximal_other_var_ids<- in_dt[
-      Fraction%in%c(frac-1,frac+1), 
-      unique(VAR_ID)]
-    
-    res4[i]<- in_dt[Fraction==frac, 
-                    sum(unique(VAR_ID)%in%proximal_other_var_ids)/.N]
-    
-  }
-  res_dt<- data.table(Fraction=fractions, 
-                      Proportion_others_all=res1,
-                      Proportion_in_distal_fractions=res3,
-                      Proportion_in_proximal_fractions=res4,
-                      Proportion_unique=res2)
-  
-  return(res_dt)
-}
-
-
-get_max_fraction<- function(x, y){
-  max_x<- which.max(x)
-  select_y<- y[max_x]
-  return(select_y)
-}
-
-
-get_min_fraction<- function(x, y){
-  min_x<- which.min(x)
-  select_y<- y[min_x]
-  return(select_y)
-}
-
-
-get_last_fraction_median<- function(x, y, n=2){
-  ordered_x<- order(x, decreasing=TRUE)
-  y_sorted<- y[ordered_x]
-  y_len<- length(y)
-  last_n<- y_sorted[(y_len-n+1):y_len]
-  res<- median(last_n)
-  return(res)
 }
 
 

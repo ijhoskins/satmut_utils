@@ -221,7 +221,7 @@ class FastqPreprocessor(object):
         if not os.path.exists(outdir):
             os.mkdir(outdir)
 
-        self.log_file = os.path.join(outdir, os.path.basename(os.path.commonpath((f1, f2,))) + self.LOG_SUFFIX)
+        self.log_file = os.path.join(outdir, os.path.basename(os.path.commonprefix((f1, f2,))) + self.LOG_SUFFIX)
 
         # Ensure trimmed FASTQs contain a gz extension if the input FASTQs were also gzipped,
         # as cutadapt outputs same compression as input FASTQs
@@ -1231,7 +1231,7 @@ class ReadMasker(object):
             else ffu.BED_INTERSECT_WB_B_GFF_STRAND_OFFSET
 
         # Store primer coordinates
-        self.primer_info = ffu.store_coords(feature_file=feature_file, use_name=False)
+        self.primer_info = ffu.store_coords(feature_file=feature_file, use_name=False, start_buffer=5)
 
     def _get_read_primer_intersection(self):
         """Applies a custom bedtools sort pipeline to get primers associated with each read.
