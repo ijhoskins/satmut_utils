@@ -123,7 +123,7 @@ If the Ensembl ID is not in the curated set of primary transcripts, or if you wa
 satmut_utils -r $TEST_DIR/CBS.fa -o $OUTPUT_DIR -p $TEST_DIR/CBS_sim_primers.bed call -1 $TEST_DIR/CBS_sim.R1.fq.gz -2 $TEST_DIR/CBS_sim.R2.fq.gz -v -g $TEST_DIR/CBS.gff -k $REF_DIR/GRCh38.fa
 ```
 
-The call workflow produces a VCF of candidate variant calls as well as a BED file reporting fragment coverage across the reference. The output VCF and its corresponding tab-delimited summary.txt file contain records for each mismatched base in an MNP. See the VCF header for column/field descriptions.
+The call workflow produces a VCF of candidate variant calls as well as a bedgraph file reporting fragment coverage across the transcript reference. The output VCF and its corresponding tab-delimited summary.txt file contain records for each mismatched base in an MNP. See the corresponding VCF header for column/field descriptions.
 
 A number of useful R functions exist in src/prototype/summarization_utils.r for parsing and summarizing the output VCF summary files.
 

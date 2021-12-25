@@ -4,6 +4,7 @@
 import collections
 import gzip
 import logging
+import os
 import numpy as np
 import pybedtools
 import pysam
@@ -313,7 +314,7 @@ class UMIExtractor(object):
 
         self.r1_fastq = r1_fastq
         self.r2_fastq = r2_fastq
-        self.common_basename = os.path.basename(os.path.commonpath((self.r1_fastq, self.r2_fastq)))
+        self.common_basename = os.path.basename(os.path.commonprefix((self.r1_fastq, self.r2_fastq)))
         self.umi_regex = umi_regex
         self.prepend_primer = True if primer_fasta is not None else False
         self.primer_fasta = primer_fasta
@@ -1164,7 +1165,7 @@ class ConsensusDeduplicator(object):
         """
 
         # Write the reads to FASTQ
-        r1_fastq, r2_fastq = su.bam_to_fastq(bam=in_bam, nthreads=self.nthreads)
+        r1_fastq, r2_fastq = su.bam_to_fastq(in_bam, None, True, self.nthreads, s=os.devnull)
 
         # Realign the reads
         outbam = os.path.basename(self.out_bam)

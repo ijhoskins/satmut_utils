@@ -630,7 +630,7 @@ class ReadEditor(object):
         :return tuple: (str, str) paths of the R1 and R2 FASTQ files
         """
 
-        r1_fastq, r2_fastq = su.bam_to_fastq(bam=self.temp_edit_bam, out_prefix=self.out_path)
+        r1_fastq, r2_fastq = su.bam_to_fastq(self.temp_edit_bam, self.out_path, True, self.nthreads)
         zipped_r1_fastq = fu.gzip_file(r1_fastq, force=True)
         zipped_r2_fastq = fu.gzip_file(r2_fastq, force=True)
         return zipped_r1_fastq, zipped_r2_fastq
