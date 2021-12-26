@@ -1008,18 +1008,19 @@ class ConsensusDeduplicator(object):
         :return pysam.AlignedSegment: consensus read object
         """
 
+        # In future, instead of realigning:
         # Use samtools fixmate to fix SAM flags and the tlen field
         # Use samtools calmd to fix MD and NM tags, which are REQUIRED for variant calling
 
         qname, sam_flag = self._get_consensus_read_attrs(read_umi_network, curr_mate_strand)
 
-        # Unfortunately we need to construct a valid CIGAR
-        cigartuples = self._construct_cigar(consensus_quals)
-
         new_align_seg = pysam.AlignedSegment()
         new_align_seg.query_name = qname
         new_align_seg.flag = sam_flag
-        new_align_seg.cigartuples = cigartuples
+
+        # Unfortunately we need to construct a valid CIGAR
+        # cigartuples = self._construct_cigar(consensus_quals)
+        # new_align_seg.cigartuples = cigartuples
 
         # Convert missing bases in contig to N
         consensus_seq_update, consensus_quals_update = self._set_missing_bases(consensus_seq, consensus_quals)
@@ -1168,9 +1169,7 @@ class ConsensusDeduplicator(object):
         r1_fastq, r2_fastq = su.bam_to_fastq(in_bam, None, True, self.nthreads, s=os.devnull)
 
         # Realign the reads
-        outbam = os.path.basename(self.out_bam)
-        bt = baw(f1=r1_fastq, f2=r2_fastq, ref=self.ref, outdir=self.outdir, outbam=outbam, nthreads=self.nthreads)
-        return bt.output_bam
+        baw(f1=r1_fastq, f2=r2_fastq, ref=self.ref, outbam=self.out_bam, nthreads=self.nthreads)
 
     def workflow(self):
         """Runs the ConsensusDeduplicator workflow."""
@@ -1178,10 +1177,8 @@ class ConsensusDeduplicator(object):
         logger.info("Started consensus read generation workflow for %s" % self.in_bam)
         consensus_bam = self._generate_consensus_reads()
 
+        self._realign_consensus_reads(consensus_bam)
         logger.info("Completed consensus read generation workflow.")
-        _ = self._realign_consensus_reads(consensus_bam)
-
-        su.index_bam(self.out_bam)
 
 
 class ReadMasker(object):
