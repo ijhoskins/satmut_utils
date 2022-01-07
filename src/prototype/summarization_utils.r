@@ -766,7 +766,7 @@ postprocess_vcf_summary_dt<- function(in_dt, mapping_dt=NULL, tile_positions_dt=
 #' @return data.table
 waterfall_ecdf<- function(in_dt, key_features=c("Sample"), stepsize=10){
   
-  max_cov<- in_dt[,max(Coverage)]
+  max_cov<- in_dt[,max(V4)]
   
   # Modify max_cov slighlty so we can have an appropriate stepsize
   # to split data evenly
@@ -775,7 +775,7 @@ waterfall_ecdf<- function(in_dt, key_features=c("Sample"), stepsize=10){
   }
   
   # We compute the ECDF then plot values for 0 to max coverage
-  ecdf_res_dt<- in_dt[,.(Proportion_greater_than=1-ecdf(Coverage)(seq(0,max_cov,stepsize)),
+  ecdf_res_dt<- in_dt[,.(Proportion_greater_than=1-ecdf(V4)(seq(0,max_cov,stepsize)),
                          Coverage=seq(0,max_cov,stepsize)), by=key_features]
   return(ecdf_res_dt)
 }
