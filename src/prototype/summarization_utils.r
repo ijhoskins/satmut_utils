@@ -193,10 +193,8 @@ annotate_calls<- function(in_dt, mapping_dt=NULL, tile_positions_dt=NULL){
     copy_dt[,TILE:=as.factor(tile_positions_dt[tile_positions_match,TILE])]
   }
   
-  copy_dt[,TYPE:=get_var_type(REF, ALT), by=seq_len(nrow(copy_dt))]
+  copy_dt[,TYPE:=as.factor(get_var_type(REF, ALT)), by=seq_len(nrow(copy_dt))]
   copy_dt[,SUBST:=as.factor(paste(REF_NT, ALT_NT, sep=":"))]
-
-  copy_dt[,TYPE:=as.factor(TYPE)]
   copy_dt[,REF_NT:=as.factor(REF_NT)]
   copy_dt[,ALT_NT:=as.factor(ALT_NT)]
   copy_dt[,`#CHROM`:=as.factor(`#CHROM`)]
@@ -207,7 +205,7 @@ annotate_calls<- function(in_dt, mapping_dt=NULL, tile_positions_dt=NULL){
     as.character(AA_POS), summarize_str_list)),
           by=seq_len(nrow(copy_dt))]
   
-  copy_dt[, VAR_TYPE:=ifelse(REF_AA==ALT_AA, "Silent", "Missense"), 
+  copy_dt[,VAR_TYPE:=ifelse(REF_AA==ALT_AA, "Silent", "Missense"), 
           by=seq_len(nrow(copy_dt))]
   
   copy_dt[ALT_AA=="*", VAR_TYPE:="Nonsense"]
@@ -580,10 +578,10 @@ get_count_by_filter_thresh<- function(in_dt, filter_var, res_var, n_thresholds, 
 subtract_af<- function(in_dt){
   
   copy_dt<- copy(in_dt)
-  neg_dt<- copy_dt[Experiment=="Negative_control", .(VAR_ID, CAF)]
+  neg_dt<- copy_dt[Input=="Negative_control", .(VAR_ID, CAF)]
   
   # Merge the two tables so we can easily subtract the negative frequencies via a vectorized operation
-  merged_dt<- merge(copy_dt[Experiment!="Negative_control"], neg_dt, by="VAR_ID", all.x=TRUE)
+  merged_dt<- merge(copy_dt[Input!="Negative_control"], neg_dt, by="VAR_ID", all.x=TRUE)
   
   # Set baseline to 0 for variants unique to a polysomal fraction
   merged_dt[is.na(CAF.y), CAF.y:=0.0]

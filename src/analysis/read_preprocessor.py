@@ -482,7 +482,7 @@ class ReadGrouper(object):
 
 
 class ReadDeduplicator(object):
-    """Class for deduplicating reads generated from UMI-grouped BAMs."""
+    """Class for deduplicating reads generated from UMI-grouped BAMs without basic UMI-tools dedup."""
 
     DEFAULT_OUTDIR = "."
     DEFAULT_NTHREADS = 0
@@ -605,7 +605,10 @@ class ConsensusDeduplicatorPreprocessor(object):
                 tag_af.write(r1)
                 tag_af.write(r2)
 
-            return tag_bam.name
+            tag_bam_name = tag_bam.name
+
+        fu.safe_remove((r1_bam, r2_bam,))
+        return tag_bam_name
 
     @classmethod
     def update_tags_from_grouped_bam(cls, in_bam, group_tag=UMITOOLS_UG_TAG, nthreads=ReadDeduplicator.DEFAULT_NTHREADS):
@@ -1171,6 +1174,8 @@ class ConsensusDeduplicator(object):
         # Realign the reads
         baw(f1=r1_fastq, f2=r2_fastq, ref=self.ref, outbam=self.out_bam, nthreads=self.nthreads)
 
+        fu.safe_remove((r1_fastq, r2_fastq,))
+
     def workflow(self):
         """Runs the ConsensusDeduplicator workflow."""
 
@@ -1179,6 +1184,8 @@ class ConsensusDeduplicator(object):
 
         self._realign_consensus_reads(consensus_bam)
         logger.info("Completed consensus read generation workflow.")
+
+        fu.safe_remove((consensus_bam,))
 
 
 class ReadMasker(object):
