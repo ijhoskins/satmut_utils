@@ -41,7 +41,7 @@ while getopts ":tgr:" o; do
 done
 shift $((OPTIND-1))
 
-echo "Started ${!0}"
+echo "Started $0"
 
 # Need miniconda for managing environments and packages. 
 if [[ ! -x $(which conda) ]]
@@ -78,6 +78,8 @@ fi
 echo "Building and installing satmut_utils"
 cd satmut_utils
 python3 -m pip install --upgrade build && python3 -m build
-python3 -m pip install .
+python3 -m pip install -e .
 
-echo "Completed ${!0}"
+echo "Activate the satmut_utils environment with `conda activate satmut_utils`"
+echo "Completed $0"
+
