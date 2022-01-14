@@ -41,6 +41,7 @@ while getopts ":tgr:" o; do
 done
 shift $((OPTIND-1))
 
+echo "Started ${!0}"
 
 # Need miniconda for managing environments and packages. 
 if [[ ! -x $(which conda) ]]
@@ -48,10 +49,6 @@ then
 	echo "conda required. See https://docs.conda.io/en/latest/miniconda.html for installation."
 	exit
 fi
-
-# Acquire the code base by cloning the satmut_utils repository
-echo "Cloning satmut_utils code base"
-git clone $SATMUT_UTILS_REPO
 
 # Create and activate the conda environment
 echo "Creating satmut_utils environment"
@@ -81,4 +78,6 @@ fi
 echo "Building and installing satmut_utils"
 cd satmut_utils
 python3 -m pip install --upgrade build && python3 -m build
-python3 -m pip install -e .
+python3 -m pip install .
+
+echo "Completed ${!0}"
