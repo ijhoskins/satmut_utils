@@ -80,6 +80,6 @@ cd satmut_utils
 python3 -m pip install --upgrade build && python3 -m build
 python3 -m pip install -e .
 
-echo "Activate the satmut_utils environment with `conda activate satmut_utils`"
+echo "Activate the satmut_utils environment with \"conda activate satmut_utils\""
 echo "Completed $0"
 

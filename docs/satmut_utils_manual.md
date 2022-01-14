@@ -51,10 +51,11 @@ Currently, only Linux and MacOSX operating systems are supported. To get started
 git clone https://github.com/ijhoskins/satmut_utils.git
 ```
 
-3. Execute the bash script to generate the satmut\_utils environment, install the package, and optionally download curated reference files, which are required if using Ensembl identifiers ([see Reference files](#Reference-files)).
+3. Execute the bash script to generate the satmut\_utils environment, install the package, and optionally download curated reference files, which are required if using Ensembl identifiers ([see Reference files](#Reference-files)). Finally, activate the satmut\_utils environment.
 ```
 REF_DIR="~/satmut_utils_refs"
 satmut_utils/install_satmut_utils.sh -t -g -r $REF_DIR
+conda activate satmut_utils
 ```
 
 If you already have the GRCh38 FASTA, you may use it provided it uses Ensembl contig nomenclature (not the NCBI "NC_" or UCSC "chr" nomenclature). That is, the chromosome names should start with a single integer for autosomes, and X, Y, and MT for the sex chromosomes and mitochondrial chromosome, respectively. This is important for compatibility with the curated transcript annotations when using Ensembl identifiers. If the FASTA meets these requirements, it should be copied or linked in the REF\_DIR (optionally set by install\_satmut\_utils.sh -r option). The genome should be unzipped and have an index.

@@ -29,10 +29,11 @@ Currently, only Linux and MacOSX operating systems are supported. To get started
 git clone https://github.com/ijhoskins/satmut_utils.git
 ```
 
-3. Execute the bash script to generate the satmut\_utils environment, install the package, and optionally download curated reference files, which are required if using Ensembl identifiers ([see Reference files](#Reference-files)).
+3. Execute the bash script to generate the satmut\_utils environment, install the package, and optionally download curated reference files, which are required if using Ensembl identifiers ([see Reference files](#Reference-files)). Finally, activate the satmut\_utils environment.
 ```
 REF_DIR="~/satmut_utils_refs"
 satmut_utils/install_satmut_utils.sh -t -g -r $REF_DIR
+conda activate satmut_utils
 ```
 
 You are now ready to call the command-line executable ```satmut_utils```
