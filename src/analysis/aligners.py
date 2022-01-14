@@ -10,6 +10,7 @@ import tempfile
 
 import analysis.seq_utils as su
 import core_utils.file_utils as fu
+from definitions import DEFAULT_QUALITY_OFFSET, PRE_V1p8_QUALITY_OFFSET
 
 __author__ = "Ian Hoskins"
 __credits__ = ["Ian Hoskins"]
@@ -32,12 +33,14 @@ class BowtieConfig(object):
     DEFAULT_FLAGS = ["--maxins", "1000", "--no-discordant", "--fr"]
     DEFAULT_SCORES = ["--mp", "4", "--rdg", "6,4", "--rfg", "6,4"]
 
-    def __init__(self, ref, local=DEFAULT_LOCAL, nthreads=DEFAULT_NTHREADS, *args, **kwargs):
+    def __init__(self, ref, local=DEFAULT_LOCAL, nthreads=DEFAULT_NTHREADS, quality_encoding=DEFAULT_QUALITY_OFFSET,
+                 *args, **kwargs):
         """Constructor for BowtieConfig.
 
         :param str ref: path of indexed reference FASTA
         :param bool local: should a local alignment be done instead of global alignment (default True)
         :param int nthreads: number of threads to use in alignments. Default 1.
+        :param int quality_encoding: base quality encoding for ASCII characters. Default 33.
         :param sequence args: single flags to pass, use no - prefix
         :param kwargs: two-field configuration parameters, must use long arg format as key (--arg)
         """
@@ -45,6 +48,7 @@ class BowtieConfig(object):
         self.ref = ref
         self.local = local
         self.nthreads = nthreads
+        self.quality_encoding = quality_encoding
         self.args = args
         self.kwargs = kwargs
 
@@ -124,6 +128,9 @@ class Bowtie2(object):
 
             call = ["bowtie2", "-p", str(self.config.nthreads)]
             call.extend(self.config.DEFAULT_FLAGS + self.config.DEFAULT_SCORES)
+
+            if self.config.quality_encoding == PRE_V1p8_QUALITY_OFFSET:
+                call.append("--phred64")
 
             if self.config.local:
                 call.append("--local")

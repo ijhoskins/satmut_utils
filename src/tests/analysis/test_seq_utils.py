@@ -12,6 +12,7 @@ import analysis.aligners as al
 from analysis.references import index_reference
 import analysis.seq_utils as su
 import core_utils.file_utils as fu
+from definitions import DEFAULT_QUALITY_OFFSET
 
 TEST_FASTA = """>gi|571026644|ref|NM_014453.3|:1-941 Homo sapiens charged multivesicular body protein 2A (CHMP2A), transcript variant 2, mRNA
 ATGTTACGTCACGTCGTTTAATCCGGAAACGGCGGCGGCGGCGACAGGACCGAGGGGCCTTAGTTGGTGG
@@ -114,7 +115,8 @@ class TestSeqUtils(unittest.TestCase):
             test_fasta_fn = test_fasta.name
 
         ba = al.Bowtie2(
-            f1=test_fasta_fn, output_dir=self.tempdir, config=al.BowtieConfig(self.cbs_ref_copy, False, 1, "f"))
+            f1=test_fasta_fn, output_dir=self.tempdir, config=al.BowtieConfig(
+                self.cbs_ref_copy, False, 1, DEFAULT_QUALITY_OFFSET, "f"))
 
         with pysam.AlignmentFile(ba.output_bam, "rb") as af:
             for align_seg in af.fetch():

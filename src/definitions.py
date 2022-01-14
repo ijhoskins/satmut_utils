@@ -73,5 +73,8 @@ QNAME_SORTS = (ILLUMINA_QNAME_SORT, INT_QNAME_SORT)
 
 DEFAULT_MUT_SIG = "NNN"
 VALID_MUT_SIGS = {"NNN", "NNK", "NNS"}
+KEEP_INTERMEDIATES = False
+DEFAULT_QUALITY_OFFSET = 33
+PRE_V1p8_QUALITY_OFFSET = 64
 
 LOG_FORMATTER = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')

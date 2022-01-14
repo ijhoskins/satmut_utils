@@ -252,9 +252,9 @@ class FastqPreprocessor(object):
 
         logger.info("Started cutadapt trimming.")
 
-        common_call_args = ["cutadapt", "--quiet", "--json", self.log_file, "-j", str(self.ncores),
-                            "-n", str(self.ntrimmed), "-q", str(self.trim_bq), "-m", str(self.MIN_LENGTH),
-                            "-O", str(self.overlap_len)]
+        common_call_args = ["cutadapt", "--quiet", "--quality-base", str(DEFAULT_QUALITY_OFFSET),
+                            "--json", self.log_file, "-j", str(self.ncores),  "-n", str(self.ntrimmed),
+                            "-q", str(self.trim_bq), "-m", str(self.MIN_LENGTH), "-O", str(self.overlap_len)]
 
         if self.r1_fiveprime_adapters is not None:
             r1_fp_args = ["-g {} ".format(e) for e in self.r1_fiveprime_adapters]

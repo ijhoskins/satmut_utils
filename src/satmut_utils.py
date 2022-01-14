@@ -17,7 +17,7 @@ from analysis.variant_caller import VariantCaller
 import core_utils.file_utils as fu
 from core_utils.string_utils import none_or_str
 from definitions import AMP_UMI_REGEX, GRCH38_FASTA, QNAME_SORTS, INT_FORMAT_INDEX, DEFAULT_MUT_SIG, \
-    VALID_MUT_SIGS, LOG_FORMATTER
+    VALID_MUT_SIGS, KEEP_INTERMEDIATES, LOG_FORMATTER
 from scripts.run_bowtie2_aligner import workflow as baw
 
 __author__ = "Ian Hoskins"
@@ -73,7 +73,7 @@ def parse_commandline_params(args):
                              'from alignments.')
 
     parser.add_argument("-o", "--output_dir", type=str, default=".",
-                        help='Optional output directory. Default current working directory.')
+                        help='Optional output directory. Must be an absolute path. Default current working directory.')
 
     parser.add_argument("-j", "--nthreads", type=int, default=FastqPreprocessor.NCORES,
                         help='Number of threads to use for bowtie2 alignment and BAM sorting operations. '
@@ -198,6 +198,10 @@ def parse_commandline_params(args):
 
     parser_call.add_argument("-a", "--primer_nm_allowance", type=int, default=UMIExtractor.PRIMER_NM_ALLOW,
                              help='If -f, find primers in R2 with up to this many edit operations.')
+
+    parser_call.add_argument("--keep_intermediates", action="store_true",
+                             help='Flag to write intermediate files (e.g. trimmed FASTQs, original alignments, '
+                                  'preprocessed alignments) to the output_dir. Not recommended as files can be large.')
 
     parsed_args = parser.parse_args(args)
     return parsed_args
@@ -335,7 +339,8 @@ def call_workflow(fastq1, fastq2,
                   max_mnp_window=VariantCaller.VARIANT_CALL_MAX_MNP_WINDOW,
                   nthreads=FastqPreprocessor.NCORES, ntrimmed=FastqPreprocessor.NTRIMMED,
                   overlap_len=FastqPreprocessor.OVERLAP_LEN, trim_bq=FastqPreprocessor.TRIM_QUALITY,
-                  omit_trim=FastqPreprocessor.TRIM_FLAG, mut_sig=DEFAULT_MUT_SIG):
+                  omit_trim=FastqPreprocessor.TRIM_FLAG, mut_sig=DEFAULT_MUT_SIG,
+                  keep_intermediates=KEEP_INTERMEDIATES):
     r"""Runs the satmut_utils call workflow.
 
     :param str fastq1: path of the R1 FASTQ
@@ -370,6 +375,7 @@ def call_workflow(fastq1, fastq2,
     :param int trim_bq: quality score for cutadapt quality trimming at the 3' end. Default 15.
     :param bool omit_trim: flag to turn off adapter and 3' base quality trimming. Default False.
     :param str mut_sig: mutagenesis signature- one of {NNN, NNK, NNS}. Default NNN.
+    :param bool keep_intermediates: flag to write intermediate files to the output_dir. Default False.
     :return tuple: (VCF, BED) filepaths
     :raises NotImplementedError: if mut_sig is not one of NNN, NNK, NNS; or if not 1 <= max_mnp_window <= 3
     """
@@ -389,8 +395,10 @@ def call_workflow(fastq1, fastq2,
     if not os.path.exists(outdir):
         os.mkdir(outdir)
 
-    # Create a temp dir for all intermediate files
-    tempdir = tempfile.mkdtemp(suffix=".call.tmp")
+    # Create a temp dir for intermediate files unless user wants them
+    tempdir = outdir
+    if not keep_intermediates:
+        tempdir = tempfile.mkdtemp(suffix=".call.tmp")
 
     # Get and index the references
     ref_fa, gff, gff_ref = get_call_references(
@@ -504,9 +512,9 @@ def main():
             contig_del_thresh=args_dict["contig_del_threshold"], min_bq=args_dict["min_bq"],
             max_nm=args_dict["max_nm"], min_supporting_qnames=args_dict["min_supporting"],
             max_mnp_window=args_dict["max_mnp_window"], nthreads=args_dict["nthreads"],
-            ntrimmed=args_dict["ntrimmed"], overlap_len=args_dict["overlap_length"],
-            trim_bq=args_dict["trim_bq"], omit_trim=args_dict["omit_trim"],
-            mut_sig=args_dict["mutagenesis_signature"])
+            ntrimmed=args_dict["ntrimmed"], overlap_len=args_dict["overlap_length"], trim_bq=args_dict["trim_bq"],
+            omit_trim=args_dict["omit_trim"], mut_sig=args_dict["mutagenesis_signature"],
+            keep_intermediates=args_dict["keep_intermediates"])
 
         logger.info("Completed call workflow.")
 

@@ -30,80 +30,47 @@ satmut_utils is a Python package for simulation and variant calling of saturatio
 1. sim
 2. call
 
-satmut_utils is designed to simulate and call low-frequency variants (<1:1000) in paired-end, targeted RNA-sequencing datasets. Alignments to a single transcript are expected; whole transcriptome or whole genome datasets are currently not supported.
+satmut_utils is designed to simulate and call low-frequency variants (<1:1000) in paired-end, targeted RNA-sequencing reads. Alignments to a single transcript are expected; whole transcriptome or whole genome datasets are currently not supported.
 
-sim and call support two different types of paired-end read chemistries. The first supported chemistry is a tiled PCR approach with interleaved sets of PCR amplicons (amplicon sequencing). In this mode, R1 and R2 start at primer ends.
+sim and call support two different types of paired-end read chemistries. The first supported chemistry is a tiled amplicon PCR approach with interleaved sets of PCR amplicons. In this mode, R1 and R2 start at primer ends.
 
-The second supported chemistry is a RACE-like PCR approach (for example, Anchored Multiplex PCR), where R1 starts at a variable fragment end and R2 starts at a primer.
+The second supported chemistry is a RACE-like approach (for example, Anchored Multiplex PCR), where R1 starts at a variable fragment end and R2 starts at a primer. RACE-like PCR may be used to sequence entire coding regions efficiently, in addition to targeting of RNA 5' and 3' ends.
 
-call allows for unique molecular indices (UMIs) at the start of R1 in either library preparation chemistry. Currently, it does not support analysis of UMIs on both reads.
+satmut_utils call allows for unique molecular indices (UMIs) at the start of R1 in either library preparation chemistry. Currently, it does not support analysis of UMIs on both reads.
 
 Furthermore, satmut_utils does not support barcode sequencing, wherein sequencing is used to link a variant with a barcode, followed by readout of unique barcodes.
 
 ## Installation
 
-To get started, clone the satmut_utils repository, create a conda environment, and download or generate your own reference files.
+Currently, only Linux and MacOSX operating systems are supported. To get started, follow these steps:
 
-1. Acquire the code base by cloning the satmut_utils repository:
+1. If conda is not installed, install miniconda for managing environments. See this [link](https://docs.conda.io/en/latest/miniconda.html) for installation on your particular architecture.
 
+2. Clone the satmut\_utils repository:
 ```
 git clone https://github.com/ijhoskins/satmut_utils.git
 ```
 
-2. Install miniconda for managing environments and packages. See this [link](https://docs.conda.io/en/latest/miniconda.html) for installation.
-
-3. Create the conda environment:
+3. Execute the bash script to generate the satmut\_utils environment, install the package, and optionally download curated reference files, which are required if using Ensembl identifiers ([see Reference files](#Reference-files)).
 ```
-conda env create -f satmut_utils/satmut_utils_env.yaml
-conda activate satmut_utils
+REF_DIR="~/satmut_utils_refs"
+satmut_utils/install_satmut_utils.sh -t -g -r $REF_DIR
 ```
 
-4. If using Ensembl identifiers, download reference files. If using custom reference files, [see Reference files](#Reference-files).
-
-Create a reference directory and get the curated human transcript reference files:
-```
-REF_DIR="/tmp/satmut_utils_refs"
-mkdir $REF_DIR
-git clone https://github.com/ijhoskins/satmut_utils_refs.git
-cp satmut_utils_refs/* $REF_DIR
-gunzip $REF_DIR/*gz
-```
-
-Download the human genome FASTA (if need be, with a FTP client application). If you already have the GRCh38 FASTA, you may use it provided the chromosome names start with a single integer (NCBI format, not the UCSC "chr" format). This is important for compatibility with the curated transcript annotations.
-
-Move or soft link the genome FASTA to the REF\_DIR using the name GRCh38.fa, then index it with samtools:
+If you already have the GRCh38 FASTA, you may use it provided it uses Ensembl contig nomenclature (not the NCBI "NC_" or UCSC "chr" nomenclature). That is, the chromosome names should start with a single integer for autosomes, and X, Y, and MT for the sex chromosomes and mitochondrial chromosome, respectively. This is important for compatibility with the curated transcript annotations when using Ensembl identifiers. If the FASTA meets these requirements, it should be copied or linked in the REF\_DIR (optionally set by install\_satmut\_utils.sh -r option). The genome should be unzipped and have an index.
 
 ```
-\# FTP link to NCBI-formatted genome ftp://ftp.ensembl.org/pub/release-84/fasta/homo_sapiens/dna/Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz
-
-mv ~/Downloads/Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz $REF_DIR/GRCh38.fa.gz
-gunzip $REF_DIR/GRCh38.fa.gz
 samtools faidx $REF_DIR/GRCh38.fa
 ```
 
-5. Navigate to the satmut\_utils repository and install the package:
+You are now ready to call the command-line executable:
+```satmut_utils```
 
-```
-cd satmut_utils
-python3 -m pip install --upgrade build
-python3 -m build
-pip install .
-```
-
-You are now ready to call the command-line executables:
-
-1. satmut\_utils
-2. satmut\_trim
-3. satmut\_align
-
-satmut\_utils is the primary command, with subcommands sim and call.
- 
-satmut\_trim is a wrapper around cutadapt enabling pre-processing of reads prior to  satmut_utils sim. satmut\_align should be used to generate the BAM file accepted by sim. If reads have been aligned with some other method, there is no guarantee sim will complete without error, as alignment tags output by bowtie2 are required for sim.
-
+satmut\_utils is the primary command, and has the subcommands sim and call.
 
 ## Reference files
 
-For convenience, a curated transcriptome of primary transcripts from APPRIS is provided, allowing the user to pass an Ensembl gene or transcript identifier to satmut_utils sim and call. However, if the requested Ensembl ID is not found in this set, the user must pass their own reference files. These include:
+For convenience, a curated transcriptome of primary human transcripts from [APPRIS](https://apprisws.bioinfo.cnio.es/landing_page/) is provided, allowing the user to pass an Ensembl gene or transcript ID to satmut_utils. However, if the requested Ensembl ID is not found in this set, custom reference files must be passed, which include:
 
 A. Transcript reference (FASTA)
 
@@ -220,6 +187,7 @@ satmut_utils call -h
 Common arguments to both sim and call subcommands should be provided first, then the subcommand, and then the subcommand-specific arguments.
 
 It is recommended that a new output directory is created for each job. Default is to output to the current directory.
+
 ```OUTPUT_DIR="/tmp/satmut_utils_test"```
 
 ### sim code examples
@@ -236,13 +204,14 @@ Typically the alignments are from a non-mutagenized negative control library and
 
 See src/tests/test\_data/cbs\_sim.vcf for an example VCF.
 
-Provide a primer BED file for primer-aware read editing:
+Provide a primer BED file for primer-aware read editing.
 ```
 satmut_utils -i ENST00000398165.7 -x $REF_DIR -o $OUTPUT_DIR -p primers.bed sim -a negative_control.bam -v sim_variants.vcf
 ```
+
 See sim requirement 4 in the section above for a description of primer masking in the context of simulation. The primer BED must have a strand field. See tests/test\_data/CBS\_insilico_primers.bed for an example BED.
 
-Specify that the alignments are from a RACE-like library preparation chemistry, and use a random seed to select different reads for editing:
+Specify that the alignments are from a RACE-like library preparation chemistry, and use a new random seed to select different read pairs for editing:
 ```
 satmut_utils -i ENST00000398165.7 -x $REF_DIR -o $OUTPUT_DIR -p primers.bed --race_like sim -a negative_control.bam -v sim_variants.vcf -s 99
 ```
@@ -327,7 +296,11 @@ Optional output directory to write results to. Default is current working direct
 
 7. -j, --nthreads
 
-Number of CPU cores (cutadapt), additional alignment threads (bowtie2), and threads to use for BAM sorting (samtools). Multiprocessing is not currently supported for satmut\_utils sim or call logic.
+Number of CPU cores (cutadapt), additional alignment threads (bowtie2), and threads to use for BAM sorting (samtools). Multiprocessing is not currently supported for satmut\_utils sim or call Python code.
+
+8. -e, --max_nm
+
+Maximum edit distance for either mate of a pair to be considered for simulation and variant calling. Default 10.
 
 ### sim options
 
@@ -367,13 +340,21 @@ R2 FASTQ of the pair.
 
 3. -5 --r1\_fiveprime_adapters
 
-Comma-delimited 5' adapters relative to the R1. The reverse complement of these adapters will be trimmed from the 3' end of R2.
+Comma-delimited R1 5' adapters, or None if no R1 5' adapters exist. See also -v option.
 
 4. -3 --r1\_threeprime_adapters
 
-Comma-delimited 3' adapters relative to the R1. The reverse complement of these adapters will be trimmed from the 5' end of R2.
+Comma-delimited R1 3' adapters, or None if no R1 3' adapters exist. See also -v option.
 
-5. -g, --transcript_gff
+5. -5 --r2\_fiveprime_adapters
+
+Comma-delimited R2 5' adapters, or None if no R2 5' adapters exist. See also -v option.
+
+6. -3 --r2\_threeprime_adapters
+
+Comma-delimited R2 3' adapters, or None if no R2 3' adapters exist. See also -v option.
+
+7. -g, --transcript_gff
 
 Transcript GFF where **features are ordered from 5' to 3', regardless of strand**. For examples, see src/tests/test\_data/gencode.v29.annotation.gtf for a standard genome-based GFF example, or src/tests/test\_data/CBS_pEZY3.gff for a custom, composite vector GFF example.
 
@@ -393,73 +374,74 @@ While these latter features/records are not necessary, they are often helpful fo
 
 Otherwise, one is free to specify exon and CDS features that annotate the coding and noncoding portions of each transcript, provided the exon features sum up to the full reference FASTA sequence. Exon features describe both untranslated regions and coding regions, while CDS features only annotate coding regions. Protein annotations are determined only based on CDS and stop codon features.
 
-6. -k, --gff_reference
+8. -k, --gff_reference
 
 Reference FASTA that features in the GFF map to. Typically, GFFs map exons to genomic coordinates. However, this may also be a custom vector-transgene composite reference FASTA if a custom GFF was generated.
 
-7. -t, --targets
+9. -t, --targets
 
 Target BED file specifying target regions of the transcript to report variant calls in. Supplying this option only alters final reporting of variants, and does not speed up processing. This is because of the requirement for perfectly paired reads, which may be compromised by intersection of the alignments with the target region prior to variant calling.
 
-8. -d, --consensus_deduplicate
+10. -d, --consensus_deduplicate
 
 Flag to turn on consensus deduplication. Use with -u/--umi_regex to specify a regular expression to match the UMI and anchoring adapter sequence. The UMI will be moved to the read names and any anchoring adapter sequence is discarded (anchoring is recommended but not required). 
 
 UMI extraction is performed by umi_tools extract prior to adapter trimming with cutadapt.
 
-9. -u, --umi_regex
+11. -u, --umi_regex
 
 Python regex package regular expression for matching the UMI within a desired edit distance and for matching and discarding anchoring adapter sequence.
 
-10. -s --mutagenesis_signature
+12. -s --mutagenesis_signature
 
 Mutagenesis signature which matches one of the IUPAC DNA codes NNN, NNK, NNS. Candidate variant calls will be tagged with a boolean to annotate a match. No filtering on the signature is performed. Instead, variants are annotated for signature match.
 
-11. -q, --min_bq
+13. -q, --min_bq
 
 Minimum base quality for either mate of a pair to be considered for variant calling. Default 30. 
 
-12. -e, --max_nm
-
-Maximum edit distance for either mate of a pair to be considered for variant calling. Default 10.
-
-13. -m, --min_supporting
+14. -m, --min_supporting
 
 Minimum number of fragments for a candidate variant call. Default 2 (discard singletons).
 
-14. -w, --max\_mnp\_window
+15. -w, --max\_mnp\_window
 Integer window span to search for phased SNPs and call MNPs. Must be 2 or 3 (default 3). satmut_utils does not support long-range haplotype calling, which is challenged by exponentially increasing false positive calls with a wider window span.
 
-15. -n, --ntrimmed
+16. -n, --ntrimmed
 
 cutadapt option (-n) for number of adapters to be trimmed from each read. Default 3. 
 
 Internal PCR tiles normally have two possible adapters whereas terminal PCR tiles may have three. This is because the read emanating from the insert towards the vector in a terminal PCR tile should have a 5' adapter (sequencing adapter) and potentially two 3' adapters (adjacent vector sequence and sequencing adapter).
 
-16. -l, --overlap_length
+17. -l, --overlap_length
 
 cutadapt option (-m) for the min length of matched adapter required for trimming.
 
 This moderates the compromise made by --ntrimmed where three adapters are provided by default, which may cause over-zealous read trimming. As the length increases, adapter trimming becomes more specific but less sensitive. satmut_utils default local alignment should help clip adapters from aligned segments in cases where the adapter is not recognized with a lower min length value.
 
-17. -b, --trim_bq
+18. -b, --trim_bq
 
 cutadapt option (-q) for the length of adapter match required for trimming.
 
-18. -v, --omit_trim
+19. -v, --omit_trim
 
 Useful for input where adapters have been previously trimmed. Note that trimming when no adapters are present may degrade the data quality by nonspecific trimming of segments internal and terminal to the reads. For this reason, it is best to directly re-align these inputs.
 
-19. -c, --contig\_del_threshold
+20. -c, --contig\_del_threshold
 
-If -z/--race\_like and -cd/--consensus\_deduplicate are provided, convert deletions spanning wider than this threshold to runs of the unknown base N. Required as some R2s may share the same R1 [UMI x POS x TLEN] but align to non-overlapping coordinates. In other words, consensus deduplication of RACE-like data may generate an unknown segment in the R2 consensus. This allows more accurate reporting of fragment coverage. To avoid this behavior and omit R2 merging from non-overlapping coordinates, provide -f/--primer_fasta, which will annotate read pairs with a unique amplicon/tile.
+If -z/--race\_like and -cd/--consensus\_deduplicate are provided, convert deletions spanning wider than this threshold to runs of the unknown base N. Required as some R2s may share the same R1 [UMI x POS] but align to non-overlapping coordinates. In other words, consensus deduplication of RACE-like data may generate an unknown segment in the R2 consensus. This allows more accurate reporting of fragment coverage. To avoid this behavior and omit R2 merging from separate amplicons, provide -f/--primer_fasta, which will annotate read pairs with a unique amplicon/tile.
 
-20. -f, --primer_fasta
+21. -f, --primer_fasta
 If -z/--race\_like and -cd/--consensus\_deduplicate are provided, reads can be annotated with an originating R2 primer, which prohibits merging of R2s in consensus deduplication. With this option, fragment coverage (DP) may be over-reported in certain regions because of the multi-amplicon coverage of RACE-like data.
 
-21. -a, --primer\_nm_allowance
+22. -a, --primer\_nm_allowance
 
 If -f/--primer_fasta, allow up to this number of edit operations for matching primers in the start of R2. Default 3. The last sixteen 3' nucleotides of the matched primer will be appended to the read names to avoid UMI grouping and consensus deduplication. R2s that do not match any primer will be reassigned the unknown primer regex X{16}.
+
+23. --keep\_intermediates
+
+Option to write intermediate files to the output directory. These include preprocessed FASTQ files (trimmed and/or UMI-extracted), alignment files, and log files for preprocessing steps.
+
 
 ## Tests
 
@@ -467,19 +449,26 @@ To run unit tests, execute the following from the satmut_utils repository:
 
 ```nose2 -q```
 
-## Accessory scripts
+## Accessory command-line interfaces and scripts
 
-To facilitate simulation of reads and variants in a desired transcript *de novo*, accessory scripts are provided in the src/scripts directory. Code here is not fully tested and is only provided for convenience to facilitate error modeling.
+Two command-line interfaces are provided to enable pre-processing of reads prior to  satmut_utils sim:
+
+1. satmut\_trim
+2. satmut\_align
+ 
+satmut\_trim is a wrapper around cutadapt, and satmut\_align a wrapper around bowtie2.  satmut\_align should be used to generate the BAM file accepted by sim. If reads have been aligned with some other method, there is no guarantee sim will complete without error, as alignment tags output by bowtie2 are required for sim (MD, NM).
+
+To facilitate simulation of reads and variants in a desired transcript *de novo*, various accessory scripts are provided in the src/scripts directory. Code here is not fully tested and is only provided for convenience to facilitate error modeling.
 
 1. run\_bowtie2\_aligner.py.
-This script may be called directly, but for convenience satmut\_utils provides a wrapper CLI satmut\_align.
+This script may be called directly, but for convenience satmut\_utils provides the CLI satmut\_align.
 
 ```
 satmut_align -f1 satmut_utils/src/tests/test_data/CBS_sim.R1.fq.gz -f2 satmut_utils/src/tests/test_data/CBS_sim.R2.fq.gz -r satmut_utils/src/tests/test_data/CBS.fa -d /tmp/align_example
 ```
 
 2. run\_variant\_generator.py
-This script may be used to generate a VCF of all SNP and MNP permutations matching a given mutagenesis signature in desired transcript coding regions. Together with run\_read\_generator.py, this provides *de novo* inputs for satmut\_utils sim. Provide --trx\_id exactly as it exists in the reference FASTA, target BED, and annotation GFF.
+This script may be used to generate a VCF of all SNP and MNP permutations matching a given mutagenesis signature in desired transcript coding regions. Together with run\_read\_generator.py, this provides *de novo* inputs for satmut\_utils sim. Provide --trx\_id exactly as it exists in the reference FASTA, target BED, and annotation GFF. Often these files can be easily obtained by first running satmut\_utils call on a negative control library and using the outputted reference files.
 
 ```
 python -m scripts.run_variant_generator -i CBS_pEZY3 -s NNK -r satmut_utils/src/tests/test_data/CBS_pEZY3.fa -g satmut_utils/src/tests/test_data/CBS_pEZY3.gff -t satmut_utils/src/tests/test_data/CBS_pEZY3_targets.bed -d /tmp/var_gen_example
@@ -493,17 +482,17 @@ python -m scripts.run_vcf_subsampler -v satmut_utils/src/tests/test_data/CBS_sim
 ```
 
 4. run\_ec\_data\_generator.py
-This script generates simulated datasets modeled after true data. As input, this script requires satmut\_utils call output summary.txt files for a true mutagenized library and a non-mutagenized negative control library. It generates codon-permutation variants, subsamples them to balance true and false positives, and configures variant frequencies by estimating parameters for SNPs and MNPs using variants the mutagenized summary.txt file (only using those matching the mutagenesis signature). It finally invokes satmut\_utils sim to generate the simulated dataset.
+This script generates simulated datasets modeled after true data. As input, it requires satmut\_utils call output summary.txt files for a true mutagenized library and a non-mutagenized negative control library. It then generates codon-permutation variants, subsamples them to balance true and false positives, and configures variant frequencies by estimating parameters for SNPs and MNPs using variants the mutagenized summary.txt file (optionally for those variants only matching the mutagenesis signature). It finally invokes satmut\_utils sim to generate the simulated dataset.
 
 satmut\_utils call should be ran thereafter (ideally with loose quality parameters: -m 1 -q 1 -e 150) to extract quality features and complete the validation dataset. R utilities for training machine learning models on the resulting calls are provided in src/prototype/modeling_utils.R.
 
 5. run\_read\_generator.py.
 
-This may be used to simulate paired-end targeted RNA-sequencing reads given a reference FASTA. Useful for generating input reads for sim. However, I recommend one of the many Next-Generation Sequencing read simulators that construct error models to generate more realistic test reads.
+This may be used to simulate paired-end targeted RNA-sequencing reads given a reference FASTA. Useful for generating input reads for sim. However, one of the many Next-Generation Sequencing read simulators that construct error models are recommended to generate more realistic test reads.
 
 To generate error-free, tiled RNA read alignments, provide a transcript reference FASTA and target BED file. Split the transcript target region into chunks with span roughly [read length - 2\*(average primer length)] if the target region requires multiple tiles. Then run with --make\_amplicons but *not* --rna. (Use of --rna is for simulation of random RNA fragments and when starting with a genomic reference FASTA).
 
 --make\_amplicons is intended for direct simulation of reads from a transcript FASTA. For general DNA or RNA read generation using a genome FASTA and standard GFF annotations, omit --make\_amplicons. In this mode, generated fragments start and end at random coordinates in the sequence space informed by the --frag\_length argument.
 
-As an example, for 2 x 150 bp chemistry I create ~100 bp interleaved target chunks in BED format and configure the number of reads to generate for each amplicon by the BED score field. Finally, I pass --make\_amplicons and --slop_length 0 so that reads start at the termini of the targets.
+As an example, for 2 x 150 bp chemistry, create ~100 bp interleaved target chunks in BED format and configure the number of reads to generate for each amplicon by the BED score field. Finally, pass --make\_amplicons and --slop_length 0 so that reads start at the termini of the targets.
 

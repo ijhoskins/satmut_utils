@@ -9,7 +9,7 @@ import sys
 from analysis.aligners import BowtieConfig, Bowtie2, DEFAULT_TEMPDIR
 from core_utils.file_utils import replace_extension
 from core_utils.string_utils import none_or_str
-from definitions import LOG_FORMATTER
+from definitions import DEFAULT_QUALITY_OFFSET, LOG_FORMATTER
 
 __author__ = "Ian_Hoskins"
 __credits__ = ["Ian Hoskins"]
@@ -73,12 +73,13 @@ def workflow(f1, ref, f2=None, outdir=Bowtie2.DEFAULT_OUTDIR, outbam=Bowtie2.DEF
     """
 
     # Need to change dir to scratch in case temp BAMs are created, as bowtie2 does not have an option for setting
-    # the temp directory
+    # the temp directory; make sure to handle relative paths for output_dir
+    outdir_full = os.path.abspath(outdir)
     call_dir = os.getcwd()
     os.chdir(DEFAULT_TEMPDIR)
 
-    bc = BowtieConfig(ref, local, nthreads)
-    bt = Bowtie2(config=bc, f1=f1, f2=f2, output_dir=outdir, output_bam=outbam)
+    bc = BowtieConfig(ref, local, nthreads, DEFAULT_QUALITY_OFFSET)
+    bt = Bowtie2(config=bc, f1=f1, f2=f2, output_dir=outdir_full, output_bam=outbam)
 
     os.chdir(call_dir)
 

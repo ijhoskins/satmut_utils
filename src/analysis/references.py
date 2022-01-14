@@ -108,6 +108,7 @@ def extract_fasta_reference(reference_dir, ensembl_id, outdir="."):
         contig_id = [line.rstrip(fu.FILE_NEWLINE) for line in contig_id_file if ensembl_id in set(
             line.split(APPRIS_CONTIG_DELIM)[:2])][0]
 
+    logger.info("Extracting transcript reference FASTA for %s." % ensembl_id)
     fa = pysam.faidx(os.path.join(reference_dir, APPRIS_TRX_FASTA), contig_id)
 
     with open(output_fasta, "w") as out_fasta_fh:
@@ -128,6 +129,7 @@ def extract_gff_reference(reference_dir, ensembl_id, outdir="."):
     if not os.path.exists(outdir):
         os.mkdir(outdir)
 
+    logger.info("Extracting GFF transcript annotations for %s." % ensembl_id)
     ensembl_id_base = ensembl_id.split(".")[0]
     output_gff = os.path.join(outdir, fu.add_extension(ensembl_id_base, su.GFF_DEFAULT_EXT))
 
@@ -177,7 +179,7 @@ def index_reference(ref):
 
     # Need to index the reference with samtools and create a FM-index with bowtie2 if it has not been done
     if not os.path.exists(fu.add_extension(ref, su.FASTA_INDEX_SUFFIX)):
-        logger.info("Indexing FASTA %s." % ref)
+        logger.info("Generating FASTA index file for %s." % ref)
         faidx_ref(ref)
 
     # Build the bowtie2 index if it doesn't exist
