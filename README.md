@@ -97,9 +97,9 @@ B. Transcript annotations (GFF)
 
 C. GFF reference (FASTA)
 
-Common transcript annotations in GFF format (file B) map coordinates in the genome. For this typical case, file A should specify a transcript FASTA and file C should specify the genome FASTA.
+Common transcript annotations in GFF format (file B) map coordinates in the genome. For this case, file A should specify a transcript FASTA and file C should specify the genome FASTA.
 
-In typical saturation mutagenesis datasets, an intron-less coding sequence, lacking endogenous untranslated regions, is expressed from a vector. In this case, set file A and C to the same composite (vector + coding sequence) reference FASTA, then make a custom GFF annotation (file B) with a single exon and CDS feature. See the user manual for more details on creating custom reference files.
+In typical saturation mutagenesis datasets, an intron-less coding sequence, often lacking endogenous untranslated regions, is expressed from a vector. In this case, set file A and C to the same composite (vector + coding sequence) reference FASTA, then make a custom GFF annotation (file B) with a coding sequence exon. See the user manual for more details on creating custom reference files.
 
 ## Tests
 
