@@ -28,8 +28,8 @@ aa_codon_proportions<- aa_codon_counts/sum(aa_codon_counts)
 
 positive_charged_aas<- c("R", "H", "K")
 negative_charged_aas<- c("D", "E")
-polar_uncharged_aas<- c("S", "T", "N", "Q", "C")
-nonpolar_uncharged_aas<- c("A", "V", "I", "L", "M", "F", "Y", "W", "G", "P")
+polar_uncharged_aas<- c("S", "T", "N", "Q") # C
+nonpolar_uncharged_aas<- c("A", "V", "I", "L", "M", "F", "Y", "W") # G, P
 other_aas<- c("C", "G", "P")
 
 aa_map<- list("A"="Ala", "C"="Cys", "D"="Asp", "E"="Glu", "F"="Phe", 
@@ -578,16 +578,18 @@ get_count_by_filter_thresh<- function(in_dt, filter_var, res_var, n_thresholds, 
 subtract_af<- function(in_dt){
   
   copy_dt<- copy(in_dt)
-  neg_dt<- copy_dt[Input=="Negative_control", .(VAR_ID, CAF)]
+  neg_dt<- copy_dt[Input=="Negative_control", .(VAR_ID, CAO, CAF)]
   
   # Merge the two tables so we can easily subtract the negative frequencies via a vectorized operation
   merged_dt<- merge(copy_dt[Input!="Negative_control"], neg_dt, by="VAR_ID", all.x=TRUE)
   
   # Set baseline to 0 for variants unique to a polysomal fraction
   merged_dt[is.na(CAF.y), CAF.y:=0.0]
+  merged_dt[is.na(CAO.y), CAO.y:=0]
 
   # Finally subtract the frequencies and remove those variants with negative resultant frequencies
   merged_dt[,CAF:=CAF.x-CAF.y]
+  merged_dt[,CAO:=CAO.x-CAO.y]
   filtered_dt<- merged_dt[CAF>0,]
   filtered_dt[,log10_CAF:=log10(CAF)]
   
@@ -685,7 +687,8 @@ expand_wobble_pairs<- function(hydrotrnaseq_summarized_dt){
   wobble_codon_dt<- data.table(Isotype=vector(mode="character", length=n_wobble_anticodons),
                                Anticodon=vector(mode="character", length=n_wobble_anticodons),
                                Codon=vector(mode="character", length=n_wobble_anticodons), 
-                               Sum_log2_count=vector(mode="numeric", length=n_wobble_anticodons))
+                               Sum_count=vector(mode="numeric", length=n_wobble_anticodons),
+                               log2_sum_count=vector(mode="numeric", length=n_wobble_anticodons))
   
   # Iterate over the anticodons that can form wobble pairing, and create entries for wobble codons
   for(i in 1:length(wobble_anticodons)){
@@ -700,14 +703,15 @@ expand_wobble_pairs<- function(hydrotrnaseq_summarized_dt){
     }
     
     wobble_codon<- revcomp(wobble_anticodon)
-    wobble_aa<- names(aa_codons)[sapply(aa_codons, is_in, wobble_codon)]
+    wobble_aa<- names(AA_CODONS_LIST)[sapply(AA_CODONS_LIST, is_in, wobble_codon)]
     
     # Use the tRNA expression values of the canonical anticodon for the wobble codon
     wobble_codon_dt[i,]<- data.table(Isotype=wobble_aa, Anticodon=anticodon, Codon=wobble_codon, 
-                                     Sum_log2_count=hydrotrnaseq_summarized_dt[Anticodon==anticodon, Sum_log2_count])
+                                     Sum_count=hydrotrnaseq_summarized_dt[Anticodon==anticodon, Sum_count],
+                                     log2_sum_count=hydrotrnaseq_summarized_dt[Anticodon==anticodon, log2_sum_count])
   }
   
-  complete_dt<- rbind(hydrotrnaseq_summarized_dt, wobble_codon_dt)
+  complete_dt<- rbind(hydrotrnaseq_summarized_dt, wobble_codon_dt, fill=T)
   setkey(complete_dt, Isotype, Anticodon, Codon)
   return(complete_dt)
 }
@@ -749,7 +753,8 @@ get_cv<- function(x){
 postprocess_vcf_summary_dt<- function(in_dt, mapping_dt=NULL, tile_positions_dt=NULL, 
                                       key_features=c("Sample", "VAR_ID")){
   copy_dt<- copy(in_dt)
-  annot_dt<- annotate_calls(copy_dt, mapping_dt, tile_positions_dt)
+  copy_filt_dt<- in_dt[LOCATION=="CDS"]
+  annot_dt<- annotate_calls(copy_filt_dt, mapping_dt, tile_positions_dt)
   collapse_dt<- collapse_mnps(in_dt=annot_dt, key_features=key_features)
   return(collapse_dt)
 }

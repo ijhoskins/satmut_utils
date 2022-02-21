@@ -3,7 +3,6 @@
 
 import collections
 import gzip
-import logging
 import pickle
 import pybedtools
 

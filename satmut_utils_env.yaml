@@ -5,7 +5,6 @@ channels:
 - defaults
 dependencies:
 - python=3.7
-- fastqc
 - cutadapt
 - bowtie2
 - samtools

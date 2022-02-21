@@ -154,13 +154,17 @@ Enforcing concordance may lead to under-quantification of variant frequencies in
 The denominator for the variant frequency calculation- i.e. fragment coverage depth- is determined after filtering on read edit distance (NM tag) and mate pair overlap (concordance). If a primer BED file is provided to satmut_utils, read segments originating from synthetic primer sequence do not contribute to fragment depth (DP).
 When the MNP span (variant reference coordinates) covers both a synthetic primer position and an adjacent position in the amplicon, the minimum depth of coverage in the MNP span is used as the denominator for the frequency: CAF=CAO/DP.
 
-### satmut\_utils call error correction preprocessing steps
+### satmut\_utils call read preprocessing steps
 
 satmut\_utils call supports multiple methods for moderating false positives calls. Application of these methods is optional but improves specificity.
 
 1. Synthetic primer base quality masking
 
-To prohibit false positive calls arising from primer synthesis errors, satmut_utils call provides a masking strategy to demarcate read segments originating from synthetic primer sequence. In masking, base qualities for these segments are set to 0 and omitted from variant calls. This step requires the user to provide a primer BED file specifying the primers used in target enrichment.
+To prohibit false positive calls arising from primer synthesis errors, satmut_utils call provides a masking strategy to demarcate read segments originating from synthetic primer sequence. In masking, base qualities for these segments are set to 0 and omitted from variant calls. This step requires the user to provide a primer BED file specifying the primers used in target enrichment. 
+
+The read subsequences to mask depend on the library preparation chemistry and mate read identity and orientation. For amplicon libraries, both R1 and R2 may be masked at both ends. For RACE-like data, only the 3’ end of R1 and the 5’ end of R2 are masked. This assumes the presenece of a UMI at the start of R1, which has been extracted through consensus deduplication (see #2 below).
+
+Alignments are intersected with primers with ‘bedtools intersect -bed -wa -wb’. The resulting BED file is grouped with ‘bedtools groupby -o collapse’ to group the intersecting primers for each read, then custom satmut\_utils masks primer subsequences in intersecting reads. Any primers which start within 15 nt of the read termini are selected for masking, which captures reads that have undergone trimming or clipping in the primer subsequence. This design choice also assumes primers are not designed back-to-back (>15 nt start coordinate offset). After masking reads that intersect with primers, reads that do not intersect primers are combined to recover all input reads. See satmut\_utils.src.analysis.read\_preprocessor.ReadMasker for implementation.  
 
 2. Unique-molecular-identifier (UMI)-based read consensus deduplication
 

@@ -110,10 +110,10 @@ create_kfolds<- function(train_dt, kfolds=10){
 }
 
 
-#' Merges a simulated truth datasets with a satmut_utils call dataset
+#' Merges a simulated truth dataset with a satmut_utils call dataset
 #' 
 #' @param train_dt data.table training data
-#' @param truth_dt data.table containing truth variants, or NULL if a dataset to filter
+#' @param truth_dt data.table containing truth variants
 #' @return data.table modeling input
 merge_truth_dt<- function(train_dt, truth_dt){
   
@@ -133,7 +133,6 @@ merge_truth_dt<- function(train_dt, truth_dt){
   copy_truth_filt_dt<- copy_truth_dt[CAO>0]
   copy_truth_filt_dt[,log10_CAF:=log10(CAF)]
   
-  # Plot frequency accuracy for each variant type
   copy_train_postproc_dt<- postprocess_vcf_summary_dt(
     in_dt=copy_train_dt, mapping_dt=NULL, tile_positions_dt=NULL, 
     key_features=c("VAR_ID"))
@@ -187,10 +186,25 @@ prep_train_dt<- function(train_dt, modeling_features, truth_dt=NULL, caf_thresh=
   copy_train_dt[grepl("True", MATCHES_MUT_SIG), MATCHES_MUT_SIG:="True"]
   copy_train_dt[,MATCHES_MUT_SIG:=as.factor(MATCHES_MUT_SIG)]
   
+  # Keep track of VAR_ID and TYPE after one-hot encoding the factors
+  full_features<- modeling_features
+  
+  if(!"Sample"%in%modeling_features){
+    full_features<- c(full_features, "Sample")
+  }
+  
+  if(!"VAR_ID"%in%modeling_features){
+    full_features<- c(full_features, "VAR_ID")
+  }
+  
+  if(!"TYPE"%in%modeling_features){
+    full_features<- c(full_features, "TYPE")
+  }
+  
   # Filter observed variants based on region and frequency
   # Remove any outlier variants with higher frequency (background or systematic errors)
   # Ensure all modeled variants are in the coding region so they have valid MATCHES_MUT_SIG
-  copy_train_filt_dt<- copy_train_dt[LOCATION=="CDS" & CAF < 0.3, ..modeling_features]
+  copy_train_filt_dt<- copy_train_dt[LOCATION=="CDS" & CAF < 0.3, ..full_features]
   
   if(!is.null(truth_dt)){
     
@@ -206,10 +220,10 @@ prep_train_dt<- function(train_dt, modeling_features, truth_dt=NULL, caf_thresh=
     
     copy_train_filt_dt[,Truth:=FALSE]
     copy_train_filt_dt[VAR_ID%in%copy_truth_filt_dt[,VAR_ID], Truth:=TRUE]
-    copy_train_filt_dt[,Truth:=factor(Truth, levels=c("FALSE", "TRUE"))]
+    copy_train_filt_dt[,Truth:=factor(Truth, levels=cont_table_factor_levels)]
     
     # Use model matrix to one-hot encode factors
-    copy_train_filt_mm<- model.matrix(Truth~., data=copy_train_filt_dt)
+    copy_train_filt_mm<- model.matrix(Truth~., data=copy_train_filt_dt[,-c("VAR_ID", "Sample")])
     
     # Convert back to a data.table
     copy_train_filt_input_dt<- as.data.table(copy_train_filt_mm[,-1])
@@ -220,10 +234,12 @@ prep_train_dt<- function(train_dt, modeling_features, truth_dt=NULL, caf_thresh=
   
   # Otherwise we have a dataset to filter and there will be no Truth column
   # Use model matrix to one-hot encode factors
-  copy_train_filt_mm<- model.matrix(~., data=copy_train_filt_dt)
+  copy_train_filt_mm<- model.matrix(~., data=copy_train_filt_dt[,-c("VAR_ID", "Sample")])
   
   # Convert back to a data.table and remove the intercept
-  copy_train_filt_input_dt<- as.data.table(copy_train_filt_mm[,-1])
+  copy_train_filt_input_dt<- cbind(as.data.table(
+    copy_train_filt_mm[,-1]), copy_train_filt_dt[,.(VAR_ID, TYPE, Sample)])
+  
   return(copy_train_filt_input_dt)
   
 }
@@ -296,7 +312,8 @@ hyperparam_tune<- function(in_dt, model="rf", nvmin=3, nvmax=10, prob_cutoff=0.5
     
     # Would need to tune ntrees parameter manually
     # for now just use default
-    rf_cv_res<- train(Truth~., in_dt, method="rf", tuneGrid=expand.grid(mtry=seq(nvmin, nvmax)))
+    rf_cv_res<- train(Truth~., in_dt, method="rf", tuneGrid=expand.grid(mtry=seq(nvmin, nvmax)), 
+                      na.action=na.roughfix)
     
     return(rf_cv_res)
     
@@ -304,9 +321,10 @@ hyperparam_tune<- function(in_dt, model="rf", nvmin=3, nvmax=10, prob_cutoff=0.5
     
     # ntrees should not be too high for GBM as this can lead to over-fitting
     # also low values for interaction.depth (stumps) typically work well
+   
     gbm_cv_res<- train(Truth~., in_dt, method="gbm", tuneGrid=expand.grid(
-      interaction.depth=seq(1,5), n.trees=c(50,100,200), 
-      shrinkage=c(0.001, 0.005, 0.01, 0.1, 0.2), n.minobsinnode=10), verbose=FALSE)
+      interaction.depth=seq(1,5), n.trees=c(50,100), 
+      shrinkage=c(0.01, 0.1, 0.2), n.minobsinnode=10), verbose=FALSE)
     
     return(gbm_cv_res)
     
@@ -324,9 +342,10 @@ hyperparam_tune<- function(in_dt, model="rf", nvmin=3, nvmax=10, prob_cutoff=0.5
 #' Hyperparameter tuning of nvars/nfeatures for several models
 #' 
 #' @param in_dt data.table input data (should contain both train, test) with Truth column
-#' @param model character one of c("elasticnet", "knn", "rf", "gbm", "svm). Default rf.
+#' @param model character one of c("elasticnet", "knn", "rf", "gbm", "svm"). Default rf.
 #' @param prob_cutoff numeric probability cutoff to use for binary classification. Default 0.5.
 #' @param kfolds integer number of folds for CV. Default 10. Uses one fold training set for tuning.
+#' @param hyperparam_prop numeric proportion of each fold's training dataset to use for hyperparam tuning
 #' @return character vector of features to use, selected with best subset for optimal nvars/nfeatures
 run_nested_cv<- function(in_dt,  model="rf", prob_cutoff=0.5, kfolds=10, hyperparam_prop=0.2){
   
@@ -393,7 +412,7 @@ run_nested_cv<- function(in_dt,  model="rf", prob_cutoff=0.5, kfolds=10, hyperpa
       
       # Consider tuning mtrees parameter
       rf_model<- randomForest(
-        Truth~., train_dt, mtry=rf_cv_res$bestTune$mtry, ntree=rf_cv_res$bestTune$ntree)
+        Truth~., train_dt, mtry=rf_cv_res$bestTune$mtry, na.action=na.roughfix)
       
       model_predict<- predict(rf_model, test_dt, type="prob")
       prediction_labels<- factor(model_predict[,2]>=prob_cutoff, levels=c("FALSE", "TRUE"))
@@ -409,7 +428,7 @@ run_nested_cv<- function(in_dt,  model="rf", prob_cutoff=0.5, kfolds=10, hyperpa
       train_dt[,Truth_int:=as.integer(as.logical(Truth))]
       test_dt[,Truth_int:=as.integer(as.logical(Truth))]
       
-      gbm_model<- gbm(Truth_int~., train_dt, distribution="bernoulli", 
+      gbm_model<- gbm(Truth_int~., train_dt[,-c("Truth")], distribution="bernoulli", 
                       n.trees=gbm_cv_res$bestTune$n.trees, 
                       interaction.depth=gbm_cv_res$bestTune$interaction.depth, 
                       shrinkage=gbm_cv_res$bestTune$shrinkage,
