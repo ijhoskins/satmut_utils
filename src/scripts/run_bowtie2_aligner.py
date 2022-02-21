@@ -9,7 +9,7 @@ import sys
 from analysis.aligners import BowtieConfig, Bowtie2, DEFAULT_TEMPDIR
 from core_utils.file_utils import replace_extension
 from core_utils.string_utils import none_or_str
-from definitions import DEFAULT_QUALITY_OFFSET, LOG_FORMATTER
+from satmut_utils.definitions import DEFAULT_QUALITY_OFFSET, LOG_FORMATTER
 
 __author__ = "Ian_Hoskins"
 __credits__ = ["Ian Hoskins"]

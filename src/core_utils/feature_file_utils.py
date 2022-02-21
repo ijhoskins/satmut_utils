@@ -9,7 +9,7 @@ import tempfile
 
 from analysis.aligners import BowtieConfig
 import analysis.seq_utils as su
-from core_utils.file_utils import FILE_DELIM, FILE_NEWLINE, replace_extension
+from core_utils.file_utils import FILE_DELIM, replace_extension
 
 __author__ = "Ian Hoskins"
 __credits__ = ["Ian Hoskins"]

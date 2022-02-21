@@ -14,7 +14,7 @@ from analysis.references import index_reference
 from analysis.seq_utils import sort_and_index, COORD_FORMAT, DEFAULT_MAPQ, ReadMate, MASKED_BQ, SAM_EDITED_TAG, FASTQ_QNAME_CHAR
 import core_utils.file_utils as fu
 from core_utils.vcf_utils import get_variant_type
-from definitions import *
+from satmut_utils.definitions import *
 
 tempfile.tempdir = os.getenv("SCRATCH", "/tmp")
 

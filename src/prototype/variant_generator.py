@@ -13,7 +13,7 @@ import analysis.seq_utils as su
 import core_utils.feature_file_utils as ffu
 import core_utils.file_utils as fu
 import core_utils.vcf_utils as vu
-from definitions import *
+from satmut_utils.definitions import *
 
 __author__ = "Ian_Hoskins"
 __credits__ = ["Ian Hoskins"]

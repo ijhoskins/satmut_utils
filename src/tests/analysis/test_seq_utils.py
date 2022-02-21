@@ -12,7 +12,7 @@ import analysis.aligners as al
 from analysis.references import index_reference
 import analysis.seq_utils as su
 import core_utils.file_utils as fu
-from definitions import DEFAULT_QUALITY_OFFSET
+from satmut_utils.definitions import DEFAULT_QUALITY_OFFSET
 
 TEST_FASTA = """>gi|571026644|ref|NM_014453.3|:1-941 Homo sapiens charged multivesicular body protein 2A (CHMP2A), transcript variant 2, mRNA
 ATGTTACGTCACGTCGTTTAATCCGGAAACGGCGGCGGCGGCGACAGGACCGAGGGGCCTTAGTTGGTGG

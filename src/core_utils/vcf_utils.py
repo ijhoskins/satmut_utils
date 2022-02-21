@@ -3,8 +3,8 @@
 
 import aenum
 import collections
-import logging
 import math
+import logging
 import numpy
 import pysam
 import random
@@ -16,7 +16,7 @@ import warnings
 import analysis.seq_utils as su
 import core_utils.feature_file_utils as ffu
 import core_utils.file_utils as fu
-from definitions import *
+from satmut_utils.definitions import *
 
 __author__ = "Ian Hoskins"
 __credits__ = ["Ian Hoskins"]

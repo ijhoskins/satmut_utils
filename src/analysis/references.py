@@ -12,7 +12,7 @@ import analysis.seq_utils as su
 from analysis.coordinate_mapper import MapperBase
 import core_utils.file_utils as fu
 import core_utils.feature_file_utils as ffu
-from definitions import *
+from satmut_utils.definitions import *
 
 __author__ = "Ian_Hoskins"
 __credits__ = ["Ian Hoskins"]

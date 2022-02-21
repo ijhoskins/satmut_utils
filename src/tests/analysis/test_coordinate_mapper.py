@@ -8,7 +8,7 @@ import unittest
 import analysis.coordinate_mapper as cm
 from analysis.references import faidx_ref
 import core_utils.file_utils as fu
-from definitions import *
+from satmut_utils.definitions import *
 
 tempfile.tempdir = os.getenv("SCRATCH", "/tmp")
 

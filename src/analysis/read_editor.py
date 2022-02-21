@@ -13,7 +13,7 @@ from analysis.read_preprocessor import QnameVerification, ReadMasker
 from analysis import seq_utils as su
 from core_utils import file_utils as fu
 from core_utils import vcf_utils as vu
-from definitions import QNAME_SORTS
+from satmut_utils.definitions import QNAME_SORTS
 from scripts.run_bowtie2_aligner import workflow as align_workflow
 
 __author__ = "Ian_Hoskins"

@@ -8,7 +8,7 @@ import unittest
 import analysis.aligners as al
 import analysis.seq_utils as su
 import core_utils.file_utils as fu
-from definitions import *
+from satmut_utils.definitions import *
 
 tempfile.tempdir = os.getenv("SCRATCH", "/tmp")
 

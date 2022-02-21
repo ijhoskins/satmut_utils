@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """Collection of string manipulation utilities."""
 
-import itertools
 import random
 import string
 

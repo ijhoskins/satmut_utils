@@ -7,7 +7,7 @@ import os
 import sys
 
 from core_utils.file_utils import replace_extension
-from definitions import LOG_FORMATTER
+from satmut_utils.definitions import LOG_FORMATTER
 from prototype.design_conversion import DesignConverter
 
 __author__ = "Ian_Hoskins"

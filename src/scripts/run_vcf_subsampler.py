@@ -9,7 +9,7 @@ import sys
 from core_utils.file_utils import replace_extension
 from core_utils.string_utils import none_or_str, none_or_int
 from core_utils.vcf_utils import VcfSubsampler
-from definitions import LOG_FORMATTER
+from satmut_utils.definitions import LOG_FORMATTER
 
 __author__ = "Ian_Hoskins"
 __credits__ = ["Ian Hoskins"]

@@ -11,7 +11,7 @@ from analysis.seq_utils import extract_seq, sort_bam, bam_to_fastq, sam_view, re
     DEFAULT_MIN_BQ, DEFAULT_MAX_BQ, DNA_BASES, SAM_FLAG_SUPPL, SAM_FLAG_SECONDARY, SAM_FLAG_UNMAP, SAM_FLAG_MUNMAP, SAM_CIGAR_INS, SAM_CIGAR_DEL
 import core_utils.file_utils as fu
 from core_utils.string_utils import make_random_str
-from definitions import *
+from satmut_utils.definitions import *
 from scripts.run_bowtie2_aligner import workflow as align_workflow
 
 __author__ = "Ian_Hoskins"

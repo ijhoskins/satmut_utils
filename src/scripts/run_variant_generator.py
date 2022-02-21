@@ -6,7 +6,7 @@ import logging
 import os
 import sys
 
-from definitions import DEFAULT_MUT_SIG, LOG_FORMATTER
+from satmut_utils.definitions import DEFAULT_MUT_SIG, LOG_FORMATTER
 from prototype.variant_generator import VariantGenerator
 from core_utils.file_utils import replace_extension
 from core_utils.string_utils import none_or_str

@@ -7,7 +7,7 @@ import unittest
 
 from analysis.references import *
 from analysis.seq_utils import FASTA_INDEX_SUFFIX
-from definitions import *
+from satmut_utils.definitions import *
 
 tempfile.tempdir = os.getenv("SCRATCH", "/tmp")
 

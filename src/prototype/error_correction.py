@@ -9,9 +9,8 @@ import tempfile
 from analysis.read_editor import ReadEditor
 import core_utils.file_utils as fu
 import core_utils.vcf_utils as vu
+from satmut_utils.definitions import *
 import prototype.variant_generator as vg
-
-from definitions import *
 
 __author__ = "Ian_Hoskins"
 __credits__ = ["Ian Hoskins"]

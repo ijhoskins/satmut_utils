@@ -7,7 +7,7 @@ import sys
 
 from analysis.aligners import *
 from analysis.seq_utils import BAM_SUFFIX
-from definitions import LOG_FORMATTER
+from satmut_utils.definitions import LOG_FORMATTER
 from prototype.read_generators import *
 from scripts.run_bowtie2_aligner import workflow as ba_workflow
 
