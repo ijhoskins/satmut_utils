@@ -6,10 +6,10 @@ import pybedtools
 import tempfile
 import unittest
 
-from src.analysis.seq_utils import Strand, COORD_FORMAT_STRAND
-import src.core_utils.feature_file_utils as ffu
-import src.core_utils.file_utils as fu
-from src.tests.analysis.test_seq_utils import TEST_FASTA, TEST_BED
+from analysis.seq_utils import Strand, COORD_FORMAT_STRAND
+import core_utils.feature_file_utils as ffu
+import core_utils.file_utils as fu
+from tests.analysis.test_seq_utils import TEST_FASTA, TEST_BED
 
 
 class TestBedIntersect(unittest.TestCase):

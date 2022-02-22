@@ -4,14 +4,13 @@
 import collections
 import numpy as np
 import pysam
-import re
 import tempfile
 import unittest
 
-import src.analysis.read_preprocessor as rp
-import src.analysis.seq_utils as su
-import src.core_utils.file_utils as fu
-from src.satmut_utils.definitions import *
+import analysis.read_preprocessor as rp
+import analysis.seq_utils as su
+import core_utils.file_utils as fu
+from satmut_utils.definitions import *
 
 tempfile.tempdir = DEFAULT_TEMPDIR
 

@@ -9,12 +9,12 @@ import shutil
 import tempfile
 import unittest
 
-import src.analysis.read_editor as ed
-from src.analysis.references import index_reference
-from src.analysis.seq_utils import sort_and_index, COORD_FORMAT, DEFAULT_MAPQ, ReadMate, MASKED_BQ, SAM_EDITED_TAG, FASTQ_QNAME_CHAR
-import src.core_utils.file_utils as fu
-from src.core_utils.vcf_utils import get_variant_type
-from src.satmut_utils.definitions import *
+import analysis.read_editor as ed
+from analysis.references import index_reference
+from analysis.seq_utils import sort_and_index, COORD_FORMAT, DEFAULT_MAPQ, ReadMate, MASKED_BQ, SAM_EDITED_TAG, FASTQ_QNAME_CHAR
+import core_utils.file_utils as fu
+from core_utils.vcf_utils import get_variant_type
+from satmut_utils.definitions import *
 
 tempfile.tempdir = DEFAULT_TEMPDIR
 

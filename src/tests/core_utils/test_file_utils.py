@@ -1,12 +1,11 @@
 #!/usr/bin/env python3
 """Tests for core_utils.file_utils."""
 
-import os
 import tempfile
 import unittest
 
-import src.core_utils.file_utils as fu
-from src.satmut_utils.definitions import *
+import core_utils.file_utils as fu
+from satmut_utils.definitions import *
 
 tempfile.tempdir = DEFAULT_TEMPDIR
 
@@ -16,11 +15,16 @@ class TestFileUtils(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        """ Set up for TestFileUtils
-        """
+        """Set up for TestFileUtils."""
 
         cls.temp_dir = tempfile.mkdtemp()
         cls.test_file = tempfile.NamedTemporaryFile(suffix=".test.file", delete=False, dir=cls.temp_dir).name
+
+    @classmethod
+    def tearDownClass(cls):
+        """Tear down for TestFileUtils."""
+
+        fu.safe_remove((cls.temp_dir,), force_remove=True)
 
     def test_safe_remove_dir_not_empty(self):
         """Test that we prohibit deletion of a non-empty directory by default."""

@@ -5,9 +5,9 @@ import shutil
 import tempfile
 import unittest
 
-from src.analysis.references import *
-from src.analysis.seq_utils import FASTA_INDEX_SUFFIX
-from src.satmut_utils.definitions import *
+from analysis.references import *
+from analysis.seq_utils import FASTA_INDEX_SUFFIX
+from satmut_utils.definitions import *
 
 tempfile.tempdir = DEFAULT_TEMPDIR
 

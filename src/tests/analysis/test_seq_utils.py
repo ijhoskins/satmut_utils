@@ -8,11 +8,11 @@ from shutil import copyfile
 import tempfile
 import unittest
 
-import src.analysis.aligners as al
-from src.analysis.references import index_reference
-import src.analysis.seq_utils as su
-import src.core_utils.file_utils as fu
-from src.satmut_utils.definitions import DEFAULT_QUALITY_OFFSET
+import analysis.aligners as al
+from analysis.references import index_reference
+import analysis.seq_utils as su
+import core_utils.file_utils as fu
+from satmut_utils.definitions import DEFAULT_QUALITY_OFFSET
 
 TEST_FASTA = """>gi|571026644|ref|NM_014453.3|:1-941 Homo sapiens charged multivesicular body protein 2A (CHMP2A), transcript variant 2, mRNA
 ATGTTACGTCACGTCGTTTAATCCGGAAACGGCGGCGGCGGCGACAGGACCGAGGGGCCTTAGTTGGTGG
