@@ -28,7 +28,7 @@ VARIANT_CONFIG_TUPLE = collections.namedtuple("VARIANT_CONFIG_TUPLE", "type, con
 EDIT_KEY_TUPLE = collections.namedtuple("EDIT_KEY_TUPLE", "qname, mate")
 EDIT_CONFIG_TUPLE = collections.namedtuple("EDIT_CONFIG_TUPLE", "contig, pos, ref, alt, read_pos")
 
-tempfile.tempdir = os.getenv("SCRATCH", "/tmp")
+tempfile.tempdir = DEFAULT_TEMPDIR
 logger = logging.getLogger(__name__)
 
 

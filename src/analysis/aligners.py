@@ -10,7 +10,7 @@ import tempfile
 
 import analysis.seq_utils as su
 import core_utils.file_utils as fu
-from satmut_utils.definitions import DEFAULT_QUALITY_OFFSET, PRE_V1p8_QUALITY_OFFSET
+from satmut_utils.definitions import DEFAULT_QUALITY_OFFSET, PRE_V1p8_QUALITY_OFFSET, DEFAULT_TEMPDIR
 
 __author__ = "Ian Hoskins"
 __credits__ = ["Ian Hoskins"]
@@ -19,7 +19,7 @@ __maintainer__ = "Ian Hoskins"
 __email__ = "ianjameshoskins@utexas.edu"
 __status__ = "Development"
 
-DEFAULT_TEMPDIR = os.getenv("SCRATCH", "/tmp")
+
 tempfile.tempdir = DEFAULT_TEMPDIR
 logger = logging.getLogger(__name__)
 

@@ -10,6 +10,7 @@ import subprocess
 import tempfile
 
 from core_utils.file_utils import flush_files, add_extension, remove_extension, FILE_NEWLINE
+from satmut_utils.definitions import DEFAULT_TEMPDIR
 
 __author__ = "Ian Hoskins"
 __credits__ = ["Ian Hoskins"]
@@ -18,7 +19,7 @@ __maintainer__ = "Ian Hoskins"
 __email__ = "ianjameshoskins@utexas.edu"
 __status__ = "Development"
 
-tempfile.tempdir = os.getenv("SCRATCH", "/tmp")
+tempfile.tempdir = DEFAULT_TEMPDIR
 logger = logging.getLogger(__name__)
 
 DEFAULT_ERROR_RATE = 0.01

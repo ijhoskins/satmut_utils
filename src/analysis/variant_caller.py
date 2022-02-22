@@ -21,7 +21,7 @@ from core_utils.feature_file_utils import intersect_features
 import core_utils.file_utils as fu
 import core_utils.vcf_utils as vu
 
-from satmut_utils.definitions import PROJECT_ROOT, PROJECT_LAB, PROJECT_AUTHOR, DEFAULT_MUT_SIG, VALID_MUT_SIGS
+from satmut_utils.definitions import PROJECT_ROOT, PROJECT_LAB, PROJECT_AUTHOR, DEFAULT_MUT_SIG, VALID_MUT_SIGS, DEFAULT_TEMPDIR
 
 __author__ = "Ian_Hoskins"
 __credits__ = ["Ian Hoskins"]
@@ -46,7 +46,7 @@ VARIANT_CALL_SUMMARY_TUPLE = collections.namedtuple(
      vu.VCF_R1_PLUS_MED_NM_ID, vu.VCF_R1_MINUS_MED_NM_ID, vu.VCF_R2_PLUS_MED_NM_ID, vu.VCF_R2_MINUS_MED_NM_ID)
 )
 
-tempfile.tempdir = os.getenv("SCRATCH", "/tmp")
+tempfile.tempdir = DEFAULT_TEMPDIR
 
 logger = logging.getLogger(__name__)
 
