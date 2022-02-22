@@ -78,7 +78,7 @@ fi
 echo "Building and installing satmut_utils"
 cd satmut_utils
 python3 -m pip install --upgrade build && python3 -m build
-python3 -m pip install -e .
+python3 -m pip install .
 
 echo "To use satmut_utils, activate the conda environment with \"conda activate satmut_utils\""
 echo "Completed $0"

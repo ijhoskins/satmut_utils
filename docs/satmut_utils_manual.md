@@ -178,6 +178,8 @@ For RACE-like libraries, as a result of passing umi\_tools the --ignore-tlen opt
 
 To disable such merging of RACE-like R2s during consensus deduplication, the user can provide --primer_fasta. When a primer FASTA is provided, the primer from which R2 originates is appended to the UMI prior to grouping. This ensures R2s emanating from different primers are assigned to separate groups, despite sharing the same R1 UMI-POS. Note that fragment depth of coverage will not be as accurate with this option. However, this option prohibits deletion artifacts arising from merging of non-overlapping R2s. See also the --contig\_del\_threshold option.
 
+If --primer_fasta is provided, read names (QNAME) are modified with a R2 primer barcode (last 16 nt of primer) by using fuzzy matching of all primers to each R2. This step helps moderate artifactual consensus contigs arising from reads across separate amplicons in RACE-like chemistries (--race-like). 
+
 To recap, when provided RACE-like data, satmut\_utils assembles R2 contigs from multiple R2s sharing a common R1 UMI-position. While not supported, dual UMIs on R1 and R2 may be possible by modification of the source code that calls umi\_tools. 
 
 ## Code examples
