@@ -5,11 +5,11 @@ import shutil
 import tempfile
 import unittest
 
-from analysis.references import *
-from analysis.seq_utils import FASTA_INDEX_SUFFIX
-from satmut_utils.definitions import *
+from src.analysis.references import *
+from src.analysis.seq_utils import FASTA_INDEX_SUFFIX
+from src.satmut_utils.definitions import *
 
-tempfile.tempdir = os.getenv("SCRATCH", "/tmp")
+tempfile.tempdir = DEFAULT_TEMPDIR
 
 
 class TestReferences(unittest.TestCase):

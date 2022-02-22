@@ -78,3 +78,5 @@ DEFAULT_QUALITY_OFFSET = 33
 PRE_V1p8_QUALITY_OFFSET = 64
 
 LOG_FORMATTER = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+
+DEFAULT_TEMPDIR = os.getenv("SCRATCH", "/tmp")

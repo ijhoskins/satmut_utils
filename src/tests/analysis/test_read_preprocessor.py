@@ -8,12 +8,12 @@ import re
 import tempfile
 import unittest
 
-import analysis.read_preprocessor as rp
-import analysis.seq_utils as su
-import core_utils.file_utils as fu
-from satmut_utils.definitions import *
+import src.analysis.read_preprocessor as rp
+import src.analysis.seq_utils as su
+import src.core_utils.file_utils as fu
+from src.satmut_utils.definitions import *
 
-tempfile.tempdir = os.getenv("SCRATCH", "/tmp")
+tempfile.tempdir = DEFAULT_TEMPDIR
 
 # First pair contains no adapter readthrough and is first pair in CBS1_65
 # Second pair contains typical adapter readthrough and was selected from CBS1_63 by grep first instance of adapter match

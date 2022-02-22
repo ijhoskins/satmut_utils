@@ -5,9 +5,10 @@ import os
 import tempfile
 import unittest
 
-import core_utils.file_utils as fu
+import src.core_utils.file_utils as fu
+from src.satmut_utils.definitions import *
 
-tempfile.tempdir = "/tmp"
+tempfile.tempdir = DEFAULT_TEMPDIR
 
 
 class TestFileUtils(unittest.TestCase):

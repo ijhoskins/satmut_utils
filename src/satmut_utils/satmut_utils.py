@@ -17,7 +17,7 @@ from analysis.variant_caller import VariantCaller
 import core_utils.file_utils as fu
 from core_utils.string_utils import none_or_str
 from satmut_utils.definitions import AMP_UMI_REGEX, GRCH38_FASTA, QNAME_SORTS, INT_FORMAT_INDEX, DEFAULT_MUT_SIG, \
-    VALID_MUT_SIGS, KEEP_INTERMEDIATES, LOG_FORMATTER
+    VALID_MUT_SIGS, KEEP_INTERMEDIATES, LOG_FORMATTER, DEFAULT_TEMPDIR
 from scripts.run_bowtie2_aligner import workflow as baw
 
 __author__ = "Ian Hoskins"
@@ -28,7 +28,6 @@ __maintainer__ = "Ian Hoskins"
 __email__ = "ianjameshoskins@utexas.edu"
 __status__ = "Development"
 
-DEFAULT_TEMPDIR = os.getenv("SCRATCH", "/tmp")
 tempfile.tempdir = DEFAULT_TEMPDIR
 
 SIM_WORKFLOW = "sim"

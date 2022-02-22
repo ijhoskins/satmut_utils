@@ -1,5 +1,5 @@
 import logging
-from src.satmut_utils.definitions import LOG_FORMATTER
+from satmut_utils.definitions import LOG_FORMATTER
 
 # Create the root logger for all subpackages, submodules
 logger = logging.getLogger(__name__)

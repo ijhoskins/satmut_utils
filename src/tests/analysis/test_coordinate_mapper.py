@@ -5,12 +5,12 @@ from shutil import copyfile
 import tempfile
 import unittest
 
-import analysis.coordinate_mapper as cm
-from analysis.references import faidx_ref
-import core_utils.file_utils as fu
-from satmut_utils.definitions import *
+import src.analysis.coordinate_mapper as cm
+from src.analysis.references import faidx_ref
+import src.core_utils.file_utils as fu
+from src.satmut_utils.definitions import *
 
-tempfile.tempdir = os.getenv("SCRATCH", "/tmp")
+tempfile.tempdir = DEFAULT_TEMPDIR
 
 
 class TestAminoAcidMapper(unittest.TestCase):

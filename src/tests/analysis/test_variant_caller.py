@@ -8,12 +8,12 @@ import pysam
 import tempfile
 import unittest
 
-import analysis.variant_caller as vc
-import analysis.seq_utils as su
-import core_utils.file_utils as fu
-from satmut_utils.definitions import *
+import src.analysis.variant_caller as vc
+import src.analysis.seq_utils as su
+import src.core_utils.file_utils as fu
+from src.satmut_utils.definitions import *
 
-tempfile.tempdir =os.getenv("SCRATCH", "/tmp")
+tempfile.tempdir = DEFAULT_TEMPDIR
 
 TEST_SAM = """@HD	VN:1.0	SO:unknown
 @SQ	SN:CBS_pEZY3	LN:7108

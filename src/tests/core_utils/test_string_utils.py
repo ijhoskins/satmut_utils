@@ -3,7 +3,7 @@
 
 import unittest
 
-import core_utils.string_utils as su
+import src.core_utils.string_utils as su
 
 
 class TestStringUtils(unittest.TestCase):
