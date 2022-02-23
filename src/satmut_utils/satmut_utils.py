@@ -32,6 +32,8 @@ tempfile.tempdir = DEFAULT_TEMPDIR
 
 SIM_WORKFLOW = "sim"
 CALL_WORKFLOW = "call"
+DEFAULT_NTHREADS = 0
+DEFAULT_SEED = 9
 
 LOGFILE = fu.replace_extension(os.path.basename(__file__), "log")
 logger = logging.getLogger()
@@ -74,9 +76,10 @@ def parse_commandline_params(args):
     parser.add_argument("-o", "--output_dir", type=str, default=".",
                         help='Optional output directory. Must be an absolute path. Default current working directory.')
 
-    parser.add_argument("-j", "--nthreads", type=int, default=FastqPreprocessor.NCORES,
-                        help='Number of threads to use for bowtie2 alignment and BAM sorting operations. '
-                             'Default %i, autodetect.' % FastqPreprocessor.NCORES)
+    parser.add_argument("-j", "--nthreads", type=int, default=DEFAULT_NTHREADS,
+                        help='Number of threads to use for bowtie2 alignment and additional threads for BAM sorting. '
+                             'Default for bowtie2 --threads is 1. Default for samtools sort --threads is %i.'
+                             % DEFAULT_NTHREADS)
 
     parser.add_argument("-e", "--max_nm", type=int, default=VariantCaller.VARIANT_CALL_MAX_NM,
                         help='Max edit distance to consider a read pair for simulation and variant calling. '
@@ -90,8 +93,8 @@ def parse_commandline_params(args):
     parser_sim.set_defaults(func=sim_workflow)
 
     parser_sim.add_argument("-a", "--alignments", required=True, type=str,
-                            help='BAM file containing paired alignments to edit (reads should be aligned in '
-                                 'paired-end mode). Paired bowtie2 alignment is supported by the align_reads command.')
+                            help='BAM file containing paired alignments to edit. Adapter trimming and bowtie2 alignment '
+                                 'are enabled by the satmut_trim and satmut_align commands.')
 
     parser_sim.add_argument("-v", "--vcf",  required=True, type=str,
                             help='VCF file of variants to edit. Each variant record should have an AF INFO field '
@@ -100,16 +103,17 @@ def parse_commandline_params(args):
 
     parser_sim.add_argument("-b", "--edit_buffer", type=int, default=ri.ReadEditor.DEFAULT_BUFFER,
                             help='Buffer +/- the edit coordinate position(s) to check for pre-existing errors in reads. '
-                                 'Used to restrict phasing of true variants with errors, leading to false negatives. '
-                                 'Default %i' % ri.ReadEditor.DEFAULT_BUFFER)
+                                 'Used to restrict merging of true variants with errors. Default %i'
+                                 % ri.ReadEditor.DEFAULT_BUFFER)
 
     parser_sim.add_argument("-f", "--force_edit", action="store_true",
                             help='Flag to force editing of variants in the event of invalid variant configurations '
                                  '(AF sum > 1). Editing of all variants is not ensured if this flag is provided, '
-                                 'especially for single-amplicon (PCR tile) alignments. If alignments contain many tiles, '
-                                 'this option enables more variants to be simulated, as they are diffuse in target space.')
+                                 'especially for single-amplicon/tile alignments. If alignments contain many tiles, '
+                                 'this option enables more variants to be simulated.')
 
-    parser_sim.add_argument("-y", "--random_seed", type=int, default=9, help='Seed for random read sampling.')
+    parser_sim.add_argument("-y", "--random_seed", type=int, default=DEFAULT_SEED,
+                            help='Seed for random read sampling. Default %i' % DEFAULT_SEED)
 
     # call subcommand
     parser_call = subparsers.add_parser(CALL_WORKFLOW, help='%s help' % CALL_WORKFLOW)
@@ -151,7 +155,7 @@ def parse_commandline_params(args):
 
     parser_call.add_argument("-u", "--umi_regex", type=str, default=AMP_UMI_REGEX,
                              help='UMI regular expression to be passed to umi_tools extract command. '
-                                  'Default for AMP libraries is %s.' % AMP_UMI_REGEX)
+                                  'Default for RACE-like libraries is %s.' % AMP_UMI_REGEX)
 
     parser_call.add_argument("-s", "--mutagenesis_signature", type=str, default=DEFAULT_MUT_SIG,
                              help='Mutagenesis signature. Useful for annotation of a match to the signature. '
@@ -175,11 +179,14 @@ def parse_commandline_params(args):
                                   'with vector-transgene alignment. Default %i.' % FastqPreprocessor.NTRIMMED)
 
     parser_call.add_argument("-l", "--overlap_length", type=int, default=FastqPreprocessor.OVERLAP_LEN,
-                             help='Number of read bases overlapping the adapter sequence(s) to consider for cutadapt trimming. '
-                                  'Default %i.' % FastqPreprocessor.OVERLAP_LEN)
+                             help='Number of read bases overlapping the adapter sequence(s) to consider for '
+                                  'cutadapt trimming. Default %i.' % FastqPreprocessor.OVERLAP_LEN)
 
     parser_call.add_argument("-b", "--trim_bq", type=int, default=FastqPreprocessor.TRIM_QUALITY,
                              help='Base quality for cutadapt 3\' trimming. Default %i.' % FastqPreprocessor.TRIM_QUALITY)
+
+    parser_call.add_argument("--ncores", type=int, default=FastqPreprocessor.NCORES,
+                             help='Number CPU cores to use for cutadapt.')
 
     parser_call.add_argument("-c", "--contig_del_threshold", type=int, default=ConsensusDeduplicator.CONTIG_DEL_THRESH,
                              help='If -z (RACE-like chemistry) and -cd (consensus deduplicate) are provided, '
@@ -192,7 +199,7 @@ def parse_commandline_params(args):
     parser_call.add_argument("-f", "--primer_fasta", type=none_or_str,
                              help='If -z and -cd, this may be set to append originating R2 primer sequences to read names. '
                                   'Useful for RACE-like libraries to prohibit R2 merging. Without this flag, R2s from '
-                                  'separate tiles but sharing the same R1 will be merged into contigs during '
+                                  'separate primers sharing the same R1 will be merged into a R2 contig during '
                                   'consensus deduplication.')
 
     parser_call.add_argument("-a", "--primer_nm_allowance", type=int, default=UMIExtractor.PRIMER_NM_ALLOW,
@@ -338,8 +345,8 @@ def call_workflow(fastq1, fastq2,
                   max_mnp_window=VariantCaller.VARIANT_CALL_MAX_MNP_WINDOW,
                   nthreads=FastqPreprocessor.NCORES, ntrimmed=FastqPreprocessor.NTRIMMED,
                   overlap_len=FastqPreprocessor.OVERLAP_LEN, trim_bq=FastqPreprocessor.TRIM_QUALITY,
-                  omit_trim=FastqPreprocessor.TRIM_FLAG, mut_sig=DEFAULT_MUT_SIG,
-                  keep_intermediates=KEEP_INTERMEDIATES):
+                  ncores=FastqPreprocessor.NCORES, omit_trim=FastqPreprocessor.TRIM_FLAG,
+                  mut_sig=DEFAULT_MUT_SIG, keep_intermediates=KEEP_INTERMEDIATES):
     r"""Runs the satmut_utils call workflow.
 
     :param str fastq1: path of the R1 FASTQ
@@ -372,6 +379,7 @@ def call_workflow(fastq1, fastq2,
     :param int ntrimmed: Max number of adapters to trim from each read. Default 4.
     :param int overlap_len: number of bases to match in read to trim. Default 8.
     :param int trim_bq: quality score for cutadapt quality trimming at the 3' end. Default 15.
+    :param int ncores: Number CPU cores to use for cutadapt. Default 0, autodetect.
     :param bool omit_trim: flag to turn off adapter and 3' base quality trimming. Default False.
     :param str mut_sig: mutagenesis signature- one of {NNN, NNK, NNS}. Default NNN.
     :param bool keep_intermediates: flag to write intermediate files to the output_dir. Default False.
@@ -418,17 +426,17 @@ def call_workflow(fastq1, fastq2,
     fqp = FastqPreprocessor(
         f1=fqp_r1, f2=fqp_r2, r1_fiveprime_adapters=r1_fiveprime_adapters, r1_threeprime_adapters=r1_threeprime_adapters,
         r2_fiveprime_adapters=r2_fiveprime_adapters, r2_threeprime_adapters=r2_threeprime_adapters, outdir=tempdir,
-        ncores=nthreads, trim_bq=trim_bq, ntrimmed=ntrimmed, overlap_len=overlap_len, no_trim=omit_trim)
+        ncores=ncores, trim_bq=trim_bq, ntrimmed=ntrimmed, overlap_len=overlap_len, no_trim=omit_trim)
 
     # Run local alignment; handle the ncores/nthreads option for cutadapt versus bowtie2 options
     bowtie2_nthreads = 1 if nthreads == 0 else nthreads
     bta = baw(f1=fqp.trimmed_f1, ref=ref_fa, f2=fqp.trimmed_f2, outdir=tempdir, outbam=None, local=True,
               nthreads=bowtie2_nthreads)
 
-    # Run deduplication which may be done in at least two ways (standard and consensus)
+    # Run consensus deduplication
     preproc_in_bam = bta.output_bam
     if consensus_dedup:
-        # Run consensus deduplication (majority vote for each base call within a read's UMI network/group)
+        # Run consensus deduplication (majority vote for each base call within a read's UMI group)
         rg = ReadGrouper(in_bam=bta.output_bam, outdir=tempdir)
         cdp = ConsensusDeduplicatorPreprocessor(group_bam=rg.group_bam, outdir=tempdir, nthreads=nthreads)
         cd = ConsensusDeduplicator(in_bam=cdp.preprocess_bam, ref=ref_fa, outdir=tempdir, out_bam=None,
@@ -513,7 +521,7 @@ def main():
             max_nm=args_dict["max_nm"], min_supporting_qnames=args_dict["min_supporting"],
             max_mnp_window=args_dict["max_mnp_window"], nthreads=args_dict["nthreads"],
             ntrimmed=args_dict["ntrimmed"], overlap_len=args_dict["overlap_length"], trim_bq=args_dict["trim_bq"],
-            omit_trim=args_dict["omit_trim"], mut_sig=args_dict["mutagenesis_signature"],
+            ncores=args_dict["ncores"], omit_trim=args_dict["omit_trim"], mut_sig=args_dict["mutagenesis_signature"],
             keep_intermediates=args_dict["keep_intermediates"])
 
         logger.info("Completed call workflow.")
