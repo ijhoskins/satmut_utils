@@ -468,7 +468,7 @@ class ReadGrouper(object):
                       "--unpaired-reads=discard", "--unmapped-reads=discard",
                       "--multimapping-detection-method", su.SAM_MULTIMAP_TAG,
                       "-E", self.stderr, "--log2stderr",
-                      "--temp-dir=%s" % os.getenv("SCRATCH", "/tmp"))
+                      "--temp-dir=%s" % DEFAULT_TEMPDIR)
 
         subprocess.call(group_call)
 
