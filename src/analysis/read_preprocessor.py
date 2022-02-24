@@ -2,6 +2,7 @@
 """Objects for read pre-processing."""
 
 import collections
+import copy
 import gzip
 import logging
 import os
@@ -1136,27 +1137,47 @@ class ConsensusDeduplicator(object):
                 # TODO: implement heuristic to avoid updating for non-duplicated UMIs
                 consensus_dict = collections.OrderedDict()
                 pos_list = []
+                dup_counter = 1
 
                 for i, align_seg in enumerate(in_af.fetch(until_eof=True)):
 
                     read_umi_network = self._extract_umi_network(align_seg)
 
-                    if i == 0 or read_umi_network == last_umi_network:
-                        # Store the per-base information for each read in a dict
+                    if i == 0:
+                        prev_align_seg = copy.deepcopy(align_seg)
+                        last_umi_network = read_umi_network
+                        continue
+
+                    if read_umi_network == last_umi_network:
+
+                        if i == 1 or dup_counter == 1:
+                            # Store the per-base information for each read in a dict
+                            self._update_consensus_dict(prev_align_seg, consensus_dict, pos_list)
+
                         self._update_consensus_dict(align_seg, consensus_dict, pos_list)
+                        dup_counter += 1
+
                     else:
-                        # Generate the consensus for the last UMI network and write, then re-init dicts
-                        self._write_consensus(out_af, consensus_dict, pos_list, last_umi_network)
 
-                        # Regenerate the consensus dict and update with the current read
-                        consensus_dict = collections.OrderedDict()
-                        pos_list = []
-                        self._update_consensus_dict(align_seg, consensus_dict, pos_list)
+                        if dup_counter == 1:
+                            out_af.write(prev_align_seg)
+                        else:
+                            # Generate the consensus for the last UMI network and write, then re-init dicts
+                            self._write_consensus(out_af, consensus_dict, pos_list, last_umi_network)
 
+                            # Regenerate the consensus dict and update with the current read
+                            consensus_dict = collections.OrderedDict()
+                            pos_list = []
+                            dup_counter = 1
+
+                    prev_align_seg = copy.deepcopy(align_seg)
                     last_umi_network = read_umi_network
 
                 # Write the last consensus read
-                self._write_consensus(out_af, consensus_dict, pos_list, read_umi_network)
+                if dup_counter == 1:
+                    out_af.write(prev_align_seg)
+                else:
+                    self._write_consensus(out_af, consensus_dict, pos_list, read_umi_network)
 
                 return dedup_bam.name
 
