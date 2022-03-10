@@ -4,7 +4,7 @@ satmut_utils is a Python package for simulation and variant calling of saturatio
 1. sim
 2. call
 
-satmut_utils commands are designed to simulate and call variants in paired-end, targeted RNA-sequencing reads. That is, alignments for a single transcript are expected. 
+satmut_utils commands are designed to simulate and call variants in paired-end, targeted sequencing reads. Alignments to a single transcript, or contiguous (spliced) coding sequence, are expected. Genome-wide and transcriptome-wide variant calling is not supported.
 
 [Installation](#Installation)
 
@@ -40,7 +40,6 @@ conda activate satmut_utils
 You are now ready to call the command-line executable ```satmut_utils```
 
 satmut\_utils is the primary command, with subcommands sim and call.
- 
 
 ## Code examples
 
@@ -53,16 +52,16 @@ satmut_utils sim -h
 satmut_utils call -h
 ```
 
+Common arguments to both sim and call subcommands should be provided first, then the subcommand, and then the subcommand-specific arguments.
+
 It is recommended that a new output directory is created for each job. Default is to output to the current directory.
 ```OUTPUT_DIR="/tmp/satmut_utils_test"```
-
-Common arguments to both sim and call subcommands should be provided first, then the subcommand, and then the subcommand-specific arguments.
 
 ### Run sim
 
 Run sim on *in silico* alignments to generate SNPs, MNPs, and InDels. Structural variants and gene fusions are not currently supported.
 ```
-TEST_DIR="src/tests/test_data"
+TEST_DIR="satmut_utils/src/tests/test_data"
 satmut_utils -i ENST00000398165.7 -x $REF_DIR -o $OUTPUT_DIR -p $TEST_DIR/CBS_sim_primers.bed sim -f -a $TEST_DIR/CBS_sim.bam -v $TEST_DIR/CBS_sim.vcf
 ```
 
@@ -70,9 +69,11 @@ The sim workflow outputs paired FASTQs, a realigned BAM file, and a truth VCF co
 
 ### Run call
 
+Currently, only SNP and MNP calling is supported.
+
 Run call on the simulated data by specifying an Ensembl transcript/gene ID and the directory containing curated reference files.
 ```
-TEST_DIR="src/tests/test_data"
+TEST_DIR="satmut_utils/src/tests/test_data"
 satmut_utils -i ENST00000398165.7 -x $REF_DIR -o $OUTPUT_DIR -p $TEST_DIR/CBS_sim_primers.bed call -1 $TEST_DIR/CBS_sim.R1.fq.gz -2 $TEST_DIR/CBS_sim.R2.fq.gz -v -m 1
 ```
 
@@ -80,7 +81,7 @@ Here, we call variants on a simulated dataset with no adapter sequences, so we p
 
 If the Ensembl ID is not in the curated set of primary transcripts, or if you want to align to a custom reference, several reference files most be provided. [Reference files](#Reference-files).
 ```
-satmut_utils -r $TEST_DIR/CBS.fa -o $OUTPUT_DIR -p $TEST_DIR/CBS_sim_primers.bed call -1 $TEST_DIR/CBS_sim.R1.fq.gz -2 $TEST_DIR/CBS_sim.R2.fq.gz -v -m 1 -g $TEST_DIR/CBS.gff -k $REF_DIR/GRCh38.fa
+satmut_utils -r $TEST_DIR/CBS.fa -o $OUTPUT_DIR -p $TEST_DIR/CBS_sim_primers.bed call -1 $TEST_DIR/CBS_sim.R1.fq.gz -2 $TEST_DIR/CBS_sim.R2.fq.gz -v -m 1 -g $TEST_DIR/CBS.gff -k $REF_DIR/GRCh38.fa.gz
 ```
 
 The call workflow produces a VCF of candidate variant calls as well as a bedgraph file reporting fragment coverage across the transcript reference. The output VCF and its corresponding tab-delimited summary.txt file contain records for each mismatched base in an MNP. See the corresponding VCF header for column/field descriptions.
@@ -99,7 +100,7 @@ C. GFF reference (FASTA)
 
 Common transcript annotations in GFF format (file B) map coordinates in the genome. For this case, file A should specify a transcript FASTA and file C should specify the genome FASTA.
 
-In typical saturation mutagenesis datasets, an intron-less coding sequence, often lacking endogenous untranslated regions, is expressed from a vector. In this case, set file A and C to the same composite (vector + coding sequence) reference FASTA, then make a custom GFF annotation (file B) with a coding sequence exon. See the user manual for more details on creating custom reference files.
+In typical saturation mutagenesis datasets, an intron-less coding sequence is expressed from a vector. In this case, set file A and C to the same composite (vector + coding sequence) reference FASTA, then make a custom GFF annotation (file B) with a coding sequence exon. See the user manual for more details on creating custom reference files.
 
 ## Tests
 

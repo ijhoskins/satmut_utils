@@ -71,7 +71,7 @@ then
 	mkdir -p $REF_DIR
 	echo "Writing to ${!REF_DIR}"
 	curl -L -R -o $REF_DIR/GRCh38.fa.gz $GENOME_URL
-	gunzip $REF_DIR/GRCh38.fa.gz && samtools faidx $REF_DIR/GRCh38.fa
+	samtools faidx $REF_DIR/GRCh38.fa.gz
 fi
 
 # Navigate to the satmut_utils repo and install the package

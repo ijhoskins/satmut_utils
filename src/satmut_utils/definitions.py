@@ -20,7 +20,7 @@ APPRIS_TRX_IDS = "appris_human_v1_actual_regions_trx_ids.txt"
 APPRIS_GENE_IDS = "appris_human_v1_actual_regions_gene_ids.txt"
 APPRIS_TRX_FASTA = "appris_human_24_01_2019_selected.fa"
 GENCODE_TRX_GFF = "gencode.v29.annotation.gtf"
-GRCH38_FASTA = "GRCh38.fa"
+GRCH38_FASTA = "GRCh38.fa.gz"
 
 # CTCCTTTC
 NEXTERA_R1_R2_ADAPTER_TRIM_1 = "CTGTCTCTTATACACATCT"
