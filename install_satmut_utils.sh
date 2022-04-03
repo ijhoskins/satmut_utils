@@ -51,14 +51,14 @@ then
 fi
 
 # Create and activate the conda environment
-echo "Creating satmut_utils environment"
+echo "Creating satmut_utils environment."
 conda env create -f satmut_utils/satmut_utils_env.yaml
-conda init bash && source ~/.bash_profile
+conda init bash && source ~/.bashrc
 conda activate satmut_utils
 
 if [ ! -z "$GET_TRANSCRIPTOME" ]
 then
-	echo "Getting curated human transcriptome files"
+	echo "Getting curated human transcriptome files."
 	mkdir -p $REF_DIR
 	echo "Writing to ${!REF_DIR}"
 	git clone $SATMUT_UTILS_REFS_REPO
@@ -67,10 +67,13 @@ fi
 
 if [ ! -z "$GET_GENOME" ]
 then
-	echo "Downloading human genome FASTA"
+	echo "Downloading human genome FASTA."
 	mkdir -p $REF_DIR
 	echo "Writing to ${!REF_DIR}"
 	curl -L -R -o $REF_DIR/GRCh38.fa.gz $GENOME_URL
+	
+	echo "bgzipping genome FASTA and indexing."
+	gunzip $REF_DIR/GRCh38.fa.gz && bgzip $REF_DIR/GRCh38.fa
 	samtools faidx $REF_DIR/GRCh38.fa.gz
 fi
 
@@ -82,4 +85,3 @@ python3 -m pip install .
 
 echo "To use satmut_utils, activate the conda environment with \"conda activate satmut_utils\""
 echo "Completed $0"
-

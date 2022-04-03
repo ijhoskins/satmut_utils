@@ -6,41 +6,41 @@
 
 [Reference files](#Reference-files)
 
-[satmut_utils sim](#satmut_utils-sim)
+[satmut_utils 'sim'](#satmut_utils-'sim')
 
-[satmut_utils call](#satmut_utils-call)
+[satmut_utils 'call'](#satmut_utils-'call')
 
 [Code examples](#Code-examples)
 
-[sim code examples](#sim-code-examples)
+['sim' code examples](#'sim'-code-examples)
 
-[call code examples](#call-code-examples)
+['call' code examples](#'call'-code-examples)
 
 [satmut_utils command-line interface](#satmut_utils-command\-line-interface)
 
 [Common options](#Common-options)
 
-[sim options](#sim-options)
+['sim' options](#'sim'-options)
 
-[call options](#call-options)
+['call' options](#'call'-options)
 
 [Accessory scripts](Accessory-scripts)
 
 [Tests](#Tests)
 
-satmut_utils is a Python package for simulation and variant calling of saturation mutagenesis data. The two main subcommands are:
-1. sim
-2. call
+satmut\_utils is a Python package for simulation and variant calling of saturation mutagenesis data. The two main subcommands are:
+1. 'sim'
+2. 'call'
 
-satmut_utils commands are designed to simulate and call variants in paired-end, targeted sequencing reads. Alignments to a single transcript, or contiguous (spliced) coding sequence, are expected. Genome-wide and transcriptome-wide variant calling is not supported.
+satmut\_utils commands are designed to simulate and call variants in paired-end, targeted sequencing reads. Alignments to a single transcript, or contiguous (spliced) coding sequence, are expected. Genome-wide and transcriptome-wide variant calling is not supported.
 
-sim and call support two different types of paired-end read chemistries. The first supported chemistry is a tiled amplicon PCR approach with interleaved sets of PCR amplicons. In this mode, R1 and R2 start at primer ends.
+'sim' and 'call' support two different types of paired-end read chemistries. The first supported chemistry is a tiled amplicon PCR approach with interleaved sets of PCR amplicons. In this mode, R1 and R2 start at primer ends.
 
-The second supported chemistry is a RACE-like approach (for example, Anchored Multiplex PCR), where R1 starts at a variable fragment end and R2 starts at a primer. RACE-like PCR may be used to enrich entire coding regions in one PCR, in addition to targeting of RNA 5' and 3' ends.
+The second supported chemistry is a RACE-like approach (for example, Anchored Multiplex PCR; Zheng et al. 2014), where R1 starts at a variable fragment end and R2 starts at a primer. RACE-like PCR may be used to enrich entire coding regions in one PCR, in addition to targeting of RNA 5' and 3' ends.
 
-satmut_utils call allows for unique molecular indices (UMIs) at the start of R1 in either library preparation chemistry. Currently, it does not support analysis of UMIs on both reads.
+satmut\_utils 'call' allows for unique molecular indices (UMIs) at the start of R1 in either library preparation chemistry. Currently, it does not support analysis of UMIs on both reads.
 
-Furthermore, satmut_utils does not support barcode sequencing, wherein sequencing is used to link a variant with a barcode, followed by readout of unique barcodes.
+Furthermore, satmut\_utils does not support barcode sequencing, wherein sequencing is used to link a variant with a barcode, followed by readout of unique barcodes.
 
 ## Installation
 
@@ -63,11 +63,11 @@ conda activate satmut_utils
 
 You are now ready to call the command-line executable ```satmut_utils```
 
-satmut\_utils is the primary command, with subcommands sim and call.
+satmut\_utils is the primary command, with subcommands 'sim' and 'call'.
 
 ## Reference files
 
-For convenience, a curated transcriptome of primary human transcripts from [APPRIS](https://apprisws.bioinfo.cnio.es/landing_page/) is provided, allowing the user to pass an Ensembl gene or transcript ID to satmut_utils. However, if the requested Ensembl ID is not found in this set, custom reference files must be passed, which include:
+For convenience, a curated transcriptome of primary human transcripts from [APPRIS](https://apprisws.bioinfo.cnio.es/landing_page/) is provided, allowing the user to pass an Ensembl gene or transcript ID to \. However, if the requested Ensembl ID is not found in this set, custom reference files must be passed, which include:
 
 A. Transcript reference (FASTA)
 
@@ -75,29 +75,29 @@ B. Transcript annotations (GFF)
 
 C. GFF reference (FASTA)
 
-Common transcript annotations available in GFF format map exon coordinates in the genome. For this case, file A should specify a transcript FASTA and file C should specify the genome FASTA. This is the default satmut_utils configuration when using Ensembl IDs.
+Common transcript annotations available in GFF format map exon coordinates in the genome. For this case, file A should specify a transcript FASTA and file C should specify the genome FASTA. This is the default satmut\_utils configuration when using Ensembl IDs.
 
-In typical saturation mutagenesis experiments a transgene is expressed from a vector. In this case, the user ideally sets file A and C to a custom composite (vector + target) reference FASTA, then makes a custom annotation GFF (B). Custom references are useful for mapping PCR tiles that span the vector-transgene junctions. Because local alignment is employed in satmut\_utils call, variants near these junctions may be clipped along with vector sequence unless custom reference files are provided.
+In typical saturation mutagenesis experiments a transgene is expressed from a vector. In this case, the user ideally sets file A and C to a custom composite (vector + target) reference FASTA, then makes a custom annotation GFF (B). Custom references are useful for mapping PCR tiles that span the vector-transgene junctions. Because local alignment is employed in satmut\_utils 'call', variants near these junctions may be clipped along with vector sequence unless custom reference files are provided.
 
 Providing a genome-based GFF reference file (C) with a custom transcript reference and annotations (A, B) allows alignment to novel transcript isoforms, such as those with 5' or 3' extensions. This is possible so long as the transcript reference FASTA and corresponding exon annotations comprise a contiguous (spliced) coding sequence (possibly with noncoding 5' and 3' untranslated regions).
 
 If you already have the GRCh38 FASTA, you may use it provided it uses Ensembl contig nomenclature (not the NCBI "NC_" or UCSC "chr" nomenclature). That is, the chromosome names should start with a single integer for autosomes, and X, Y, and MT for the sex chromosomes and mitochondrial chromosome, respectively. This is important for compatibility with the curated transcript annotations when using Ensembl identifiers. If the FASTA meets these requirements, it should be copied or linked in the REF\_DIR (optionally set by install\_satmut\_utils.sh -r option). The genome should have an index generated with samtools faidx, which is generated by default if running the installation script.
 
-## satmut_utils sim
+## satmut_utils 'sim'
 
-sim makes certain design decisions that may impact the performance of sim for your particular application.
+'sim' makes certain design decisions that may impact the performance of 'sim' for your particular application.
 
-1. *sim edits variants in only those fragments with coverage from both mates of the pair*
+1. *'sim' edits variants in only those fragments with coverage from both mates of the pair*
 
-For compatibility with the call subcommand, which requires mate concordance for a variant call, sim will generate the variants in only those fragments with supporting coverage from both mates. We term this concordant alternate observations (CAO). The denominator to the variant frequency calculation (DP) is also fragment-based. That is, depth is not counted twice at positions where the mates overlap. The resulting concordant allele frequency, CAF=CAO/DP, is a more conservative measure of variant abundance.
+For compatibility with the 'call' subcommand, which requires mate concordance for a variant call, 'sim' will generate the variants in only those fragments with supporting coverage from both mates. We term this concordant alternate observations (CAO). The denominator to the variant frequency calculation (DP) is also fragment-based. That is, depth is not counted twice at positions where the mates overlap. The resulting concordant allele frequency, CAF=CAO/DP, is a more conservative measure of variant abundance.
 
-Note that satmut\_utils sim truth frequencies may differ from variants quantified by other callers due to this design choice. Thus, validation of sim results is only recommended with satmut\_utils call, as sim and call were designed to follow the same filtering logic, enabling high-accuracy variant editing and subsequent calling.
+Note that satmut\_utils 'sim' truth frequencies may differ from variants quantified by other callers due to this design choice. Thus, validation of 'sim' results is only recommended with satmut\_utils 'call', as workflows were designed to follow the same filtering logic, enabling high-accuracy variant editing and subsequent calling.
 
-2. *sim relies on a heuristic to select fragments for editing*
+2. *'sim' relies on a heuristic to select fragments for editing*
 
-To enable editing of multiple variants at a single position, as well as prohibit unintentional phasing of variants, sim employs a heuristic to enforce several rules. The designs assumes that the collection of edited variant frequencies may not exceed 1. Thus, sim assumes that **all variants are configured for editing at low frequencies (<1:1000)**. If the user seeks to edit variants at higher frequencies, the pool of fragments that are amenable for editing rapidly dwindles. This is because sim prohibits phasing of edited variants (each fragment/mate pair may be edited only once).
+To enable editing of multiple variants at a single position, as well as prohibit unintentional phasing of variants, 'sim' employs a heuristic to enforce several rules. The designs assumes that the collection of edited variant frequencies may not exceed 1. Thus, 'sim' assumes that **all variants are configured for editing at low frequencies (<1:1000)**. If the user seeks to edit variants at higher frequencies, the pool of fragments that are amenable for editing rapidly dwindles. This is because 'sim' prohibits phasing of edited variants (each fragment/mate pair may be edited only once).
 
-This constraint is particularly problematic if the user seeks to edit even a few variants at germline-like frequencies (0.5 - 1). sim will raise a InvalidVariantConfig exception if the sum of variant frequencies across all variants in the input VCF exceeds 1. To ignore this exception and edit as many variants as possible, pass --force\_edit. The output truth VCF will indicate all *configured* variants, whether or not they were edited.
+This constraint is particularly problematic if the user seeks to edit even a few variants at germline-like frequencies (0.5 - 1). 'sim' will raise a InvalidVariantConfig exception if the sum of variant frequencies across all variants in the input VCF exceeds 1. To ignore this exception and edit as many variants as possible, pass --force\_edit. The output truth VCF will indicate all *configured* variants, whether or not they were edited.
 
 The heuristic for selecting reads enforces the following rules:
 
@@ -105,25 +105,25 @@ The heuristic for selecting reads enforces the following rules:
 
 2) Any fragment selected for editing must have error-free coverage in both mates within a symmetric buffer spanning the variant position. This prohibits editing a true variant adjacent to an error, which would convert the variant to higher order (for example, SNP to di-nucleotide MNP).
 
-3) If a primer BED file has been provided, sim enforces that no part of the variant span (POS + REF field length) intersects a read segment arising from a synthetic primer. Passing a primer BED file to sim is highly recommended because it enables the avoidance of editing at read termini. Otherwise, under subsequent local alignment of edited reads (in satmut\_utils call), variants at read termini may be clipped, leading to their loss from the alignment and causing false negatives.
+3) If a primer BED file has been provided, 'sim' enforces that no part of the variant span (POS + REF field length) intersects a read segment arising from a synthetic primer. Passing a primer BED file to 'sim' is highly recommended because it enables the avoidance of editing at read termini. Otherwise, under subsequent local alignment of edited reads (in satmut\_utils 'call'), variants at read termini may be clipped, leading to their loss from the alignment and causing false negatives.
 
 Note that rule 3 does *not* mean variants cannot be edited within or overlapping primer regions, as long as the position has read-through coverage (typically provided by an adjacent PCR amplicon/tile). 
 
 Collectively, while effectively constraining the number and frequency of variants that can be edited at once, these rules ensure high fidelity of variant editing at ultra-low frequencies.
 
-## satmut_utils call
+## satmut_utils 'call'
 
-call makes certain design decisions that may impact the performance of variant calling for your particular application.
+'' makes certain design decisions that may impact the performance of variant calling for your particular application.
 
-1. *call enforces mate pair concordance for candidate calls*
+1. *'call' enforces mate pair concordance for candidate calls*
 
-To reduce the impact of single-stranded sequencing errors, satmut_utils requires the same base call is made in both mates of the pair for enumeration of a variant call. Note this does not handle polymerase errors made during PCR enrichment.
+To reduce the impact of single-stranded sequencing errors, satmut\_utils requires the same base call is made in both mates of the pair for enumeration of a variant call. Note this does not handle polymerase errors made during PCR enrichment.
 
-2. *call applies quality filters prior to verifying mate concordance*
+2. *'call' applies quality filters prior to verifying mate concordance*
 
-Before pairs are considered for mate concordance, reads or base calls may be filtered by read edit distance (--man_nm) and base quality (--min-bq) filters.
+Before pairs are considered for mate concordance, reads or base calls may be filtered by read edit distance (--max\_nm) and base quality (--min\_bq) filters.
 
-3. *call uses a unique algorithm to resolve SNPs and MNPs contained in the same fragment*
+3. *'call' uses a unique algorithm to resolve SNPs and MNPs contained in the same fragment*
 
 The general algorithm for variant calling is as follows. See satmut\_utils.src.analysis.variant\_caller.VariantCaller for implementation.
 
@@ -147,18 +147,18 @@ This algorithm leads to specific calling expectations for consecutive mismatch r
 
 Enforcing concordance may lead to under-quantification of variant frequencies in cases where a significant proportion of pairs do not have appreciable overlap between R1 and R2. Insufficient overlap between mates may be due to inadequate primer design and/or overzealous 3’ base quality trimming. Additionally, for RACE-like libraries, a high proportion of fragment lengths greater than the read length may also limit sensitivity.
 
-### satmut_utils frequency calculation
+### satmut\_utils frequency calculation
 
-The denominator for the variant frequency calculation- i.e. fragment coverage depth- is determined after filtering on read edit distance (NM tag) and mate pair overlap (concordance). If a primer BED file is provided to satmut_utils, read segments originating from synthetic primer sequence do not contribute to fragment depth (DP).
+The denominator for the variant frequency calculation- fragment coverage depth (DP)- is determined after filtering on read edit distance (NM tag) and mate pair overlap (concordance). If a primer BED file is provided to satmut\_utils, read segments originating from synthetic primer sequence do not contribute to fragment coverage depth.
 When the MNP span (variant reference coordinates) covers both a synthetic primer position and an adjacent position in the amplicon, the minimum depth of coverage in the MNP span is used as the denominator for the concordant allele frequency: CAF=CAO/DP.
 
-### satmut\_utils call read preprocessing steps
+### satmut\_utils 'call' read preprocessing steps
 
-satmut\_utils call supports multiple methods for moderating false positives calls. Application of these methods is optional but improves specificity.
+satmut\_utils 'call' supports multiple methods for moderating false positives calls. Application of these methods is optional but improves specificity.
 
 1. Synthetic primer base quality masking
 
-To prohibit false positive calls arising from primer synthesis errors, satmut_utils call provides a masking strategy to demarcate read segments originating from synthetic primer sequence. In masking, base qualities for these segments are set to 0 and omitted from variant calls. This step requires the user to provide a primer BED file specifying the primers used in target enrichment. 
+To prohibit false positive calls arising from primer synthesis errors, satmut\_utils 'call' provides a masking strategy to demarcate read segments originating from synthetic primer sequence. In masking, base qualities for these segments are set to 0 and omitted from variant calls. This step requires the user to provide a primer BED file specifying the primers used in target enrichment. 
 
 The read subsequences to mask depend on the library preparation chemistry and mate read identity and orientation. For amplicon libraries, both R1 and R2 may be masked at both ends. For RACE-like data, only the 3’ end of R1 and the 5’ end of R2 are masked. This assumes the presence of a unique molecular index (UMI) at the start of R1, which is extracted through consensus deduplication (see #2 below).
 
@@ -174,11 +174,12 @@ Consensus deduplication is supported for RACE-like libraries. In one RACE-like l
 
 For RACE-like libraries, as a result of passing umi\_tools the --ignore-tlen option, R2s that share the same R1 UMI-POS but do not share the same R2 start coordinate may be merged into a R2 consensus contig. This logic ensures accurate fragment depth of coverage reporting for RACE-like data, but may create R2 contigs with read lengths greater than the sequencing read length. It may also lead to a small proportion of R2 contigs with internal unknown base calls (N), which arise when merged R2s do not overlap one another.
 
-To disable such merging of RACE-like R2s into larger contigs during consensus deduplication, the user can provide --primer_fasta. When a primer FASTA is provided, the primer from which R2 originates is appended to the UMI prior to grouping. This ensures R2s emanating from different primers are assigned to separate groups, despite sharing the same R1 UMI-POS. Note that fragment depth of coverage will not be as accurate with this option. However, this option prohibits deletion artifacts arising from merging of non-overlapping R2s. See also the --contig\_del\_threshold option.
+To disable such merging of RACE-like R2s into larger contigs during consensus deduplication, the user can provide --primer\_fasta. When a primer FASTA is provided, the primer from which R2 originates is appended to the UMI prior to grouping. This ensures R2s emanating from different primers are assigned to separate groups, despite sharing the same R1 UMI-POS. Note that fragment depth of coverage will not be as accurate with this option. However, this option prohibits deletion artifacts arising from merging of non-overlapping R2s. See also the --contig\_del\_threshold option.
 
-If --primer_fasta is provided, read names (QNAME) are modified with a R2 primer barcode (last 16 nt of primer) by using fuzzy matching of all primers to each R2. This step helps moderate artifactual consensus contigs arising from reads across separate amplicons in RACE-like chemistries (--race-like). 
+If --primer_fasta is provided, read names (QNAME) are modified with a R2 primer barcode (last 16 nt of primer) by using fuzzy matching of all primers to each R2. This step helps moderate artifactual consensus contigs arising from reads across separate amplicons in RACE-like chemistries (--race\_like). 
 
-To recap, when provided RACE-like data, satmut\_utils assembles R2 contigs from multiple R2s sharing a common R1 UMI-position. While not currently supported, dual UMIs on R1 and R2 may be possible by modification of the source code that calls umi\_tools. 
+To recap, when provided RACE-like data, satmut\_utils assembles R2 contigs from multiple R2s sharing a common R1 UMI-position. While not currently supported, dual UMIs on R1 and R2 may be possible by modification of the source code that calls UMI-tools.
+
 
 ## Code examples
 
@@ -189,15 +190,15 @@ satmut_utils sim -h
 satmut_utils call -h
 ```
 
-Common arguments to both sim and call subcommands should be provided first, then the subcommand, and then the subcommand-specific arguments.
+Common arguments to both 'sim' and 'call' subcommands should be provided first, then the subcommand, and then the subcommand-specific arguments.
 
 It is recommended that a new output directory is created for each job. Default is to output to the current directory.
 
 ```OUTPUT_DIR="/tmp/satmut_utils_test"```
 
-### sim code examples
+### 'sim' code examples
 
-Run the sim workflow by providing a BAM containing paired-end, single-target alignments, and a VCF file specifying variants and their desired frequencies. 
+Run the 'sim' workflow by providing a BAM containing paired-end, single-contig alignments, and a VCF file specifying variants and their desired frequencies. 
 
 ```
 TEST_DIR="satmut_utils/src/tests/test_data"
@@ -210,7 +211,7 @@ See satmut\_utils/src/tests/test\_data/cbs\_sim.vcf for an example input VCF wit
 
 Typically the alignments are from a non-mutagenized negative control library and the variants are subsamples from a VCF containing all codon permutations matching the mutagenesis signature across the target region. See satmut\_utils/src/prototype/run\_variant_generatory.py to generate variants in a target *de novo*.
 
-See sim requirement 4 in the section above for a description of primer masking in the context of simulation. The primer BED must have a strand field. See satmut\_utils/tests/test\_data/CBS\_insilico_primers.bed for an example BED file.
+See 'sim' requirement 4 in the section above for a description of primer masking in the context of simulation. The primer BED must have a strand field. See satmut\_utils/tests/test\_data/CBS\_insilico_primers.bed for an example BED file.
 
 Specify that the alignments are from a RACE-like library preparation chemistry, and use a new random seed to select different read pairs for editing:
 ```
@@ -220,13 +221,13 @@ satmut_utils -i ENST00000398165.7 -x $REF_DIR -o $OUTPUT_DIR -p $TEST_DIR/CBS_si
 
 The test data is not from RACE-like chemistry and the above code snippet is for illustrative purposes only.
 
-### sim outputs
+### 'sim' outputs
 
-The sim workflow outputs paired FASTQs, a realigned BAM file (bowtie2 global alignment mode), and a truth VCF containing expected variants and their expected concordant counts and frequencies. The user should be aware that edited reads that do not realign will not give rise to variant calls in downstream analysis.
+The 'sim' workflow outputs paired FASTQs, a realigned BAM file (bowtie2 global alignment mode), and a truth VCF containing expected variants and their expected concordant counts (CAO) and frequencies (CAF). The user should be aware that edited reads that do not realign will not give rise to variant calls in downstream analysis.
 
-### call code examples
+### 'call' code examples
 
-Run call by specifying an Ensembl transcript or gene ID, the directory containing curated reference files, and adapters to trim (or -v, --omit\_trim):
+Run 'call' by specifying an Ensembl transcript or gene ID, the directory containing curated reference files, and adapters to trim (or -v, --omit\_trim):
 ```
 # NOT RUN
 satmut_utils -i ENST00000398165.7 -x $REF_DIR -o $OUTPUT_DIR call -1 R1.fq.gz -2 R2.fq.gz --r1_fiveprime_adapters TACACGACGCTCTTCCGATCT --r1_threeprime_adapters AGATCGGAAGAGCACACGTCT --r2_fiveprime_adapters AGACGTGTGCTCTTCCGATCT --r2_threeprime_adapters AGATCGGAAGAGCGTCGTGTA
@@ -249,17 +250,55 @@ The primer BED file must have a strand field. See satmut\_utils/src/tests/test\_
 
 Passing the target BED file only impacts reporting of variants and does not speed up analysis by intersection of alignments with the target prior to variant calling. This is due to the strict requirement that paired reads are input to variant calling; intersection of reads against the target prior to calling often leads to dropout of reads during alignment to vector-transgene references.
 
-### call outputs
+### 'call' outputs
 
-The call workflow produces a VCF of candidate variant calls, a tab-delimited summary file, and a bedgraph file reporting fragment coverage across the reference.
+The 'call' workflow produces a VCF of candidate variant calls, a tab-delimited summary file, and a bedgraph file reporting fragment coverage across the reference.
 
-The output VCF and its corresponding summary.txt file contain records for each mismatched base in an MNP, so that quality information for the mismatches can be used for machine learning-based error correction. See the VCF header for column/feature descriptions. 
+The output VCF and its corresponding summary.txt file contain records for each mismatched base in an MNP, so that quality information for the mismatches can be used for machine learning-based error correction. See [output fields](#satmut\_utils-'call'-output-fields) or the output VCF header for column/feature descriptions. 
 
-A number of useful R functions exist in prototype.summarization_utils.r for parsing and summarizing the VCF summary file. For example, records for MNPs can be collapsed for ease of analysis.
+A number of useful R functions exist in prototype.summarization\_utils.r for parsing and summarizing the VCF summary file. For example, records for MNPs can be collapsed for ease of analysis.
 
-## satmut_utils command line interface
+### satmut\_utils 'call' output fields
 
-satmut_utils provides the sim and call workflow as subcommands, which have common and unique options.
+The output tab-delimited summary.txt file contains the standard VCF fields and INFO tag-value pairs split into unique columns. The VCF INFO fields are described below.
+
+POS\_NT: Coordinate position of component nucleotide.
+REF\_NT: Component reference nucleotide.
+ALT\_NT: Component alternate nucleotide.
+UP\_REF\_NT: -1 upstream reference nucleotide.
+DOWN\_REF\_NT: +1 downstream reference nucleotide.
+DP: Fragment-based depth of coverage after quality filters (pair overlap, edit distance).
+CAO: Concordant alternate observations- alternate found in both mates.
+NORM\_CAO: Mate-concordant observations per 1000000 pairs.
+CAF: Concordant allele frequency in range (0,1). Calculated as CAO/DP.
+R1\_PLUS\_AO: Read 1 alternate observations on (+) strand.
+R1\_MINUS\_AO: Read 1 alternate observations on (-) strand.
+R2\_PLUS\_AO: Read 2 alternate observations on (+) strand.
+R2\_MINUS\_AO: Read 2 alternate observations on (-) strand.
+R1\_PLUS\_MED\_RP: Read 1 (+) strand median read position supporting call.
+R1\_MINUS\_MED\_RP: Read 1 (-) strand median read position supporting call.
+R2\_PLUS\_MED\_RP: Read 2 (+) strand median read position supporting call.
+R2\_MINUS\_MED\_RP: Read 2 (-) strand median read position supporting call.
+R1\_PLUS\_MED\_BQ: Read 1 (+) strand median Phred base quality supporting call.
+R1\_MINUS\_MED\_BQ: Read 1 (-) strand median Phred base quality supporting call.
+R2\_PLUS\_MED\_BQ: Read 2 (+) strand median Phred base quality supporting call.
+R2\_MINUS\_MED\_BQ: Read 2 (-) strand median Phred base quality supporting call.
+R1\_PLUS\_MED\_NM: Read 1 (+) strand median edit distance supporting call.
+R1\_MINUS\_MED\_NM: Read 1 (-) strand median edit distance supporting call.
+R2\_PLUS\_MED\_NM: Read 2 (+) strand median edit distance supporting call.
+R2\_MINUS\_MED\_NM: Read 2 (-) strand median edit distance supporting call.
+LOCATION: Location of the variant in the transcript. One of {CDS, 5\_UTR, 3\_UTR, intergenic, untranslated}.
+REF\_CODON: Comma-delimited reference codon(s). NA if the variant is out of CDS bounds.
+ALT\_CODON: Comma-delimited alternate codon(s). NA if the variant is out of CDS bounds.
+REF\_AA: Comma-delimited reference amino acid(s). NA if the variant is out of CDS bounds.
+ALT\_AA: Comma-delimited alternate amino acid(s). NA if the variant is out of CDS bounds.
+AA\_CHANGE: Comma-delimited amino acid change(s). NA if the variant is out of CDS bounds.
+AA\_POS: Comma-delimited amino acid position(s). NA if the variant is out of CDS bounds.
+MATCHES\_MUT\_SIG: Whether or not the variant matches the mutagenesis signature.
+
+## satmut\_utils command line interface
+
+satmut\_utils provides the 'sim' and 'call' workflow as subcommands, which have common and unique options.
 
 ### Common options
 
@@ -269,11 +308,11 @@ An Ensembl gene (ENSG) or transcript (ENST) identifier containing the minor vers
 
 2. -r, --reference
 
-A custom reference FASTA for a single transcript or target transgene. Will be indexed by samtools and bowtie2 if not already. This option is mutually exclusive with --ensembl_id.
+A custom reference FASTA for a single transcript or target transgene. Will be indexed by samtools and bowtie2 if not already. This option is mutually exclusive with --ensembl\_id.
 
 3. -x, --reference\_dir
 
-If using --ensembl_id, a reference directory containing curated a transcriptome FASTA, transcript annotations (GFF), and the genome FASTA.
+If using --ensembl\_id, a reference directory containing curated a transcriptome FASTA, transcript annotations (GFF), and the genome FASTA.
 
 4. -z, --race\_like
 
@@ -283,23 +322,23 @@ Flag to indicate input reads or alignments are from a rapid-amplification-of-cDN
 
 Primer BED file with six fields, containing the contig, start, stop, name, score, and strand fields. BED files have a 0-based start position.
 
-6. -o, --output_dir
+6. -o, --output\_dir
 
 Optional output directory to write results to. Default is current working directory.
 
 7. -j, --nthreads
 
-Number of additional alignment threads (bowtie2), and threads to use for BAM sorting (samtools). Multiprocessing is not currently supported for satmut\_utils sim or call Python code.
+Number of additional alignment threads (bowtie2), and threads to use for BAM sorting (samtools). Multiprocessing is not currently supported for satmut\_utils 'sim' or 'call' Python code.
 
-8. -e, --max_nm
+8. -e, --max\_nm
 
 Maximum edit distance for either mate of a pair to be considered for simulation and variant calling. Default 10.
 
-### sim options
+### 'sim' options
 
 1. -a, --alignments
 
-This is a BAM file containing paired-end alignments to a single transcript or contig. If a BAM file is not generated, use satmut\_align for bowtie2 alignment. If reads have been aligned with another aligner, there is no guarantee sim will complete without error, as certain alignment tags (e.g. MD tag) are required for sim. 
+This is a BAM file containing paired-end alignments to a single transcript or contig. If a BAM file is not generated, use satmut\_align for bowtie2 alignment. If reads have been aligned with another aligner, there is no guarantee 'sim' will complete without error, as certain alignment tags (e.g. MD tag) are required for 'sim'. 
 
 2. -v, --vcf
 
@@ -309,21 +348,21 @@ Variant Call Format file that contains an in-line INFO tag (AF) specifying the d
 
 When selecting reads to edit, verify the absence of errors within this buffer about the edit span (range of reference coordinates having mismatches). The read segment must match the reference within the span (POS - edit\_buffer, POS + edit_buffer + REF length). Increasing this value prevents variant conversion and/or unexpected clipping of the variant from the termini of the read under local alignment. Decreasing this value may be needed in cases where variants are being edited near read termini and there are no adjacent PCR amplicons to provide coverage at the position.
 
-4. -f, --force_edit
+4. -f, --force\_edit
 
-By default, sim will raise a InvalidVariantConfig Exception if the sum of variant frequencies across all variants in the input VCF exceed 1. Invalid configurations indicate that all variants may not be edited due to insufficient read depth of coverage. In this case, to edit as many variants as possible, provide this flag.
+By default, 'sim' will raise a InvalidVariantConfig Exception if the sum of variant frequencies across all variants in the input VCF exceed 1. Invalid configurations indicate that all variants may not be edited due to insufficient read depth of coverage. In this case, to edit as many variants as possible, provide this flag.
 
 InvalidVariantConfig exceptions are guaranteed to result in unedited variants if alignments from a single PCR tile are being edited. However, if variants are to be edited into alignments spanning multiple PCR tiles, all variants *may* be edited despite an InvalidVariantConfig exception. This flag is particularly useful for maximizing the number of variants edited for multi-tile alignments.
 
-5. -y, --random_seed
+5. -y, --random\_seed
 
 Integer seed to use for pseudorandom qname (read name) sampling. This may be used to select different reads for editing of variants.
 
-### call options
+### 'call' options
 
 1. -1, --fastq1
 
-R1 FASTQ of the pair. If using simulated data that has previously been trimmed, pass the -v/--omit trim option.
+R1 FASTQ of the pair. If using simulated data that has previously been trimmed, pass the -v/--omit\_trim option.
 
 If -p (--primers) is provided, the read names must match either Illumina format or consist of a unique integer to facilitate primer base quality masking.
 
@@ -331,27 +370,27 @@ If -p (--primers) is provided, the read names must match either Illumina format 
 
 R2 FASTQ of the pair.
 
-3. -v, --omit_trim
+3. -v, --omit\_trim
 
 Useful for input where adapters have been previously trimmed (e.g. simulated data). Trimming when no adapters are present may degrade the data quality by nonspecific trimming of the reads. For this reason, it is best to directly re-align these inputs.
 
-4. -5 --r1\_fiveprime_adapters
+4. -5 --r1\_fiveprime\_adapters
 
-Comma-delimited R1 5' adapters, or None if no R1 5' adapters exist.
+Comma-delimited R1 5' adapters, or None (default) if no R1 5' adapters exist.
 
-5. -3 --r1\_threeprime_adapters
+5. -3 --r1\_threeprime\_adapters
 
-Comma-delimited R1 3' adapters, or None if no R1 3' adapters exist.
+Comma-delimited R1 3' adapters, or None (default) if no R1 3' adapters exist.
 
-6. -5 --r2\_fiveprime_adapters
+6. -5 --r2\_fiveprime\_adapters
 
-Comma-delimited R2 5' adapters, or None if no R2 5' adapters exist. See also -v option.
+Comma-delimited R2 5' adapters, or None (default) if no R2 5' adapters exist. 
 
-7. -3 --r2\_threeprime_adapters
+7. -3 --r2\_threeprime\_adapters
 
-Comma-delimited R2 3' adapters, or None if no R2 3' adapters exist. See also -v option.
+Comma-delimited R2 3' adapters, or None (default) if no R2 3' adapters exist.
 
-8. -g, --transcript_gff
+8. -g, --transcript\_gff
 
 Transcript GFF where **features are ordered from 5' to 3', regardless of strand**. For examples, see src/tests/test\_data/gencode.v29.annotation.gtf for a standard genome-based GFF example, or src/tests/test\_data/CBS_pEZY3.gff for a custom, composite vector GFF example.
 
@@ -367,11 +406,11 @@ Additional allowable features in the feature field (3rd column) of the GFF inclu
 gene, transcript, start_codon
 ```
 
-While these latter features/records are not necessary, they are often helpful for thorough annotation of the transcript. While a start\_codon feature is contained within the most 5' CDS feature, a stop_codon feature is *not* contained in the most 3' CDS feature, and must be provided if the user seeks to call variants altering the stop codon (nonstop variants). 
+While these latter features/records are not necessary, they are often helpful for thorough annotation of the transcript. While a start\_codon feature is contained within the most 5' CDS feature, a stop\_codon feature is *not* contained in the most 3' CDS feature, and must be provided if the user seeks to call variants altering the stop codon (nonstop variants). 
 
 Otherwise, one is free to specify exon and CDS features that annotate the coding and noncoding portions of each mature transcript, provided the exon features sum up to the full reference FASTA sequence. Exon features describe both untranslated regions and coding regions, while CDS features only annotate coding regions. Protein annotations are determined only based on CDS and stop codon features.
 
-9. -k, --gff_reference
+9. -k, --gff\_reference
 
 Reference FASTA that features in the GFF map to. Typically, GFFs map exons to genomic coordinates. However, this may also be a custom vector-transgene composite reference FASTA if a custom GFF was generated.
 
@@ -379,30 +418,30 @@ Reference FASTA that features in the GFF map to. Typically, GFFs map exons to ge
 
 Target BED file specifying target regions of the transcript to report variant calls in. Supplying this option only alters final reporting of variants, and does not speed up processing. This is because of the requirement for perfectly paired reads, which may be compromised by intersection of the alignments with the target region prior to variant calling.
 
-11. -d, --consensus_deduplicate
+11. -d, --consensus\_deduplicate
 
-Flag to turn on consensus deduplication. Use with -u/--umi_regex to specify a regular expression to match the UMI and anchoring adapter sequence. The UMI will be moved to the read names and any anchoring adapter sequence is discarded (anchoring is recommended but not required). 
+Flag to turn on consensus deduplication. Use with -u/--umi\_regex to specify a regular expression to match the UMI and anchoring adapter sequence. The UMI will be moved to the read names and any anchoring adapter sequence is discarded (anchoring is recommended but not required). 
 
-UMI extraction is performed by umi_tools extract prior to adapter trimming with cutadapt.
+UMI extraction is performed by UMI-tools extract prior to adapter trimming with cutadapt.
 
-12. -u, --umi_regex
+12. -u, --umi\_regex
 
 Python regex package regular expression for matching the UMI within a desired edit distance and for matching and discarding anchoring adapter sequence.
 
-13. -s --mutagenesis_signature
+13. -s --mutagenesis\_signature
 
 Mutagenesis signature which matches one of the IUPAC DNA codes NNN, NNK, NNS. Candidate variant calls will be tagged with a boolean to annotate a match. No filtering on the signature is performed.
 
-14. -q, --min_bq
+14. -q, --min\_bq
 
 Minimum base quality for either mate of a pair to be considered for variant calling. Default 30. 
 
-15. -m, --min_supporting
+15. -m, --min\_supporting
 
 Minimum number of fragments for a candidate variant call. Default 2 (discard singletons).
 
 16. -w, --max\_mnp\_window
-Integer window span to search for phased SNPs and call MNPs. Must be 2 or 3 (default 3). satmut_utils does not support long-range haplotype calling, which is challenged by exponentially increasing false positive calls with a wider window span.
+Integer window span to search for phased SNPs and call MNPs. Must be 2 or 3 (default 3). satmut\_utils does not support long-range haplotype calling, which is challenged by exponentially increasing false positive calls with a wider window span.
 
 17. -n, --ntrimmed
 
@@ -410,30 +449,30 @@ cutadapt option (-n) for number of adapters to be trimmed from each read. Defaul
 
 Internal PCR tiles normally have two possible adapters whereas terminal PCR tiles may have three. This is because the read emanating from the insert towards the vector in a terminal PCR tile should have a 5' adapter (sequencing adapter) and potentially two 3' adapters (adjacent vector sequence and sequencing adapter).
 
-18. -l, --overlap_length
+18. -l, --overlap\_length
 
 cutadapt option (-m) for the min length of matched adapter required for trimming.
 
 This moderates the compromise made by --ntrimmed where three adapters are provided by default, which may cause over-zealous read trimming. As the length increases, adapter trimming becomes more specific but less sensitive. satmut_utils default local alignment should help clip adapters from aligned segments in cases where the adapter is not recognized with a lower min length value.
 
-19. -b, --trim_bq
+19. -b, --trim\_bq
 
 cutadapt option (-q) for the length of adapter match required for trimming.
 
 20. --ncores
 
-Number CPU cores to use for cutadapt.
+Number CPU cores to use for cutadapt. Default 0, autodetect.
 
-21. -c, --contig\_del_threshold
+21. -c, --contig\_del\_threshold
 
-If -z/--race\_like and -cd/--consensus\_deduplicate are provided, convert deletions spanning wider than this threshold to runs of the unknown base N. Required as some R2s may share the same R1 [UMI x POS] but align to non-overlapping coordinates. In other words, consensus deduplication of RACE-like data may generate an unknown segment in the R2 consensus. This allows more accurate reporting of fragment coverage. To avoid this behavior and omit R2 merging from separate amplicons, provide -f/--primer_fasta, which will annotate read pairs with a unique amplicon/tile.
+If -z/--race\_like and -cd/--consensus\_deduplicate are provided, convert deletions spanning wider than this threshold to runs of the unknown base N. Required as some R2s may share the same R1 [UMI x POS] but align to non-overlapping coordinates. In other words, consensus deduplication of RACE-like data may generate an unknown segment in the R2 consensus. This allows more accurate reporting of fragment coverage. To avoid this behavior and omit R2 merging from separate amplicons, provide -f/--primer\_fasta, which will annotate read pairs with a unique amplicon/tile.
 
-22. -f, --primer_fasta
+22. -f, --primer\_fasta
 If -z/--race\_like and -cd/--consensus\_deduplicate are provided, reads can be annotated with an originating R2 primer, which prohibits merging of R2s in consensus deduplication. With this option, fragment coverage (DP) may be over-reported in certain regions because of the multi-amplicon coverage of RACE-like data.
 
-23. -a, --primer\_nm_allowance
+23. -a, --primer\_nm\_allowance
 
-If -f/--primer_fasta, allow up to this number of edit operations for matching primers in the start of R2. Default 3. The last sixteen 3' nucleotides of the matched primer will be appended to the read names to avoid UMI grouping and consensus deduplication. R2s that do not match any primer will be reassigned the unknown primer regex X{16}.
+If -f/--primer\_fasta, allow up to this number of edit operations for matching primers in the start of R2. Default 3. The last sixteen 3' nucleotides of the matched primer will be appended to the read names to avoid UMI grouping and consensus deduplication. R2s that do not match any primer will be reassigned the unknown primer regex X{16}.
 
 24. --keep\_intermediates
 
@@ -447,12 +486,12 @@ To run unit tests, execute the following from the satmut_utils repository:
 
 ## Accessory command-line interfaces and scripts
 
-Two command-line interfaces are provided to enable pre-processing of reads prior to  satmut_utils sim:
+Two command-line interfaces are provided to enable pre-processing of reads prior to  satmut_utils 'sim':
 
 1. satmut\_trim
 2. satmut\_align
  
-satmut\_trim is a wrapper around cutadapt, and satmut\_align a wrapper around bowtie2.  satmut\_align should be used to generate the BAM file accepted by sim. If reads have been aligned with some other method, there is no guarantee sim will complete without error, as alignment tags output by bowtie2 are required for sim (MD, NM).
+satmut\_trim is a wrapper around cutadapt, and satmut\_align a wrapper around bowtie2.  satmut\_align should be used to generate the BAM file accepted by 'sim'. If reads have been aligned with some other method, there is no guarantee 'sim' will complete without error, as alignment tags output by bowtie2 are required for 'sim' (MD, NM).
 
 To facilitate simulation of reads and variants in a desired transcript *de novo*, various accessory scripts are provided in the satmut\_utils/src/scripts directory. Code here is not fully tested and is only provided for convenience to facilitate error modeling.
 
@@ -464,7 +503,7 @@ satmut_align -f1 satmut_utils/src/tests/test_data/CBS_sim.R1.fq.gz -f2 satmut_ut
 ```
 
 2. run\_variant\_generator.py
-This script may be used to generate a VCF of all codon permutations matching a given mutagenesis signature in a transcript coding region. Together with satmut\_utils/src/prototype/run\_read\_generator.py, *de novo* inputs may be generated for satmut\_utils sim. Provide --trx\_id exactly as it exists in the reference FASTA, target BED, and annotation GFF (seqname field and transcript\_id attribute). One way to quickly obtain these files is to run satmut\_utils call with -i on a negative control library and the --keep_intermediates flag, and use the curated output reference files.
+This script may be used to generate a VCF of all codon permutations matching a given mutagenesis signature in a transcript coding region. Together with satmut\_utils/src/prototype/run\_read\_generator.py, *de novo* inputs may be generated for satmut\_utils 'sim'. Provide --trx\_id exactly as it exists in the reference FASTA, target BED, and annotation GFF (seqname field and transcript\_id attribute). One way to quickly obtain these files is to run satmut\_utils 'call' with -i on a negative control library and the --keep\_intermediates flag, and use the curated output reference files.
 
 ```
 python -m scripts.run_variant_generator -i CBS_pEZY3 -s NNK -r satmut_utils/src/tests/test_data/CBS_pEZY3.fa -g satmut_utils/src/tests/test_data/CBS_pEZY3.gff -t satmut_utils/src/tests/test_data/CBS_pEZY3_targets.bed -d /tmp/var_gen_example
@@ -478,16 +517,16 @@ python -m scripts.run_vcf_subsampler -v satmut_utils/src/tests/test_data/CBS_sim
 ```
 
 4. run\_ec\_data\_generator.py
-This script generates simulated datasets modeled after true data. As input, it requires satmut\_utils call output summary.txt files for a true mutagenized library and a non-mutagenized negative control library. It then generates codon-permuted variants, subsamples them to balance true and false positives, and configures variant frequencies by estimating parameters for SNPs and MNPs using variants the mutagenized summary.txt file (optionally for those variants only matching the mutagenesis signature). It finally invokes satmut\_utils sim to generate the simulated dataset.
+This script generates simulated datasets modeled after true data. As input, it requires satmut\_utils 'call' output summary.txt files for a true mutagenized library and a non-mutagenized negative control library. It then generates codon-permuted variants, subsamples them to balance true and false positives, and configures variant frequencies by estimating parameters for SNPs and MNPs using variants the mutagenized summary.txt file (optionally for those variants only matching the mutagenesis signature). It finally invokes satmut\_utils 'sim' to generate the simulated dataset.
 
-satmut\_utils call should be ran thereafter (ideally with loose quality parameters: -m 1 -q 1 -e 150) to extract quality features and complete the validation dataset. R utilities for training machine learning models on the resulting calls are provided in satmut\_utils/src/prototype/modeling\_utils.R.
+satmut\_utils 'call' should be ran thereafter (ideally with loose quality parameters: -m 1 -q 1 -e 150) to extract quality features and complete the validation dataset. R utilities for training machine learning models on the resulting calls are provided in satmut\_utils/src/prototype/modeling\_utils.R.
 
 5. run\_read\_generator.py.
 
-This script may be used to simulate paired-end targeted sequencing reads given a reference FASTA. Useful for generating input reads for sim. However, one of the many Next-Generation Sequencing read simulators that construct error models are recommended to generate more realistic test reads.
+This script may be used to simulate paired-end targeted sequencing reads given a reference FASTA. Useful for generating input reads for 'sim'. However, one of the many Next-Generation Sequencing read simulators that construct error models are recommended to generate more realistic test reads.
 
 To generate error-free RNA reads, provide a transcript reference FASTA and target BED file. Split the transcript target region into chunks with span roughly [read length - 2\*(average primer length)] if the target region requires multiple tiles. Then run with --make\_amplicons but *not* --rna. (Use of --rna is reserved for simulation of random RNA fragments when starting with a genomic reference FASTA).
 
-As an example, for 2 x 150 bp chemistry, create ~100 bp interleaved target chunks in BED format and configure the number of reads to generate for each amplicon by the BED score field. Finally, pass --make\_amplicons and --slop_length 0 so that reads start at the termini of the targets.
+As an example, for 2 x 150 bp chemistry, create ~100 bp interleaved target chunks in BED format and configure the number of reads to generate for each amplicon by the BED score field. Finally, pass --make\_amplicons and --slop\_length 0 so that reads start at the termini of the targets.
 
 --make\_amplicons is intended for direct simulation of reads from a transcript FASTA. For general DNA or RNA read generation using a genome FASTA and standard genome-based GFF annotations, omit --make\_amplicons. In default mode, generated fragments start and end at random coordinates in the sequence space informed by the --frag\_length argument.

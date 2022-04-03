@@ -925,12 +925,12 @@ class VariantCaller(object):
         # Tuples of (ID, Number, Type, Description)
         # Consider putting these in a config file
         info_metadata = [
-            (vu.VCF_POS_NT_ID, 1, "Integer", "Coordinate position of nucleotide."),
+            (vu.VCF_POS_NT_ID, 1, "Integer", "Coordinate position of component nucleotide."),
             (vu.VCF_REF_NT_ID, ".", "String", "Component reference nucleotide."),
             (vu.VCF_ALT_NT_ID, ".", "String", "Component alternate nucleotide."),
             (vu.VCF_UP_REF_NT_ID, 1, "String", "-1 upstream reference nucleotide."),
             (vu.VCF_DOWN_REF_NT_ID, 1, "String", "+1 downstream reference nucleotide."),
-            (vu.VCF_DP_ID, 1, "Integer", "Fragment-based depth of coverage after quality filters."),
+            (vu.VCF_DP_ID, 1, "Integer", "Fragment-based depth of coverage after quality filters (pair overlap, edit distance)."),
             (vu.VCF_CAO_ID, 1, "Integer", "Concordant alternate observations- alternate found in both mates."),
             (vu.VCF_NORM_CAO_ID, 1, "Float", "Mate-concordant observations per %i pairs." % self.VARIANT_CALL_NORM_DP),
             (vu.VCF_CAF_ID, 1, "Float", "Concordant allele frequency in range (0,1). Calculated as CAO/DP."),
@@ -941,15 +941,15 @@ class VariantCaller(object):
             (vu.VCF_R1_PLUS_MED_POS_ID, ".", "String", "Read 1 (+) strand median read position supporting call."),
             (vu.VCF_R1_MINUS_MED_POS_ID, ".", "String", "Read 1 (-) strand median read position supporting call."),
             (vu.VCF_R2_PLUS_MED_POS_ID, ".", "String", "Read 2 (+) strand median read position supporting call."),
-            (vu.VCF_R2_MINUS_MED_POS_ID, ".", "String", "Read 2 (+) strand median read position supporting call."),
+            (vu.VCF_R2_MINUS_MED_POS_ID, ".", "String", "Read 2 (-) strand median read position supporting call."),
             (vu.VCF_R1_PLUS_MED_BQ_ID, ".", "String", "Read 1 (+) strand median Phred base quality supporting call."),
             (vu.VCF_R1_MINUS_MED_BQ_ID, ".", "String", "Read 1 (-) strand median Phred base quality supporting call."),
             (vu.VCF_R2_PLUS_MED_BQ_ID, ".", "String", "Read 2 (+) strand median Phred base quality supporting call."),
-            (vu.VCF_R2_MINUS_MED_BQ_ID, ".", "String", "Read 2 (+) strand median Phred base quality supporting call."),
+            (vu.VCF_R2_MINUS_MED_BQ_ID, ".", "String", "Read 2 (-) strand median Phred base quality supporting call."),
             (vu.VCF_R1_PLUS_MED_NM_ID, ".", "String", "Read 1 (+) strand median edit distance supporting call."),
             (vu.VCF_R1_MINUS_MED_NM_ID, ".", "String", "Read 1 (-) strand median edit distance supporting call."),
             (vu.VCF_R2_PLUS_MED_NM_ID, ".", "String", "Read 2 (+) strand median edit distance supporting call."),
-            (vu.VCF_R2_MINUS_MED_NM_ID, ".", "String", "Read 2 (+) strand median edit distance supporting call."),
+            (vu.VCF_R2_MINUS_MED_NM_ID, ".", "String", "Read 2 (-) strand median edit distance supporting call."),
             (vu.VCF_AAM_LOCATION_ID, ".", "String",
              "%s location of the variant in the transcript. One of {CDS, 5_UTR, 3_UTR, intergenic, untranslated}."
              % aa_mapper_module_path),

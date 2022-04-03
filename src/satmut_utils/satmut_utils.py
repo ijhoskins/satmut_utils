@@ -128,16 +128,16 @@ def parse_commandline_params(args):
                                   'that has no adapters.')
 
     parser_call.add_argument("--r1_fiveprime_adapters", type=none_or_str, default="None",
-                             help='Comma-delimited R1 5\' adapters, or None if no R1 5\' adapters exist.')
+                             help='Comma-delimited R1 5\' adapters, or None (default) if no R1 5\' adapters exist.')
 
     parser_call.add_argument("--r1_threeprime_adapters", type=none_or_str, default="None",
-                             help='Comma-delimited R1 3\' adapters, or None if no R1 3\' adapters exist.')
+                             help='Comma-delimited R1 3\' adapters, or None (default) if no R1 3\' adapters exist.')
 
     parser_call.add_argument("--r2_fiveprime_adapters", type=none_or_str, default="None",
-                             help='Comma-delimited R2 5\' adapters, or None if no R2 5\' adapters exist.')
+                             help='Comma-delimited R2 5\' adapters, or None (default) if no R2 5\' adapters exist.')
 
     parser_call.add_argument("--r2_threeprime_adapters", type=none_or_str, default="None",
-                             help='Comma-delimited R2 3\' adapters, or None if no R2 3\' adapters exist.')
+                             help='Comma-delimited R2 3\' adapters, or None (default) if no R2 3\' adapters exist.')
 
     parser_call.add_argument("-g", "--transcript_gff", type=str,
                              help='GFF file with transcript metafeatures and exon features. The records must be from 5\' '
@@ -186,7 +186,8 @@ def parse_commandline_params(args):
                              help='Base quality for cutadapt 3\' trimming. Default %i.' % FastqPreprocessor.TRIM_QUALITY)
 
     parser_call.add_argument("--ncores", type=int, default=FastqPreprocessor.NCORES,
-                             help='Number CPU cores to use for cutadapt.')
+                             help='Number CPU cores to use for cutadapt. Default %i, autodetect.'
+                                  % FastqPreprocessor.NCORES)
 
     parser_call.add_argument("-c", "--contig_del_threshold", type=int, default=ConsensusDeduplicator.CONTIG_DEL_THRESH,
                              help='If -z (RACE-like chemistry) and -cd (consensus deduplicate) are provided, '
