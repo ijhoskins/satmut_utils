@@ -342,11 +342,7 @@ def sort_and_index(am, output_am=None, nthreads=0):
     if output_am is None:
         outname = tempfile.NamedTemporaryFile("w+b", suffix=".bam", delete=False).name
 
-    bam_file = am
-    if am.endswith(SAM_SUFFIX):
-        bam_file = sam_view(am, nthreads=nthreads)
-
-    sorted_bam = sort_bam(bam=bam_file, output_am=outname, nthreads=nthreads)
+    sorted_bam = sort_bam(bam=am, output_am=outname, nthreads=nthreads)
     index_bam(sorted_bam)
 
     return sorted_bam
