@@ -11,7 +11,7 @@ REF_DIR=$(mktemp -d -t satmut_utils_refs_XXXXXXXXXX)
 
 usage() {
 cat << EOF  
-Usage: ./install_satmut_utils [-htg] [-r <REF_DIR>]
+Usage: ./install_satmut_utils [-htg] [-r <REF_DIR>] satmut_utils_root_dir
 Install satmut_utils and download reference files.
 
 -h	Help
@@ -43,6 +43,10 @@ shift $((OPTIND-1))
 
 echo "Started $0"
 
+if [ "$1" == "" ]; then
+	echo "Please provide a valid satmut_utils root directory as the first positional argument."
+	exit 1
+
 # Need miniconda for managing environments and packages. 
 if [[ ! -x $(which conda) ]]
 then
@@ -51,8 +55,13 @@ then
 fi
 
 # Create and activate the conda environment
-echo "Creating satmut_utils environment."
-conda env create -f satmut_utils/satmut_utils_env.yaml
+if conda env list | grep "satmut_utils" >/dev/null 2>&1; then
+	echo "satmut_utils environment already exists. If you would like to regenerate the environment, remove it first with conda env remove --name satmut_utils"
+else
+	echo "Creating satmut_utils environment."
+	SATMUT_CONFIG=$1/satmut_utils_env.yaml
+	conda env create -f "$SATMUT_CONFIG"
+fi
 
 # See https://github.com/conda/conda/issues/7980
 # Need to source the proper conda config directly as
@@ -87,9 +96,10 @@ fi
 
 # Navigate to the satmut_utils repo and install the package
 echo "Building and installing satmut_utils"
-cd satmut_utils
+cd "$1"
 python3 -m pip install --upgrade build && python3 -m build
 python3 -m pip install .
 
 echo "To use satmut_utils, activate the conda environment with \"conda activate satmut_utils\""
+
 echo "Completed $0"
