@@ -130,33 +130,12 @@ def extract_gff_reference(reference_dir, ensembl_id, outdir="."):
         os.mkdir(outdir)
 
     logger.info("Extracting GFF transcript annotations for %s." % ensembl_id)
-    ensembl_id_base = ensembl_id.split(".")[0]
-    output_gff = os.path.join(outdir, fu.add_extension(ensembl_id_base, su.GFF_DEFAULT_EXT))
+    output_gff = os.path.join(outdir, fu.add_extension(ensembl_id, su.GFF_DEFAULT_EXT))
 
-    save_features = {MapperBase.GENE_ID, MapperBase.TRX_ID, MapperBase.CDS_ID, MapperBase.START_CODON_ID,
-                     MapperBase.STOP_CODON_ID, MapperBase.UTR_ID}
+    extract_call = ("fgrep", ensembl_id, os.path.join(reference_dir, GENCODE_TRX_GFF))
 
-    default_trx_gff_bedtool = pybedtools.BedTool(os.path.join(reference_dir, GENCODE_TRX_GFF))
-
-    last_gene_id = None
-    id_observed = False
-
-    with open(output_gff, "w") as out_gff_fh:
-        for interval in default_trx_gff_bedtool:
-
-            curr_gene_id = interval.attrs[ffu.GFF_ATTR_GENE_ID]
-
-            # Once we have collected all records for the ID, break the loop
-            if last_gene_id is not None and id_observed and curr_gene_id != last_gene_id:
-                break
-
-            if interval[MapperBase.GFF_FEATURE_FIELD] in save_features and \
-                    ensembl_id == curr_gene_id or (ffu.GFF_ATTR_TRANSCRIPT_ID in interval.attrs and
-                                                   ensembl_id == interval.attrs[ffu.GFF_ATTR_TRANSCRIPT_ID]):
-                id_observed = True
-                out_gff_fh.write(str(interval))
-
-            last_gene_id = curr_gene_id
+    with open(output_gff, "w") as out_gff:
+        subprocess.call(extract_call, stdout=out_gff)
 
     return output_gff
 

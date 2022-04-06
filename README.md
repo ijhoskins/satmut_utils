@@ -27,7 +27,7 @@ Currently, only Unix/Linux and MacOSX operating systems are supported. To get st
 2. Clone the satmut\_utils repository:
 ```
 git clone https://github.com/ijhoskins/satmut_utils.git
-SATMUT_ROOT="./satmut_utils"
+SATMUT_ROOT="$PWD/satmut_utils"
 ```
 
 3. Execute the provided shell script to generate the satmut\_utils environment, install the package, and optionally download curated reference files, which are required if using Ensembl identifiers ([see Reference files](#Reference-files)). Finally, activate the satmut\_utils environment.
@@ -62,7 +62,7 @@ It is recommended that a new output directory is created for each job. Default i
 
 Run 'sim' on *in silico* alignments to generate SNPs, MNPs, and InDels. Structural variants and gene fusions are not currently supported.
 ```
-TEST_DIR="satmut_utils/src/tests/test_data"
+TEST_DIR="$SATMUT_ROOT/src/tests/test_data"
 satmut_utils -i ENST00000398165.7 -x $REF_DIR -o $OUTPUT_DIR -p $TEST_DIR/CBS_sim_primers.bed sim -f -a $TEST_DIR/CBS_sim.bam -v $TEST_DIR/CBS_sim.vcf
 ```
 
@@ -74,7 +74,7 @@ Currently, only SNP and MNP calling is supported. InDels and long-range haplotyp
 
 Run 'call' on the simulated data by specifying an Ensembl transcript/gene ID and the directory containing curated reference files.
 ```
-TEST_DIR="satmut_utils/src/tests/test_data"
+TEST_DIR="$SATMUT_ROOT/src/tests/test_data"
 satmut_utils -i ENST00000398165.7 -x $REF_DIR -o $OUTPUT_DIR -p $TEST_DIR/CBS_sim_primers.bed call -1 $TEST_DIR/CBS_sim.R1.fq.gz -2 $TEST_DIR/CBS_sim.R2.fq.gz -v -m 1
 ```
 

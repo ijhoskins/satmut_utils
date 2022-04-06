@@ -11,7 +11,7 @@ REF_DIR=$(mktemp -d -t satmut_utils_refs_XXXXXXXXXX)
 
 usage() {
 cat << EOF  
-Usage: ./install_satmut_utils [-htg] [-r <REF_DIR>] satmut_utils_root_dir
+Usage: ./install_satmut_utils [-htg] [-r <REF_DIR>] <SATMUT_ROOT>
 Install satmut_utils and download reference files.
 
 -h	Help
@@ -76,20 +76,19 @@ conda init bash
 source $CONDA_CONFIG
 conda activate satmut_utils
 
+mkdir -p "$REF_DIR"
+
 if [ ! -z "$GET_TRANSCRIPTOME" ]
 then
 	echo "Getting curated human transcriptome files."
-	mkdir -p $REF_DIR
-	echo "Writing to ${!REF_DIR}"
+	cd "$REF_DIR"
 	git clone $SATMUT_UTILS_REFS_REPO
-	cp satmut_utils_refs/* $REF_DIR && gunzip $REF_DIR/*gz
+	mv satmut_utils_refs/* $REF_DIR && gunzip $REF_DIR/*gz
 fi
 
 if [ ! -z "$GET_GENOME" ]
 then
 	echo "Downloading human genome FASTA."
-	mkdir -p $REF_DIR
-	echo "Writing to ${!REF_DIR}"
 	curl -L -R -o $REF_DIR/GRCh38.fa.gz $GENOME_URL
 	
 	echo "bgzipping genome FASTA and indexing."
