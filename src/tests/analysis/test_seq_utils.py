@@ -167,6 +167,7 @@ class TestSamtools(unittest.TestCase):
         expected = fu.FILE_NEWLINE.join(
             [line for line in TEST_SAM.splitlines() if not line.startswith(su.SAM_HEADER_CHAR)]) + fu.FILE_NEWLINE
 
+        fu.safe_remove((res,))
         self.assertEqual(expected, observed)
 
     def test_sam_view_with_flag(self):
@@ -184,6 +185,7 @@ class TestSamtools(unittest.TestCase):
         expected = fu.FILE_NEWLINE.join([
             line for line in TEST_SAM.splitlines() if line.startswith(su.SAM_HEADER_CHAR)]) + fu.FILE_NEWLINE
 
+        fu.safe_remove((res,))
         self.assertEqual(expected, observed)
 
     def test_sort_bam(self):
@@ -221,7 +223,7 @@ class TestSamtools(unittest.TestCase):
                 if i == 14:
                     end_pos = int(line.split(fu.FILE_DELIM)[3])
 
-        fu.safe_remove((out_sam, out_bam, res), force_remove=True)
+        fu.safe_remove((out_sam, out_bam, res,))
         self.assertTrue(start_pos < end_pos)
 
     def test_index_bam(self):
@@ -230,14 +232,14 @@ class TestSamtools(unittest.TestCase):
         res = su.sam_view(self.test_sam_name)
         su.index_bam(res)
         self.assertTrue(os.path.exists(fu.add_extension(res, su.BAM_INDEX_SUFFIX)))
-        fu.safe_remove((res,))
+        fu.safe_remove((res, fu.add_extension(res, su.BAM_INDEX_SUFFIX),))
 
     def test_sort_and_index(self):
         """Test for proper creation and indexing of a coordinate-sorted BAM."""
 
         res = su.sort_and_index(self.test_sam_name)
         self.assertTrue(res.endswith(su.BAM_SUFFIX) and os.path.exists(fu.add_extension(res, su.BAM_INDEX_SUFFIX)))
-        fu.safe_remove((res,))
+        fu.safe_remove((res, fu.add_extension(res, su.BAM_INDEX_SUFFIX),))
 
 
 class TestFastaToFastq(unittest.TestCase):

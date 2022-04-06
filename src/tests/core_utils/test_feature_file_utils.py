@@ -103,11 +103,11 @@ class TestFeatureFileUtils(unittest.TestCase):
         unsorted_lines = """chr19	59066354	59066491	gi|571026644|ref|NM_014453.3|:1-137	0	-
 chr19	59065411	59065603	gi|571026644|ref|NM_014453.3|:138-329	0	-
 """
-        with tempfile.NamedTemporaryFile("w", suffix=".test.unsorted.bed", delete=False) as unsorted_fh:
+        with tempfile.NamedTemporaryFile("w", suffix=".test.unsorted.bed", delete=False, dir=self.tempdir) as unsorted_fh:
             unsorted_fh.write(unsorted_lines)
             unsorted_fn = unsorted_fh.name
 
-        with tempfile.NamedTemporaryFile("w", suffix=".test.sorted.bed", delete=False) as sorted_fh:
+        with tempfile.NamedTemporaryFile("w", suffix=".test.sorted.bed", delete=False, dir=self.tempdir) as sorted_fh:
             sorted_fn = sorted_fh.name
             ffu.sort_feature_file(unsorted_fn, sorted_fn)
 
@@ -169,7 +169,7 @@ class TestSlopFeatures(unittest.TestCase):
     def test_slop_features(self):
         """Test that features can be slopped in both directions."""
 
-        with tempfile.NamedTemporaryFile(suffix=".test.slop.bed", delete=False) as slop_bed:
+        with tempfile.NamedTemporaryFile(suffix=".test.slop.bed", delete=False, dir=self.tempdir) as slop_bed:
             output_fn = slop_bed.name
             ffu.slop_features(self.test_bed_b, genome_file=self.genome_file, bp_left=10, bp_right=5,
                               by_strand=True, output=output_fn)
@@ -187,7 +187,7 @@ class TestSlopFeatures(unittest.TestCase):
     def test_slop_features_strand_unaware(self):
         """Test that features can be slopped in both directions."""
 
-        with tempfile.NamedTemporaryFile(suffix=".test.slop.bed", delete=False) as slop_bed:
+        with tempfile.NamedTemporaryFile(suffix=".test.slop.bed", delete=False, dir=self.tempdir) as slop_bed:
             output_fn = slop_bed.name
             ffu.slop_features(self.test_bed_b, genome_file=self.genome_file, bp_left=10, bp_right=5,
                               by_strand=False, output=output_fn)

@@ -1,5 +1,7 @@
 ![](satmut_utils_logo.png)
 
+# satmut\_utils manual
+
 ## Table of Contents
 
 [Installation](#Installation)
@@ -52,13 +54,14 @@ Currently, only Linux and MacOSX operating systems are supported. To get started
 2. Clone the satmut\_utils repository:
 ```
 git clone https://github.com/ijhoskins/satmut_utils.git
+SATMUT_ROOT="./satmut_utils"
 ```
 
 3. Execute the provided shell script to generate the satmut\_utils environment, install the package, and optionally download curated reference files, which are required if using Ensembl identifiers ([see Reference files](#Reference-files)). Finally, activate the satmut\_utils environment.
 ```
 REF_DIR="~/satmut_utils_refs"
-satmut_utils/install_satmut_utils.sh -h
-satmut_utils/install_satmut_utils.sh -t -g -r "$REF_DIR"
+$SATMUT_ROOT/install_satmut_utils.sh -h
+$SATMUT_ROOT/install_satmut_utils.sh -t -g -r "$REF_DIR" "$SATMUT_ROOT"
 conda activate satmut_utils
 ```
 
@@ -461,7 +464,7 @@ UMI extraction is performed by UMI-tools extract prior to adapter trimming with 
 
 Python regex package regular expression for matching the UMI within a desired edit distance and for matching and discarding anchoring adapter sequence.
 
-13. -s --mutagenesis\_signature
+13. -s, --mutagenesis\_signature
 
 Mutagenesis signature which matches one of the IUPAC DNA codes NNN, NNK, NNS. Candidate variant calls will be tagged with a boolean to annotate a match. No filtering on the signature is performed.
 

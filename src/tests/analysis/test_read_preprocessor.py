@@ -846,7 +846,7 @@ class TestConsensusDeduplicator(unittest.TestCase):
         self.cd._update_consensus_dict(self.test_align_seg_clean, consensus_dict, pos_list)
 
         # Write the consensus read
-        with tempfile.NamedTemporaryFile(suffix=".consensus.bam", delete=False) as consensus_bam, \
+        with tempfile.NamedTemporaryFile(suffix=".consensus.bam", delete=False, dir=self.tempdir) as consensus_bam, \
                 pysam.AlignmentFile(consensus_bam, mode="wb", header=self.test_header) as consensus_af:
 
             self.cd._write_consensus(consensus_af, consensus_dict, pos_list, "10000001_R1")
@@ -876,7 +876,7 @@ class TestConsensusDeduplicator(unittest.TestCase):
         self.cd._update_consensus_dict(self.test_align_seg_del_dup_minority_call, consensus_dict, pos_list)
 
         # Write the consensus read
-        with tempfile.NamedTemporaryFile(suffix=".consensus.bam", delete=False) as consensus_bam, \
+        with tempfile.NamedTemporaryFile(suffix=".consensus.bam", delete=False, dir=self.tempdir) as consensus_bam, \
                 pysam.AlignmentFile(consensus_bam, mode="wb", header=self.test_header) as consensus_af:
 
             self.cd._write_consensus(consensus_af, consensus_dict, pos_list, "10015877_R1")

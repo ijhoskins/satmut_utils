@@ -625,6 +625,7 @@ class ConsensusDeduplicatorPreprocessor(object):
         logger.info("Updating group ID tags.")
         updated_bam = cls.update_tags(qname_sorted, group_tag, nthreads)
 
+        fu.safe_remove((qname_sorted,))
         return updated_bam
 
     def _workflow(self):

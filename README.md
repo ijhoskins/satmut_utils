@@ -27,13 +27,12 @@ Currently, only Unix/Linux and MacOSX operating systems are supported. To get st
 2. Clone the satmut\_utils repository:
 ```
 git clone https://github.com/ijhoskins/satmut_utils.git
-SATMUT_ROOT=$(find . -type d -name satmut_utils | head -n1)
+SATMUT_ROOT="./satmut_utils"
 ```
 
 3. Execute the provided shell script to generate the satmut\_utils environment, install the package, and optionally download curated reference files, which are required if using Ensembl identifiers ([see Reference files](#Reference-files)). Finally, activate the satmut\_utils environment.
 ```
 REF_DIR="~/satmut_utils_refs"
-
 $SATMUT_ROOT/install_satmut_utils.sh -h
 $SATMUT_ROOT/install_satmut_utils.sh -t -g -r "$REF_DIR" "$SATMUT_ROOT"
 conda activate satmut_utils
