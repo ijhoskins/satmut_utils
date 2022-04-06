@@ -231,15 +231,17 @@ class TestSamtools(unittest.TestCase):
 
         res = su.sam_view(self.test_sam_name)
         su.index_bam(res)
-        self.assertTrue(os.path.exists(fu.add_extension(res, su.BAM_INDEX_SUFFIX)))
+        test_res = os.path.exists(fu.add_extension(res, su.BAM_INDEX_SUFFIX))
         fu.safe_remove((res, fu.add_extension(res, su.BAM_INDEX_SUFFIX),))
+        self.assertTrue(test_res)
 
     def test_sort_and_index(self):
         """Test for proper creation and indexing of a coordinate-sorted BAM."""
 
         res = su.sort_and_index(self.test_sam_name)
-        self.assertTrue(res.endswith(su.BAM_SUFFIX) and os.path.exists(fu.add_extension(res, su.BAM_INDEX_SUFFIX)))
+        test_res = res.endswith(su.BAM_SUFFIX) and os.path.exists(fu.add_extension(res, su.BAM_INDEX_SUFFIX))
         fu.safe_remove((res, fu.add_extension(res, su.BAM_INDEX_SUFFIX),))
+        self.assertTrue(test_res)
 
 
 class TestFastaToFastq(unittest.TestCase):

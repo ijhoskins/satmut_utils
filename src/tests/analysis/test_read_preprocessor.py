@@ -556,7 +556,6 @@ class TestUmiExtractor(unittest.TestCase):
 
                 break
 
-
         self.assertTrue(all((test_1, test_2,)))
 
 # Skip testing ReadGrouper and ReadDeduplicator as these are wrappers of umi_tools
@@ -592,6 +591,7 @@ class TestConsensusDeduplicatorPreprocessor(unittest.TestCase):
         with pysam.AlignmentFile(updated_bam, "rb") as updated_af:
             observed = [align_seg.get_tag(rp.UMITOOLS_UG_TAG) for align_seg in updated_af.fetch(until_eof=True)]
 
+        fu.safe_remove((updated_bam,))
         self.assertEqual(expected, observed)
 
     def test_update_tags_from_grouped_bam(self):
@@ -604,6 +604,7 @@ class TestConsensusDeduplicatorPreprocessor(unittest.TestCase):
         with pysam.AlignmentFile(sorted_updated_bam, "rb") as updated_af:
             observed = [align_seg.get_tag(rp.UMITOOLS_UG_TAG) for align_seg in updated_af.fetch(until_eof=True)]
 
+        fu.safe_remove((sorted_updated_bam,))
         self.assertEqual(expected, observed)
 
     def test_workflow(self):
@@ -616,6 +617,7 @@ class TestConsensusDeduplicatorPreprocessor(unittest.TestCase):
         with pysam.AlignmentFile(cdp.preprocess_bam, "rb") as preprocess_af:
             observed = [align_seg.get_tag(rp.UMITOOLS_UG_TAG) for align_seg in preprocess_af.fetch(until_eof=True)]
 
+        fu.safe_remove((cdp.preprocess_bam,))
         self.assertEqual(expected, observed)
 
 
