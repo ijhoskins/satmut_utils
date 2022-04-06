@@ -32,7 +32,8 @@ satmut\_utils is a Python package for simulation and variant calling of saturati
 1. 'sim'
 2. 'call'
 
-satmut\_utils commands are designed to simulate and call variants in paired-end, targeted sequencing reads. Alignments to a single transcript, or contiguous (spliced) coding sequence, are expected. Genome-wide and transcriptome-wide variant calling is not supported.
+satmut\_utils commands are designed to simulate and call variants in paired-end, targeted sequencing reads. Alignments to a mature mRNA reference (contiguous, spliced coding sequence with possible untranslated regions) are expected. Genome-wide and transcriptome-wide variant calling is not supported.
+
 
 'sim' and 'call' support two different types of paired-end read chemistries. The first supported chemistry is a tiled amplicon PCR approach with interleaved sets of PCR amplicons. In this mode, R1 and R2 start at primer ends.
 
@@ -111,9 +112,9 @@ Note that rule 3 does *not* mean variants cannot be edited within or overlapping
 
 Collectively, while effectively constraining the number and frequency of variants that can be edited at once, these rules ensure high fidelity of variant editing at ultra-low frequencies.
 
-## satmut_utils 'call'
+## satmut\_utils 'call'
 
-'' makes certain design decisions that may impact the performance of variant calling for your particular application.
+'call' makes certain design decisions that may impact the performance of variant calling for your particular application.
 
 1. *'call' enforces mate pair concordance for candidate calls*
 
@@ -263,37 +264,69 @@ A number of useful R functions exist in prototype.summarization\_utils.r for par
 The output tab-delimited summary.txt file contains the standard VCF fields and INFO tag-value pairs split into unique columns. The VCF INFO fields are described below.
 
 POS\_NT: Coordinate position of component nucleotide.
+
 REF\_NT: Component reference nucleotide.
+
 ALT\_NT: Component alternate nucleotide.
+
 UP\_REF\_NT: -1 upstream reference nucleotide.
+
 DOWN\_REF\_NT: +1 downstream reference nucleotide.
+
 DP: Fragment-based depth of coverage after quality filters (pair overlap, edit distance).
+
 CAO: Concordant alternate observations- alternate found in both mates.
+
 NORM\_CAO: Mate-concordant observations per 1000000 pairs.
+
 CAF: Concordant allele frequency in range (0,1). Calculated as CAO/DP.
+
 R1\_PLUS\_AO: Read 1 alternate observations on (+) strand.
+
 R1\_MINUS\_AO: Read 1 alternate observations on (-) strand.
+
 R2\_PLUS\_AO: Read 2 alternate observations on (+) strand.
+
 R2\_MINUS\_AO: Read 2 alternate observations on (-) strand.
+
 R1\_PLUS\_MED\_RP: Read 1 (+) strand median read position supporting call.
+
 R1\_MINUS\_MED\_RP: Read 1 (-) strand median read position supporting call.
+
 R2\_PLUS\_MED\_RP: Read 2 (+) strand median read position supporting call.
+
 R2\_MINUS\_MED\_RP: Read 2 (-) strand median read position supporting call.
+
 R1\_PLUS\_MED\_BQ: Read 1 (+) strand median Phred base quality supporting call.
+
 R1\_MINUS\_MED\_BQ: Read 1 (-) strand median Phred base quality supporting call.
+
 R2\_PLUS\_MED\_BQ: Read 2 (+) strand median Phred base quality supporting call.
+
 R2\_MINUS\_MED\_BQ: Read 2 (-) strand median Phred base quality supporting call.
+
 R1\_PLUS\_MED\_NM: Read 1 (+) strand median edit distance supporting call.
+
 R1\_MINUS\_MED\_NM: Read 1 (-) strand median edit distance supporting call.
+
 R2\_PLUS\_MED\_NM: Read 2 (+) strand median edit distance supporting call.
+
 R2\_MINUS\_MED\_NM: Read 2 (-) strand median edit distance supporting call.
+
 LOCATION: Location of the variant in the transcript. One of {CDS, 5\_UTR, 3\_UTR, intergenic, untranslated}.
+
 REF\_CODON: Comma-delimited reference codon(s). NA if the variant is out of CDS bounds.
+
 ALT\_CODON: Comma-delimited alternate codon(s). NA if the variant is out of CDS bounds.
+
 REF\_AA: Comma-delimited reference amino acid(s). NA if the variant is out of CDS bounds.
+
 ALT\_AA: Comma-delimited alternate amino acid(s). NA if the variant is out of CDS bounds.
+
 AA\_CHANGE: Comma-delimited amino acid change(s). NA if the variant is out of CDS bounds.
+
 AA\_POS: Comma-delimited amino acid position(s). NA if the variant is out of CDS bounds.
+
 MATCHES\_MUT\_SIG: Whether or not the variant matches the mutagenesis signature.
 
 ## satmut\_utils command line interface
@@ -441,7 +474,7 @@ Minimum base quality for either mate of a pair to be considered for variant call
 Minimum number of fragments for a candidate variant call. Default 2 (discard singletons).
 
 16. -w, --max\_mnp\_window
-Integer window span to search for phased SNPs and call MNPs. Must be 2 or 3 (default 3). satmut\_utils does not support long-range haplotype calling, which is challenged by exponentially increasing false positive calls with a wider window span.
+Integer window span to search for phased SNPs and call MNPs. Must be between 1 and 3 (default 3). satmut\_utils does not support long-range haplotype calling, which is challenged by exponentially increasing false positive calls with a wider window span.
 
 17. -n, --ntrimmed
 

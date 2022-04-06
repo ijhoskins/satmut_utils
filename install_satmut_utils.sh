@@ -53,7 +53,15 @@ fi
 # Create and activate the conda environment
 echo "Creating satmut_utils environment."
 conda env create -f satmut_utils/satmut_utils_env.yaml
-conda init bash && source ~/.bashrc
+
+# See https://github.com/conda/conda/issues/7980
+# Need to source the proper conda config directly as
+# the subshell will not source .bashrc
+CONDA_BASE=$(conda info --base)
+CONDA_CONFIG=${CONDA_BASE%%/}/etc/profile.d/conda.sh
+
+conda init bash
+source $CONDA_CONFIG
 conda activate satmut_utils
 
 if [ ! -z "$GET_TRANSCRIPTOME" ]

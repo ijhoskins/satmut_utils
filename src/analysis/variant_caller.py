@@ -982,7 +982,7 @@ class VariantCaller(object):
         :param int min_bq: min base quality
         :param int max_nm: max edit distance (NM tag) to consider a read for variant calls
         :param int min_supporting_qnames: min number of fragments with R1-R2 concordant coverage to keep a variant
-        :param int max_mnp_window: max number of consecutive nucleotides to search for MNPs; must be >= 3.
+        :param int max_mnp_window: max number of consecutive nucleotides to search for MNPs; must be between 1 and 3.
         :param str out_prefix: output directory and filename prefix to write results to.
         :return tuple: (VCF, BED) filepaths
         :raises NotImplementedError: if min_bq is 0 while primers are provided, or the max_mnp_window is < 3
