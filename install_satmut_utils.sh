@@ -46,17 +46,20 @@ echo "Started $0"
 if [ "$1" == "" ]; then
 	echo "Please provide a valid satmut_utils root directory as the first positional argument."
 	exit 1
+fi
 
 # Need miniconda for managing environments and packages. 
-if [[ ! -x $(which conda) ]]
+if [ ! -x $(which conda) ]
 then
 	echo "conda required. See https://docs.conda.io/en/latest/miniconda.html for installation."
 	exit
 fi
 
 # Create and activate the conda environment
-if conda env list | grep "satmut_utils" >/dev/null 2>&1; then
+if conda env list | grep "satmut_utils" >/dev/null 2>&1
+then
 	echo "satmut_utils environment already exists. If you would like to regenerate the environment, remove it first with conda env remove --name satmut_utils"
+	exit 1
 else
 	echo "Creating satmut_utils environment."
 	SATMUT_CONFIG=$1/satmut_utils_env.yaml
