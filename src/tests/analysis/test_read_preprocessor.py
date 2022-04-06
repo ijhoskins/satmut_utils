@@ -669,7 +669,7 @@ class TestConsensusDeduplicator(unittest.TestCase):
     def tearDownClass(cls):
         """Tear down for TestConsensusDeduplicator."""
 
-        fu.safe_remove((cls.tempdir, cls.preproc_bam,), force_remove=True)
+        fu.safe_remove((cls.tempdir, cls.preproc_bam, cls.cd.out_bam), force_remove=True)
 
     def test_extract_umi_network(self):
         """Tests the ability to extract the UMI group from BAM tag."""

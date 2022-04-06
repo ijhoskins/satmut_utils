@@ -11,7 +11,7 @@ import unittest
 
 import analysis.read_editor as ed
 from analysis.references import index_reference
-from analysis.seq_utils import sort_and_index, COORD_FORMAT, DEFAULT_MAPQ, ReadMate, MASKED_BQ, SAM_EDITED_TAG, FASTQ_QNAME_CHAR
+from analysis.seq_utils import sort_and_index, COORD_FORMAT, DEFAULT_MAPQ, ReadMate, MASKED_BQ, SAM_EDITED_TAG, FASTQ_QNAME_CHAR, BAM_INDEX_SUFFIX
 import core_utils.file_utils as fu
 from core_utils.vcf_utils import get_variant_type
 from satmut_utils.definitions import *
@@ -148,7 +148,7 @@ class TestReadEditor(unittest.TestCase):
     def tearDownClass(cls):
         """Tear down for TestReadEditor."""
 
-        fu.safe_remove((cls.tempdir, cls.test_bam,), force_remove=True)
+        fu.safe_remove((cls.tempdir, cls.test_bam, fu.add_extension(cls.test_bam, BAM_INDEX_SUFFIX)), force_remove=True)
 
     def test_get_variant_configs(self):
         """Test that variant configurations are extracted from the input VCF."""

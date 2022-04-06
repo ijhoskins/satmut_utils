@@ -693,9 +693,6 @@ class ConsensusDeduplicator(object):
 
         self.out_bam = outbam
 
-        self.consensus_stderr = os.path.join(
-            outdir, fu.replace_extension(outbam, "%s.stderr" % self.__class__.__name__))
-
     def _extract_umi_network(self, align_seg):
         """Gets the UMI network/group tag from the read name.
 
