@@ -32,7 +32,7 @@ SATMUT_ROOT="$PWD/satmut_utils"
 
 3. Execute the provided shell script to generate the satmut\_utils environment, install the package, and optionally download curated reference files, which are required if using Ensembl identifiers ([see Reference files](#Reference-files)). Finally, activate the satmut\_utils environment.
 ```
-REF_DIR="~/satmut_utils_refs"
+REF_DIR="$HOME/satmut_utils_refs"
 $SATMUT_ROOT/install_satmut_utils.sh -h
 $SATMUT_ROOT/install_satmut_utils.sh -t -g -r "$REF_DIR" "$SATMUT_ROOT"
 conda activate satmut_utils
