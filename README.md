@@ -63,6 +63,7 @@ It is recommended that a new output directory is created for each job. Default i
 Run 'sim' on *in silico* alignments to generate SNPs, MNPs, and InDels. Structural variants and gene fusions are not currently supported.
 ```
 TEST_DIR="$SATMUT_ROOT/src/tests/test_data"
+OUTPUT_DIR="/tmp/satmut_utils_test"
 satmut_utils -i ENST00000398165.7 -x $REF_DIR -o $OUTPUT_DIR -p $TEST_DIR/CBS_sim_primers.bed sim -f -a $TEST_DIR/CBS_sim.bam -v $TEST_DIR/CBS_sim.vcf
 ```
 
@@ -75,6 +76,7 @@ Currently, only SNP and MNP calling is supported. InDels and long-range haplotyp
 Run 'call' on the simulated data by specifying an Ensembl transcript/gene ID and the directory containing curated reference files.
 ```
 TEST_DIR="$SATMUT_ROOT/src/tests/test_data"
+OUTPUT_DIR="/tmp/satmut_utils_test"
 satmut_utils -i ENST00000398165.7 -x $REF_DIR -o $OUTPUT_DIR -p $TEST_DIR/CBS_sim_primers.bed call -1 $TEST_DIR/CBS_sim.R1.fq.gz -2 $TEST_DIR/CBS_sim.R2.fq.gz -v -m 1
 ```
 

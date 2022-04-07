@@ -206,6 +206,7 @@ Run the 'sim' workflow by providing a BAM containing paired-end, single-contig a
 
 ```
 TEST_DIR="satmut_utils/src/tests/test_data"
+OUTPUT_DIR="/tmp/satmut_utils_test"
 satmut_utils -i ENST00000398165.7 -x $REF_DIR -o $OUTPUT_DIR -p $TEST_DIR/CBS_sim_primers.bed sim -f -a $TEST_DIR/CBS_sim.bam -v $TEST_DIR/CBS_sim.vcf
 ```
 
@@ -220,6 +221,7 @@ See 'sim' requirement 4 in the section above for a description of primer masking
 Specify that the alignments are from a RACE-like library preparation chemistry, and use a new random seed to select different read pairs for editing:
 ```
 TEST_DIR="satmut_utils/src/tests/test_data"
+OUTPUT_DIR="/tmp/satmut_utils_test"
 satmut_utils -i ENST00000398165.7 -x $REF_DIR -o $OUTPUT_DIR -p $TEST_DIR/CBS_sim_primers.bed --race_like sim -f -a $TEST_DIR/CBS_sim.bam -v $TEST_DIR/CBS_sim.vcf -s 99
 ```
 
@@ -246,6 +248,7 @@ More than one 5' adapter and more than one 3' adapter are often needed to additi
 For an Ensembl gene ID with more than one transcript isoform, satmut\_utils will select a primary transcript in the curated APPRIS transcriptome. If the Ensembl ID is not in the curated set of primary transcripts, the user must provide custom reference files:
 ```
 TEST_DIR="satmut_utils/src/tests/test_data"
+OUTPUT_DIR="/tmp/satmut_utils_test"
 satmut_utils -r $TEST_DIR/CBS.fa -o $OUTPUT_DIR -p $TEST_DIR/CBS_sim_primers.bed call -1 $TEST_DIR/CBS_sim.R1.fq.gz -2 $TEST_DIR/CBS_sim.R2.fq.gz -v -m 1 -g $TEST_DIR/CBS.gff -k $REF_DIR/GRCh38.fa.gz
 ```
 Additional files may be passed, such as a primer and target BED file.
