@@ -53,7 +53,7 @@ Currently, only Linux and MacOSX operating systems are supported. To get started
 
 2. Clone the satmut\_utils repository:
 ```
-git clone https://github.com/ijhoskins/satmut_utils.git
+git clone https://github.com/CenikLab/satmut_utils.git
 SATMUT_ROOT="$PWD/satmut_utils"
 ```
 
@@ -259,8 +259,6 @@ Passing the target BED file only impacts reporting of variants and does not spee
 The 'call' workflow produces a VCF of candidate variant calls, a tab-delimited summary file, and a bedgraph file reporting fragment coverage across the reference.
 
 The output VCF and its corresponding summary.txt file contain records for each mismatched base in an MNP, so that quality information for the mismatches can be used for machine learning-based error correction. See [output fields](#satmut\_utils-'call'-output-fields) or the output VCF header for column/feature descriptions. 
-
-A number of useful R functions exist in prototype.summarization\_utils.r for parsing and summarizing the VCF summary file. For example, records for MNPs can be collapsed for ease of analysis.
 
 ### satmut\_utils 'call' output fields
 
@@ -528,41 +526,3 @@ Two command-line interfaces are provided to enable pre-processing of reads prior
 2. satmut\_align
  
 satmut\_trim is a wrapper around cutadapt, and satmut\_align a wrapper around bowtie2.  satmut\_align should be used to generate the BAM file accepted by 'sim'. If reads have been aligned with some other method, there is no guarantee 'sim' will complete without error, as alignment tags output by bowtie2 are required for 'sim' (MD, NM).
-
-To facilitate simulation of reads and variants in a desired transcript *de novo*, various accessory scripts are provided in the satmut\_utils/src/scripts directory. Code here is not fully tested and is only provided for convenience to facilitate error modeling.
-
-1. run\_bowtie2\_aligner.py.
-This script may be called directly, but for convenience satmut\_utils provides the CLI satmut\_align.
-
-```
-satmut_align -f1 satmut_utils/src/tests/test_data/CBS_sim.R1.fq.gz -f2 satmut_utils/src/tests/test_data/CBS_sim.R2.fq.gz -r satmut_utils/src/tests/test_data/CBS.fa -d /tmp/align_example
-```
-
-2. run\_variant\_generator.py
-This script may be used to generate a VCF of all codon permutations matching a given mutagenesis signature in a transcript coding region. Together with satmut\_utils/src/prototype/run\_read\_generator.py, *de novo* inputs may be generated for satmut\_utils 'sim'. Provide --trx\_id exactly as it exists in the reference FASTA, target BED, and annotation GFF (seqname field and transcript\_id attribute). One way to quickly obtain these files is to run satmut\_utils 'call' with -i on a negative control library and the --keep\_intermediates flag, and use the curated output reference files.
-
-```
-python -m scripts.run_variant_generator -i CBS_pEZY3 -s NNK -r satmut_utils/src/tests/test_data/CBS_pEZY3.fa -g satmut_utils/src/tests/test_data/CBS_pEZY3.gff -t satmut_utils/src/tests/test_data/CBS_pEZY3_targets.bed -d /tmp/var_gen_example
-```
-
-3. run\_vcf\_subsampler.py
-This script can be used to subsample variants or mismatched bases from the VCF produced by satmut\_utils/src/prototype/run\_variant\_generator.py. Balancing true and false positive variants is highly recommended for training error models.
-
-```
-python -m scripts.run_vcf_subsampler -v satmut_utils/src/tests/test_data/CBS_sim.vcf -n 2 -d /tmp/vcf_subsamp_example
-```
-
-4. run\_ec\_data\_generator.py
-This script generates simulated datasets modeled after true data. As input, it requires satmut\_utils 'call' output summary.txt files for a true mutagenized library and a non-mutagenized negative control library. It then generates codon-permuted variants, subsamples them to balance true and false positives, and configures variant frequencies by estimating parameters for SNPs and MNPs using variants the mutagenized summary.txt file (optionally for those variants only matching the mutagenesis signature). It finally invokes satmut\_utils 'sim' to generate the simulated dataset.
-
-satmut\_utils 'call' should be ran thereafter (ideally with loose quality parameters: -m 1 -q 1 -e 150) to extract quality features and complete the validation dataset. R utilities for training machine learning models on the resulting calls are provided in satmut\_utils/src/prototype/modeling\_utils.R.
-
-5. run\_read\_generator.py.
-
-This script may be used to simulate paired-end targeted sequencing reads given a reference FASTA. Useful for generating input reads for 'sim'. However, one of the many Next-Generation Sequencing read simulators that construct error models are recommended to generate more realistic test reads.
-
-To generate error-free RNA reads, provide a transcript reference FASTA and target BED file. Split the transcript target region into chunks with span roughly [read length - 2\*(average primer length)] if the target region requires multiple tiles. Then run with --make\_amplicons but *not* --rna. (Use of --rna is reserved for simulation of random RNA fragments when starting with a genomic reference FASTA).
-
-As an example, for 2 x 150 bp chemistry, create ~100 bp interleaved target chunks in BED format and configure the number of reads to generate for each amplicon by the BED score field. Finally, pass --make\_amplicons and --slop\_length 0 so that reads start at the termini of the targets.
-
---make\_amplicons is intended for direct simulation of reads from a transcript FASTA. For general DNA or RNA read generation using a genome FASTA and standard genome-based GFF annotations, omit --make\_amplicons. In default mode, generated fragments start and end at random coordinates in the sequence space informed by the --frag\_length argument.
