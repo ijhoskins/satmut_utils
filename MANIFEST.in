@@ -1,5 +1,4 @@
 include docs/satmut_utils_manual.md
-include src/prototype/*r
 include src/tests/test_data/*
 include satmut_utils_env.yaml
 global-exclude *.py[cod]

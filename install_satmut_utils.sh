@@ -58,7 +58,7 @@ fi
 # Create and activate the conda environment
 if conda env list | grep "satmut_utils" >/dev/null 2>&1
 then
-	echo "satmut_utils environment already exists. If you would like to regenerate the environment, remove it first with conda env remove --name satmut_utils"
+	echo "satmut_utils environment already exists. If you would like to regenerate the environment, remove it first with \"conda env remove --name satmut_utils\""
 	exit 1
 else
 	echo "Creating satmut_utils environment."
@@ -88,20 +88,20 @@ fi
 
 if [ ! -z "$GET_GENOME" ]
 then
-	echo "Downloading human genome FASTA and writing to $REF_DIR."
+	echo "Downloading human genome FASTA and writing to $REF_DIR"
 	curl -L -R -o $REF_DIR/GRCh38.fa.gz $GENOME_URL
 	
-	echo "bgzipping genome FASTA and indexing."
+	echo "bgzipping genome FASTA and indexing"
 	gunzip $REF_DIR/GRCh38.fa.gz && bgzip $REF_DIR/GRCh38.fa
 	samtools faidx $REF_DIR/GRCh38.fa.gz
 fi
 
 # Navigate to the satmut_utils repo and install the package
-echo "Building and installing satmut_utils"
+echo "Building and installing satmut_utils."
 cd "$1"
 python3 -m pip install --upgrade build && python3 -m build
 python3 -m pip install .
 
-echo "To use satmut_utils, activate the conda environment with \"conda activate satmut_utils\""
+echo "To use satmut_utils, activate the conda environment with \"conda activate satmut_utils\"."
 
 echo "Completed $0"
