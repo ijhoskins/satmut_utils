@@ -22,11 +22,6 @@ APPRIS_TRX_FASTA = "appris_human_24_01_2019_selected.fa"
 GENCODE_TRX_GFF = "gencode.v29.annotation.gtf"
 GRCH38_FASTA = "GRCh38.fa.gz"
 
-# CTCCTTTC
-NEXTERA_R1_R2_ADAPTER_TRIM_1 = "CTGTCTCTTATACACATCT"
-NEXTERA_R1_R2_ADAPTER_TRIM_2 = "AGATGTGTATAAGAGACAG"
-
-
 NEB_ADAPTER_P5 = "AGACGTGTGCTCTTCCGATCT"  # 5' tail of tile-seq R primers
 NEB_ADAPTER_P5_RC = "AGATCGGAAGAGCACACGTCT"  # to be trimmed from 3' end of R1 in tile-seq with NEBNext adapters
 NEB_ADAPTER_P7 = "TACACGACGCTCTTCCGATCT"  # 5' tail of tile-seq F primers

@@ -315,7 +315,6 @@ def sort_bam(bam, output_am=None, output_format="BAM", by_qname=False, nthreads=
 
     # This caused issues in the context of running many TestCases at once
     # pysam.sort(*call_args, catch_stdout=False)
-    # sort -n was not working in ReadMasker workflow when running test_read_preprocessor.TestReadMasker.test_workflow()
 
     return outname
 

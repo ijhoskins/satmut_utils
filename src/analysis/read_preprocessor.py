@@ -1030,7 +1030,7 @@ class ConsensusDeduplicator(object):
         new_align_seg.query_sequence = "".join(consensus_seq_update)
         new_align_seg.query_qualities = [e for e in consensus_quals_update if e is not None]
 
-        # TODO: ensure this works will all references
+        # TODO: ensure this works with all references
         new_align_seg.reference_id = 0
         # new_align_seg.reference_name = curr_mate_strand.ref
         new_align_seg.reference_start = start_pos
