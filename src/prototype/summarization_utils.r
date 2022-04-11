@@ -410,3 +410,13 @@ get_aa_change_type<- function(x){
     return("Other")
   }
 }
+
+
+#' lapply-friendly version of %in%
+#'
+#' @param e_set character vector containing values to search in
+#' @param x character to search
+#' @return logical whether or not the x was found in e_set
+is_in<- function(e_set, x){
+  return(x%in%e_set)
+}
