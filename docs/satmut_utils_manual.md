@@ -26,7 +26,7 @@
 
 ['call' options](#call-options)
 
-[Accessory scripts](Accessory-scripts)
+[Accessory scripts](#Accessory-scripts)
 
 [Tests](#Tests)
 
