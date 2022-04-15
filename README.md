@@ -91,7 +91,7 @@ The 'call' workflow produces a VCF of candidate variant calls as well as a bedgr
 
 ## Reference files
 
-For convenience, a curated transcriptome of primary human transcripts from [APPRIS](https://apprisws.bioinfo.cnio.es/landing_page/) is provided, allowing the user to pass an Ensembl gene or transcript ID to satmut_utils. However, if the requested Ensembl ID is not found in this set, custom reference files must be passed, which include:
+For convenience, a curated transcriptome of primary human transcripts from [APPRIS](https://apprisws.bioinfo.cnio.es/landing_page/) is provided, allowing the user to pass an Ensembl gene or transcript ID to satmut\_utils. However, if the requested Ensembl ID is not found in this set, custom reference files must be passed, which include:
 
 A. Transcript reference (FASTA)
 
