@@ -5,17 +5,18 @@ channels:
 - defaults
 dependencies:
 - python=3.7
-- cutadapt
-- bowtie2
-- samtools
-- pysam
-- bedtools
-- pybedtools
-- bcftools
-- umi_tools
-- aenum
-- numpy
-- nose2
-- pip
+- cutadapt>=3.5
+- bowtie2>=2.4.4
+- samtools>=1.14
+- pysam>=0.17.0
+- bedtools>=2.30.0
+- pybedtools>=0.8.2
+- bcftools>=1.14
+- umi_tools>=1.1.2
+- aenum>=3.0.0
+- numpy>=1.21.4
+- nose2>=0.9.2
+- pip>=21.3.1
 - pip:
-    - statistics
+    - statistics>=1.0.3.5
+    - satmut-utils>=1.0.0

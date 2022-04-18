@@ -1,0 +1,7 @@
+Release Summary:
+
+1.0.0, April 15, 2022
+	Initial release of satmut_utils
+
+1.0.0+001, April 18, 2022
+	Added minimum versions for dependencies. Download satmut_utils from pip during creation of conda environment.

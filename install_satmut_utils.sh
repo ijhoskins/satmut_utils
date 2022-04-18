@@ -7,8 +7,6 @@ SATMUT_UTILS_REFS_REPO="https://github.com/CenikLab/satmut_utils_refs.git"
 # FTP link to Ensembl-formatted genome 
 GENOME_URL="ftp://ftp.ensembl.org/pub/release-84/fasta/homo_sapiens/dna/Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz"
 
-REF_DIR=$(mktemp -d -t satmut_utils_refs_XXXXXXXXXX)
-
 usage() {
 cat << EOF  
 Usage: ./install_satmut_utils [-htg] [-r <REF_DIR>] <SATMUT_ROOT>
@@ -76,10 +74,14 @@ conda init bash
 source $CONDA_CONFIG
 conda activate satmut_utils
 
-mkdir -p "$REF_DIR"
+if [[ -z "$REF_DIR" && ( "$GET_TRANSCRIPTOME" || "$GET_GENOME" ) ]]
+then
+REF_DIR=$(mktemp -d -t satmut_utils_refs_XXXXXXXXXX)
+fi
 
 if [ ! -z "$GET_TRANSCRIPTOME" ]
 then
+	mkdir -p "$REF_DIR"
 	echo "Getting curated human transcriptome files and writing to $REF_DIR"
 	cd "$REF_DIR"
 	git clone $SATMUT_UTILS_REFS_REPO
@@ -88,19 +90,13 @@ fi
 
 if [ ! -z "$GET_GENOME" ]
 then
+	mkdir -p "$REF_DIR"
 	echo "Downloading human genome FASTA and writing to $REF_DIR"
 	curl -L -R -o $REF_DIR/GRCh38.fa.gz $GENOME_URL
-	
 	echo "bgzipping genome FASTA and indexing"
 	gunzip $REF_DIR/GRCh38.fa.gz && bgzip $REF_DIR/GRCh38.fa
 	samtools faidx $REF_DIR/GRCh38.fa.gz
 fi
-
-# Navigate to the satmut_utils repo and install the package
-echo "Building and installing satmut_utils."
-cd "$1"
-python3 -m pip install --upgrade build && python3 -m build
-python3 -m pip install .
 
 echo "To use satmut_utils, activate the conda environment with \"conda activate satmut_utils\"."
 
