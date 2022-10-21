@@ -35,7 +35,7 @@ SATMUT_ROOT="$PWD/satmut_utils"
 REF_DIR="$HOME/satmut_utils_refs"
 $SATMUT_ROOT/install_satmut_utils.sh -h
 $SATMUT_ROOT/install_satmut_utils.sh -t -g -r "$REF_DIR" "$SATMUT_ROOT"
-conda activate satmut_utils
+conda activate satmut_utils_dev
 ```
 
 You are now ready to call the command-line executable ```satmut_utils```
