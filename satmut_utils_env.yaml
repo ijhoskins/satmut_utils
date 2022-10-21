@@ -1,4 +1,4 @@
-name: satmut_utils
+name: satmut_utils_dev
 channels:
 - conda-forge
 - bioconda
