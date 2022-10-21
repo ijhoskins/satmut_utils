@@ -348,10 +348,10 @@ class DmsTools2ToSatmutUtils(object):
     """Class for converting reads produced by barcoded subamplicon sequencing to satmut_utils compatible input."""
 
     DEFAULT_OUTDIR = "."
-    DEFAULT_UMI_LENGTH = 8
+    DEFAULT_UMI_LEN = 8
     DEFAULT_EXT = "satmut.fastq"
 
-    def __init__(self, r1_fastq, r2_fastq, umi_length=DEFAULT_UMI_LENGTH, outdir=DEFAULT_OUTDIR):
+    def __init__(self, r1_fastq, r2_fastq, umi_length=DEFAULT_UMI_LEN, outdir=DEFAULT_OUTDIR):
         """Constructor for DmsTools2ToSatmutUtils.
 
         :param str r1_fastq: R1 FASTQ filepath.
