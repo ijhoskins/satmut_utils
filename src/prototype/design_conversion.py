@@ -493,7 +493,7 @@ class SatmutUtilsToDiMSum(object):
 
             for i, line in enumerate(vcf_summ_file):
 
-                line_split = line.rstrip().split("\t")
+                line_split = line.rstrip().split(fu.FILE_DELIM)
 
                 if i == 0:
 
@@ -517,4 +517,4 @@ class SatmutUtilsToDiMSum(object):
                 nt_string = self.vcf_to_string(
                     pos=int(line_split[VCF_POS_INDEX]), ref=line_split[VCF_REF_INDEX], alt=line_split[VCF_ALT_INDEX])
 
-                out_file.write(fu.FILE_NEWLINE.join((nt_string, var_count)))
+                out_file.write(fu.FILE_DELIM.join((nt_string, var_count,)) + fu.FILE_NEWLINE)

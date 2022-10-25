@@ -1170,7 +1170,7 @@ class ConsensusDeduplicator(object):
 
         # Realign the reads
         bowtie2_nthreads = 1 if self.nthreads == 0 else self.nthreads
-        baw(f1=r1_fastq, f2=r2_fastq, ref=self.ref, outbam=self.out_bam, nthreads=self.nthreads)
+        baw(f1=r1_fastq, f2=r2_fastq, ref=self.ref, outbam=self.out_bam, nthreads=bowtie2_nthreads)
 
         fu.safe_remove((r1_fastq, r2_fastq,))
 
