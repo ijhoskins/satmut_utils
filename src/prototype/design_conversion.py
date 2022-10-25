@@ -381,8 +381,6 @@ class DmsTools2ToSatmutUtils(object):
         self.output_r2_fastq = os.path.join(
             outdir, fu.replace_extension(os.path.basename(self.r2_fastq), self.DEFAULT_EXT))
 
-        self.open_func = gzip.open if r1_fastq.endswith(fu.GZ_EXTENSION) else open
-
     def workflow(self):
         """Runs the conversion workflow- move R2 UMIs to start of R1.
 
@@ -393,8 +391,8 @@ class DmsTools2ToSatmutUtils(object):
 
         with pysam.FastxFile(self.r1_fastq) as r1_input_fastq,\
                 pysam.FastxFile(self.r2_fastq) as r2_input_fastq,\
-                self.open_func(self.output_r1_fastq, "w") as r1_output_fastq,\
-                self.open_func(self.output_r2_fastq, "w") as r2_output_fastq:
+                open(self.output_r1_fastq, "w") as r1_output_fastq,\
+                open(self.output_r2_fastq, "w") as r2_output_fastq:
 
             for r1, r2 in zip(r1_input_fastq, r2_input_fastq):
 
