@@ -38,10 +38,10 @@ def parse_commandline_params(args):
 
     parser.add_argument("-r", "--reference", type=str, required=True, help='Reference FASTA.')
 
-    parser.add_argument("-b", "--cds_bed", type=str, required=True, help='R2 FASTQ.')
+    parser.add_argument("-b", "--cds_bed", type=str, required=True, help='One-line BED file of the CDS.')
 
     parser.add_argument("-o", "--output_dir", type=str, default=SatmutUtilsToDiMSum.DEFAULT_OUTDIR,
-                        help='Optional output directory for DiMSum count matrix.')
+                        help='Optional output directory for DiMSum count table.')
 
     parsed_args = vars(parser.parse_args(args))
     return parsed_args
