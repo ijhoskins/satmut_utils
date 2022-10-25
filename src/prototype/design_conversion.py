@@ -16,6 +16,7 @@ from analysis.seq_utils import extract_seq, sort_bam, bam_to_fastq, sam_view, re
     SAM_FLAG_MUNMAP, SAM_CIGAR_INS, SAM_CIGAR_DEL
 import core_utils.file_utils as fu
 from core_utils.string_utils import make_random_str
+from core_utils.vcf_utils import VCF_CAO_ID, VCF_CONTIG_INDEX, VCF_POS_INDEX, VCF_REF_INDEX, VCF_ALT_INDEX
 from satmut_utils.definitions import *
 from scripts.run_bowtie2_aligner import workflow as align_workflow
 
@@ -411,11 +412,12 @@ class DmsTools2ToSatmutUtils(object):
         return zipped_r1_fastq, zipped_r2_fastq
 
 
-class VcfToNucleotideString(object):
+class SatmutUtilsToDimSum(object):
     """Class for converting VCF variants into full coding sequence strings."""
 
     DEFAULT_OUTDIR = "."
     DEFAULT_EXT = "counts.txt"
+    VAR_ID_DELIM = ":"
 
     def __init__(self, vcf_summary, reference, cds_bed, outdir=DEFAULT_OUTDIR):
         """
@@ -455,7 +457,7 @@ class VcfToNucleotideString(object):
         return cds_seq, cds_start
 
     def vcf_to_string(self, pos, ref, alt):
-        """Constructs a  coding sequence string with a VCF variant call.
+        """Constructs a coding sequence string from a VCF variant call.
 
         :param int pos: 1-based variant position
         :param str ref: reference nucleotides
@@ -474,3 +476,38 @@ class VcfToNucleotideString(object):
         cds_seq = str(self.cds_seq[:cds_pos] + list(alt) + self.cds_seq[cds_pos + ref_len:])
 
         return cds_seq
+
+    def workflow(self):
+        """Makes a two-column file containing variant string and counts."""
+
+        with open(self.vcf_summary, "r") as vcf_summ_file, open(self.output_file, "w") as out_file:
+
+            var_ids = set()
+
+            for i, line in enumerate(vcf_summ_file):
+
+                line_split = line.rstrip().split("\t")
+
+                if i == 0:
+
+                    try:
+                        count_index = line_split.index(VCF_CAO_ID)
+                    except ValueError:
+                        raise RuntimeError("Input file does not have a %s field." % VCF_CAO_ID)
+
+                    continue
+
+                var_id = self.VAR_ID_DELIM.join(line_split[0:4])
+
+                # Use because satmut_utils vcf.summary.txt files contain multiple records for each base in MNPs,
+                # which contain the same VAR_ID and count/frequency
+                if var_id in var_ids:
+                    continue
+
+                var_ids.add(var_id)
+                var_count = line_split[count_index]
+
+                nt_string = self.vcf_to_string(
+                    pos=int(line_split[VCF_POS_INDEX]), ref=line_split[VCF_REF_INDEX], alt=line_split[VCF_ALT_INDEX])
+
+                out_file.write(fu.FILE_NEWLINE.join((nt_string, var_count)))
