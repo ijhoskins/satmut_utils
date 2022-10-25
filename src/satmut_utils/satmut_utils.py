@@ -394,8 +394,11 @@ def call_workflow(fastq1, fastq2,
     if max_mnp_window not in {1, 2, 3}:
         raise NotImplementedError("--max_mnp_window must be one of {1,2,3}.")
 
-    # Unfortunately sort-order harmony with samtools sort -n requires we know the format of the qname
-    # Check to make sure we have either Illumina format or single integer read names
+    # Unfortunately sort order harmony with `samtools sort -n` requires we know the format of the QNAME
+    # Check to make sure we have either Illumina format or single integer read names (QNAMEs)
+    # When downloading data from SRA using the -F flag to "preserve" read names, which consists of single-integers
+    # that are compatible with primer masking logic
+    # Read names that diverge from Illumina or single-integer format are not a concern when no primers are provided
     if primers is not None:
         qv = QnameVerification(fastq=fastq1)
         sort_cmd = QNAME_SORTS[qv.format_index]

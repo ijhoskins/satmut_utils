@@ -2,6 +2,7 @@
 """Objects for converting reads to other saturation mutagenesis input or output read requirements."""
 
 import collections
+import gzip
 import logging
 import os
 import pysam
@@ -358,6 +359,12 @@ class DmsTools2ToSatmutUtils(object):
         :param str r2_fastq: R2 FASTQ filepath.
         :param int umi_length: length of UMIs at start of each read. Default 8.
         :param str outdir: Optional output directory. Default current directory.
+
+        Notes
+        -----
+        This class is meant to accept dms_tools2 reads that have had adapters trimmed. R1 and R2 should still contain \
+        UMIs/barcodes. The R2 barcode will be transferred to the start of R1 to enable satmut_utils analysis with the \
+        --umi_regex flag.
         """
 
         self.r1_fastq = r1_fastq
@@ -374,6 +381,8 @@ class DmsTools2ToSatmutUtils(object):
         self.output_r2_fastq = os.path.join(
             outdir, fu.replace_extension(os.path.basename(self.r2_fastq), self.DEFAULT_EXT))
 
+        self.open_func = gzip.open if r1_fastq.endswith(fu.GZ_EXTENSION) else open
+
     def workflow(self):
         """Runs the conversion workflow- move R2 UMIs to start of R1.
 
@@ -384,8 +393,8 @@ class DmsTools2ToSatmutUtils(object):
 
         with pysam.FastxFile(self.r1_fastq) as r1_input_fastq,\
                 pysam.FastxFile(self.r2_fastq) as r2_input_fastq,\
-                open(self.output_r1_fastq, "w") as r1_output_fastq,\
-                open(self.output_r2_fastq, "w") as r2_output_fastq:
+                self.open_func(self.output_r1_fastq, "w") as r1_output_fastq,\
+                self.open_func(self.output_r2_fastq, "w") as r2_output_fastq:
 
             for r1, r2 in zip(r1_input_fastq, r2_input_fastq):
 
@@ -404,6 +413,7 @@ class DmsTools2ToSatmutUtils(object):
                 r2_output_fastq.write(str(r2) + fu.FILE_NEWLINE)
 
         # Gzip the FASTQs
+        logger.info("Compressing converted FASTQ files.")
         zipped_r1_fastq = fu.gzip_file(self.output_r1_fastq, force=True)
         zipped_r2_fastq = fu.gzip_file(self.output_r2_fastq, force=True)
 
@@ -411,7 +421,7 @@ class DmsTools2ToSatmutUtils(object):
         return zipped_r1_fastq, zipped_r2_fastq
 
 
-class SatmutUtilsToDimSum(object):
+class SatmutUtilsToDiMSum(object):
     """Class for converting VCF variants into full coding sequence strings."""
 
     DEFAULT_OUTDIR = "."

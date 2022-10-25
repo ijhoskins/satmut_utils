@@ -8,7 +8,7 @@ import sys
 
 from core_utils.file_utils import replace_extension
 from satmut_utils.definitions import LOG_FORMATTER
-from prototype.design_conversion import SatmutUtilsToDimSum
+from prototype.design_conversion import SatmutUtilsToDiMSum
 
 __author__ = "Ian_Hoskins"
 __credits__ = ["Ian Hoskins"]
@@ -40,14 +40,14 @@ def parse_commandline_params(args):
 
     parser.add_argument("-b", "--cds_bed", type=str, required=True, help='R2 FASTQ.')
 
-    parser.add_argument("-o", "--output_dir", type=str, default=SatmutUtilsToDimSum.DEFAULT_OUTDIR,
+    parser.add_argument("-o", "--output_dir", type=str, default=SatmutUtilsToDiMSum.DEFAULT_OUTDIR,
                         help='Optional output directory for DiMSum count matrix.')
 
     parsed_args = vars(parser.parse_args(args))
     return parsed_args
 
 
-def workflow(vcf_summary, ref, cds_bed, outdir=SatmutUtilsToDimSum.DEFAULT_OUTDIR):
+def workflow(vcf_summary, ref, cds_bed, outdir=SatmutUtilsToDiMSum.DEFAULT_OUTDIR):
     """Runs the satmut_utils to DiMSum postprocessing workflow.
 
     :param str vcf_summary: satmut_utils VCF summary.txt file to process
@@ -57,7 +57,7 @@ def workflow(vcf_summary, ref, cds_bed, outdir=SatmutUtilsToDimSum.DEFAULT_OUTDI
     :return str: filepath of the output table
     """
 
-    out_mat = SatmutUtilsToDimSum(
+    out_mat = SatmutUtilsToDiMSum(
         vcf_summary=vcf_summary, reference=ref, cds_bed=cds_bed, outdir=outdir).workflow()
 
     return out_mat
