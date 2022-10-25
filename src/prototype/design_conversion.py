@@ -400,8 +400,8 @@ class DmsTools2ToSatmutUtils(object):
                 r2.sequence = r2.sequence[self.umi_length:]
                 r2.quality = r2.quality[self.umi_length:]
 
-                r1_output_fastq.write(r1)
-                r2_output_fastq.write(r2)
+                r1_output_fastq.write(str(r1) + fu.FILE_NEWLINE)
+                r2_output_fastq.write(str(r2) + fu.FILE_NEWLINE)
 
         # Gzip the FASTQs
         zipped_r1_fastq = fu.gzip_file(self.output_r1_fastq, force=True)
