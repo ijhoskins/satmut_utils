@@ -2,7 +2,6 @@
 """Objects for converting reads to other saturation mutagenesis input or output read requirements."""
 
 import collections
-import itertools
 import logging
 import os
 import pysam
@@ -388,7 +387,7 @@ class DmsTools2ToSatmutUtils(object):
                 open(self.output_r1_fastq, "w") as r1_output_fastq,\
                 open(self.output_r2_fastq, "w") as r2_output_fastq:
 
-            for r1, r2 in itertools.izip(r1_input_fastq, r2_input_fastq):
+            for r1, r2 in zip(r1_input_fastq, r2_input_fastq):
 
                 r2_umi = r2.sequence[:self.umi_length]
                 r2_umi_quals = r2.quality[:self.umi_length]
