@@ -352,7 +352,7 @@ class DmsTools2ToSatmutUtils(object):
     DEFAULT_UMI_LEN = 8
     DEFAULT_EXT = "satmut.fastq"
 
-    def __init__(self, r1_fastq, r2_fastq, umi_length=DEFAULT_UMI_LEN, outdir=DEFAULT_OUTDIR):
+    def __init__(self, r1_fastq, r2_fastq, umi_len=DEFAULT_UMI_LEN, outdir=DEFAULT_OUTDIR):
         """Constructor for DmsTools2ToSatmutUtils.
 
         :param str r1_fastq: R1 FASTQ filepath.
@@ -363,7 +363,7 @@ class DmsTools2ToSatmutUtils(object):
 
         self.r1_fastq = r1_fastq
         self.r2_fastq = r2_fastq
-        self.umi_length = umi_length
+        self.umi_length = umi_len
         self.outdir = outdir
 
         if not os.path.exists(outdir):
