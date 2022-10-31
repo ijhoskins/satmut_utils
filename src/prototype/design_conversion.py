@@ -2,12 +2,12 @@
 """Objects for converting reads to other saturation mutagenesis input or output read requirements."""
 
 import collections
-import gzip
 import logging
 import os
 import pysam
 import pybedtools
 import random
+import statistics
 import tempfile
 import warnings
 
@@ -16,7 +16,7 @@ from analysis.seq_utils import extract_seq, sort_bam, bam_to_fastq, sam_view, re
     SAM_FLAG_MUNMAP, SAM_CIGAR_INS, SAM_CIGAR_DEL
 import core_utils.file_utils as fu
 from core_utils.string_utils import make_random_str
-from core_utils.vcf_utils import VCF_CAO_ID, VCF_CONTIG_INDEX, VCF_POS_INDEX, VCF_REF_INDEX, VCF_ALT_INDEX
+from core_utils.vcf_utils import VCF_CAO_ID, VCF_CONTIG_INDEX, VCF_POS_INDEX, VCF_REF_INDEX, VCF_ALT_INDEX, VCF_DP_ID
 from satmut_utils.definitions import *
 from scripts.run_bowtie2_aligner import workflow as align_workflow
 
@@ -423,7 +423,8 @@ class SatmutUtilsToDiMSum(object):
     """Class for converting VCF variants into full coding sequence strings."""
 
     DEFAULT_OUTDIR = "."
-    DEFAULT_EXT = "counts.txt"
+    DEFAULT_EXT = "DiMSum_counts.txt"
+    DEFAULT_HEADER = ("VAR_ID", "nt_seq", "counts")
     VAR_ID_DELIM = ":"
 
     def __init__(self, vcf_summary, reference, cds_bed, outdir=DEFAULT_OUTDIR):
@@ -438,30 +439,28 @@ class SatmutUtilsToDiMSum(object):
         self.reference = reference
         self.cds_bed = cds_bed
         self.outdir = outdir
-        self.output_file = os.path.join(outdir, self.DEFAULT_EXT)
-        self.cds_seq, self.cds_start = self._get_cds_list()
+        self.output_file = os.path.join(
+            outdir, fu.replace_extension(os.path.basename(vcf_summary), self.DEFAULT_EXT))
+        self.contig_name, self.cds_seq, self.cds_start = self._get_cds_list()
 
     def _get_cds_list(self):
-        """Extracts the CDS sequence given the CDS BED and reference FASTA.
+        """Extracts the contig name and CDS sequence given the CDS BED and reference FASTA.
 
-        :return tuple: (list, int) of CDS sequence, 0-based CDS start relative to reference
+        :return tuple: (str, list, int) contig name, CDS sequence, 0-based CDS start relative to reference
         """
 
         # Extract the CDS sequence
         cds_bedtool = pybedtools.BedTool(self.cds_bed)
-        cds_start = cds_bedtool.start
+        contig = cds_bedtool[0].chrom
+        cds_start = cds_bedtool[0].start
         extract_fa = cds_bedtool.sequence(fi=self.reference)
 
-        with pysam.FastxFile(extract_fa.fn) as cds_fasta:
-            for i, cds_seq in cds_fasta:
-                cds_seq = list(cds_fasta)
-            else:
-                if i != 0:
-                    raise NotImplementedError("CDS BED file %s should have one single record." % self.cds_bed)
+        with pysam.FastaFile(extract_fa.seqfn) as cds_fasta:
+            cds_seq_list = list(cds_fasta.fetch(reference=cds_fasta.references[0]).upper())
 
         # Also return start position of the CDS so we can get the offset from the whole reference
-        # start coordinate is always 0-based;
-        return cds_seq, cds_start
+        # start coordinate is always 0-based
+        return contig, cds_seq_list, cds_start
 
     def vcf_to_string(self, pos, ref, alt):
         """Constructs a coding sequence string from a VCF variant call.
@@ -469,27 +468,68 @@ class SatmutUtilsToDiMSum(object):
         :param int pos: 1-based variant position
         :param str ref: reference nucleotides
         :param str alt: alternate nucleotides
-        :return str: coding sequence string
+        :return str | None: coding sequence string
         """
 
-        cds_pos = pos - self.cds_start
-        ref_len = len(ref)
+        cds_pos = pos - self.cds_start - 1
 
-        exp_ref = str(self.cds_seq[cds_pos:cds_pos + ref_len])
+        if cds_pos < 0:
+            warnings.warn("Variant %i:%s:%s is not coding. Skipping." % (pos, ref, alt))
+            return None
+
+        ref_len = len(ref)
+        exp_ref = "".join(self.cds_seq[cds_pos:cds_pos + ref_len])
 
         if ref != exp_ref:
             warnings.warn("Variant REF field %s at POS %i does not match the reference sequence %s" % (ref, pos, exp_ref))
+            print((pos, ref, alt, cds_pos, exp_ref))
 
-        cds_seq = str(self.cds_seq[:cds_pos] + list(alt) + self.cds_seq[cds_pos + ref_len:])
+        cds_seq = "".join(self.cds_seq[:cds_pos] + list(alt) + self.cds_seq[cds_pos + ref_len:])
 
         return cds_seq
 
+    @staticmethod
+    def _extract_wt_counts(pos, dp, alt, wt_dict):
+        """Collects WT counts from each position.
+
+        :param int pos: variant position
+        :param int dp: total depth of coverage at position
+        :param int alt: variant count at position
+        :param collections.OrderedDict wt_dict: dictionary holding DP and sum of variant counts
+        """
+
+        # Only collect DP for each position uniquely; satmut_utils output ensures DP for multiple variants at the
+        # same position is the same
+        if pos not in wt_dict:
+            wt_dict[pos] = [0, 0]
+            wt_dict[pos][0] += dp
+
+        # Add the variant counts (possibly multiple per position)
+        wt_dict[pos][0] += alt
+
+    @staticmethod
+    def _get_total_wt_count(wt_dict):
+        """Aggregates per-position WT counts to generate a total WT count for the whole target region.
+
+        :param collections.OrderedDict wt_dict: dictionary holding DP and sum of variant counts
+        :return int: total WT count
+        """
+
+        wt_counts = []
+        for dp, var_count in wt_dict.values():
+            wt_counts.append(dp - var_count)
+
+        total_wt_count = int(statistics.median(wt_counts))
+
+        return total_wt_count
+
     def workflow(self):
-        """Makes a two-column file containing variant string and counts."""
+        """Makes a three-column file containing variant ID, variant string, and counts."""
 
         with open(self.vcf_summary, "r") as vcf_summ_file, open(self.output_file, "w") as out_file:
 
             var_ids = set()
+            wt_dict = collections.OrderedDict()
 
             for i, line in enumerate(vcf_summ_file):
 
@@ -498,13 +538,16 @@ class SatmutUtilsToDiMSum(object):
                 if i == 0:
 
                     try:
-                        count_index = line_split.index(VCF_CAO_ID)
+                        dp_index = line_split.index(VCF_DP_ID)
+                        cao_index = line_split.index(VCF_CAO_ID)
                     except ValueError:
-                        raise RuntimeError("Input file does not have a %s field." % VCF_CAO_ID)
+                        raise RuntimeError("Input file does not have %s or %s fields." % (VCF_DP_ID, VCF_CAO_ID))
 
+                    out_file.write(fu.FILE_DELIM.join(self.DEFAULT_HEADER) + fu.FILE_NEWLINE)
                     continue
 
-                var_id = self.VAR_ID_DELIM.join(line_split[0:4])
+                var_id = self.VAR_ID_DELIM.join(
+                    line_split[0:2] + [line_split[VCF_REF_INDEX]] + [line_split[VCF_ALT_INDEX]])
 
                 # Use because satmut_utils vcf.summary.txt files contain multiple records for each base in MNPs,
                 # which contain the same VAR_ID and count/frequency
@@ -512,9 +555,26 @@ class SatmutUtilsToDiMSum(object):
                     continue
 
                 var_ids.add(var_id)
-                var_count = line_split[count_index]
+                var_pos = int(line_split[VCF_POS_INDEX])
+                dp_count = line_split[dp_index]
+                alt_count = line_split[cao_index]
+
+                self._extract_wt_counts(pos=var_pos, dp=int(dp_count), alt=int(alt_count), wt_dict=wt_dict)
 
                 nt_string = self.vcf_to_string(
-                    pos=int(line_split[VCF_POS_INDEX]), ref=line_split[VCF_REF_INDEX], alt=line_split[VCF_ALT_INDEX])
+                    pos=var_pos, ref=line_split[VCF_REF_INDEX], alt=line_split[VCF_ALT_INDEX])
 
-                out_file.write(fu.FILE_DELIM.join((nt_string, var_count,)) + fu.FILE_NEWLINE)
+                if nt_string is None:
+                    continue
+
+                out_file.write(fu.FILE_DELIM.join((var_id, nt_string, alt_count,)) + fu.FILE_NEWLINE)
+
+            # Add the WT counts by taking the median of the DP-CAO across each targeted position
+            # DiMSum requires a single count for the WT coverage
+            wt_id = self.VAR_ID_DELIM.join((self.contig_name, str(self.cds_start),))
+
+            # WARNING: assumes there are no mismatches to the reference to accurately report WT sequence
+            wt_string = "".join(self.cds_seq)
+            total_wt_count = self._get_total_wt_count(wt_dict=wt_dict)
+
+            out_file.write(fu.FILE_DELIM.join((wt_id, wt_string, str(total_wt_count),)) + fu.FILE_NEWLINE)
