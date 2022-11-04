@@ -442,6 +442,7 @@ class SatmutUtilsToDiMSum(object):
         self.output_file = os.path.join(
             outdir, fu.replace_extension(os.path.basename(vcf_summary), self.DEFAULT_EXT))
         self.contig_name, self.cds_seq, self.cds_start = self._get_cds_list()
+        self.cds_len = len(self.cds_seq)
 
     def _get_cds_list(self):
         """Extracts the contig name and CDS sequence given the CDS BED and reference FASTA.
@@ -473,7 +474,7 @@ class SatmutUtilsToDiMSum(object):
 
         cds_pos = pos - self.cds_start - 1
 
-        if cds_pos < 0:
+        if cds_pos < 0 or pos > (self.cds_len + self.cds_start):
             warnings.warn("Variant %i:%s:%s is not coding. Skipping." % (pos, ref, alt))
             return None
 
@@ -482,7 +483,6 @@ class SatmutUtilsToDiMSum(object):
 
         if ref != exp_ref:
             warnings.warn("Variant REF field %s at POS %i does not match the reference sequence %s" % (ref, pos, exp_ref))
-            print((pos, ref, alt, cds_pos, exp_ref))
 
         cds_seq = "".join(self.cds_seq[:cds_pos] + list(alt) + self.cds_seq[cds_pos + ref_len:])
 
