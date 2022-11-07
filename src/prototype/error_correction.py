@@ -33,7 +33,7 @@ class ErrorCorrectionDataGenerator(object):
     DEFAULT_PREFIX = None
     DEFAULT_NTHREADS = 0
 
-    def __init__(self, negative_summary, mutant_summary, negative_bam, ref, gff, race_like=DEFAULT_RACE_LIKE,
+    def __init__(self, negative_summary, mutant_summary, negative_bam, ref, gff, gff_ref, race_like=DEFAULT_RACE_LIKE,
                  primers=DEFAULT_PRIMERS, outdir=DEFAULT_OUTDIR, nthreads=DEFAULT_NTHREADS):
         """Constructor for ErrorCorrectionDataGenerator.
 
@@ -41,7 +41,8 @@ class ErrorCorrectionDataGenerator(object):
         :param str mutant_summary: vcf.summary.txt file for a mutant library
         :param str negative_bam: endogenous BAM file to induce into
         :param str ref: reference FASTA used in alignment/variant calling
-        :param str gff: reference GTF of the transcript that was mutagenized
+        :param str gff: transcript GFF for trx_id in transcript_id INFO field
+        :param str gff_ref: reference FASTA corresponding to the GFF features
         :param bool race_like: is the data produced by RACE-like (e.g. AMP) data? Default False.
         :param str | None primers: primer bed file for BQ masking
         :param str outdir: Optional output directory to write generated VCFs and edited FASTQs, BAM
@@ -53,6 +54,7 @@ class ErrorCorrectionDataGenerator(object):
         self.negative_bam = negative_bam
         self.ref = ref
         self.gff = gff
+        self.gff_ref = gff_ref
         self.race_like = race_like
         self.primers = primers
         self.outdir = outdir
@@ -140,12 +142,12 @@ class ErrorCorrectionDataGenerator(object):
         logger.info("%i false positive variants counted in %s." % (fp_nvars, self.negative_summary))
         logger.info("%i false positive mismatched bases counted in %s." % (fp_nbases, self.negative_summary))
         logger.info("Estimates of the mean and standard deviation of log10 concordant frequencies are %s"
-                     % str(caf_estimates))
+                    % str(caf_estimates))
 
         logger.info("Generating all codon-permutated variants.")
         variant_generator = vg.VariantGenerator(
-            gff=self.gff, ref=self.ref, mut_sig=mut_sig, haplotypes=haplotypes, haplotype_len=haplotype_len,
-            outdir=self.outdir, random_seed=random_seed)
+            gff=self.gff, ref=self.ref, gff_ref=self.gff_ref, mut_sig=mut_sig, haplotypes=haplotypes,
+            haplotype_len=haplotype_len, outdir=self.outdir, random_seed=random_seed)
 
         all_codon_permuts = variant_generator.workflow(
             trx_id=trx_id, targets=targets, outfile=out_vcf, var_type=var_type, mnp_bases=mnp_bases)

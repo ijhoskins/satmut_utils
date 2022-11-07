@@ -45,13 +45,14 @@ class VariantGenerator(object):
     DEFAULT_SNP_WEIGHT = 0.5
     DEFAULT_MUTAGENESIS_PRIMER_LEN = 25
 
-    def __init__(self, gff, ref, mut_sig=DEFAULT_MUT_SIG, haplotypes=DEFAULT_HAPLO, haplotype_len=DEFAULT_HAPLO_LEN,
+    def __init__(self, gff, ref, gff_ref, mut_sig=DEFAULT_MUT_SIG, haplotypes=DEFAULT_HAPLO, haplotype_len=DEFAULT_HAPLO_LEN,
                  outdir=DEFAULT_OUTDIR, random_seed=DEFAULT_HAPLO_SEED):
         r"""Constructor for VariantGenerator.
 
         :param str gff: transcript GFF; must have "transcript_id" metafeature and "exon", "CDS", "start_codon", \
         and "stop_codon" features
         :param str ref: reference FASTA with contigs matching those in the GFF seqname field
+        :param str gff_ref: reference FASTA corresponding to the GFF features
         :param str mut_sig: mutagenesis signature- one of {NNN, NNK, NNS}. Default NNN.
         :param bool haplotypes: should haplotypes be created with uniform number to codon variants? Default True.
         :param int haplotype_len: max length to create haplotypes. No longer than read length.
@@ -65,6 +66,7 @@ class VariantGenerator(object):
 
         self.gff = gff
         self.ref = ref
+        self.gff_ref = gff_ref
         self.mut_sig = mut_sig
         self.haplotypes = haplotypes
         self.haplotype_len = haplotype_len
@@ -75,8 +77,8 @@ class VariantGenerator(object):
             os.mkdir(self.outdir)
 
         # Create the necessary mapping object for getting CDS sequence
-        self.aam = cm.AminoAcidMapper(gff=gff, ref=ref, outdir=outdir, mut_sig=mut_sig)
-        self.contig_lookup = su.get_contig_lookup(self.ref)
+        self.aam = cm.AminoAcidMapper(gff=gff, ref=gff_ref, outdir=outdir, mut_sig=mut_sig)
+        self.contig_lookup = su.get_contig_lookup(ref)
 
     def _create_vcf_header(self, contigs):
         """Creates a VCF header for the candidate variants.

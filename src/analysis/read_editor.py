@@ -145,7 +145,7 @@ class ReadEditor(object):
 
         :param str bam: alignments to edit into.
         :param str variants: VCF/BCF specifying variants to edit; use the AF tag to specify AF, e.g. AF=0.1.
-        :param str ref: reference FASTA. Default APPRIS primary annotation transcriptome.
+        :param str ref: reference FASTA for alignment.
         :param bool race_like: is the data produced by RACE-like (e.g. AMP) data? Default False.
         :param str | None primers: BED, GFF, or GTF file containing primers; for masking synthetic sequences for \
         accurate AF of variants under primer regions. This feature file should contain the strand of the primer. \
