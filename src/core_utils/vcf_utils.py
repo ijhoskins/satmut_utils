@@ -620,7 +620,21 @@ class VcfSubsampler(object):
 
         # Determine the number of SNPs and MNPs to generate
         n_snps = int(self.snp_prop * nvars)
-        n_mnps = (int((1.0 - self.snp_prop) * nvars))
+        n_mnps = int((1.0 - self.snp_prop) * nvars)
+
+        # Protect against cases where there are not enough variants
+        len_snp_vars = len(snp_vars)
+        if n_snps > len_snp_vars:
+            warnings.warn("Number of SNPs to mix (%i) is greater than the number of SNPs in the VCF: %i. "
+                          "Using all SNPs in the VCF." % (n_snps, len_snp_vars))
+            n_snps = len_snp_vars
+
+        len_mnp_vars = len(mnp_vars)
+        if n_mnps > len_mnp_vars:
+            warnings.warn("Number of MNPs to mix (%i) is greater than the number of MNPs in the VCF: %i. "
+                          "Using all MNPs in the VCF." % (n_mnps, len_mnp_vars))
+            n_mnps = len_mnp_vars
+
         snp_samp = random.sample(snp_vars, n_snps)
         mnp_samp = random.sample(mnp_vars, n_mnps)
         all_vars = snp_samp + mnp_samp
