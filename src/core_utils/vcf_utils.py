@@ -674,8 +674,11 @@ class VcfSubsampler(object):
         emp_nvars = self._get_nvars()
 
         if nvars > emp_nvars:
-            warnings.warn("Number of variants requested (%i) is greater than the number of variants in the VCF: %i."
-                          % (nvars, emp_nvars))
+            warnings.warn("Number of variants requested (%i) is greater than the number of variants in the VCF: %i. "
+                          "Using all variants in the VCF." % (nvars, emp_nvars))
+
+            # nvars must not exceed sample pop
+            nvars = emp_nvars
 
         weighted_variants = self._get_snp_mnp_variants(nvars)
         vars_to_sample = set(random.sample(range(len(weighted_variants)), k=nvars))
@@ -714,8 +717,11 @@ class VcfSubsampler(object):
         emp_nvars = self._get_nvars()
 
         if nvars > emp_nvars:
-            warnings.warn("Number of variants requested (%i) is greater than the number of variants in the VCF: %i."
-                          % (nvars, emp_nvars))
+            warnings.warn("Number of variants requested (%i) is greater than the number of variants in the VCF: %i. "
+                          "Using all variants in the VCF." % (nvars, emp_nvars))
+
+            # nvars must not exceed sample pop
+            nvars = emp_nvars
 
         # Make a mixture distr of SNPs and MNPs
         weighted_variants = self._get_snp_mnp_variants(nvars)
