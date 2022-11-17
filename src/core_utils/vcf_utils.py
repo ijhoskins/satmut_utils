@@ -625,13 +625,13 @@ class VcfSubsampler(object):
         # Protect against cases where there are not enough variants
         len_snp_vars = len(snp_vars)
         if n_snps > len_snp_vars:
-            warnings.warn("Number of SNPs to mix (%i) is greater than the number of SNPs in the VCF: %i. "
+            warnings.warn("Number of SNPs to mix (%i) is greater than the number of SNPs in the VCF (%i). "
                           "Using all SNPs in the VCF." % (n_snps, len_snp_vars))
             n_snps = len_snp_vars
 
         len_mnp_vars = len(mnp_vars)
         if n_mnps > len_mnp_vars:
-            warnings.warn("Number of MNPs to mix (%i) is greater than the number of MNPs in the VCF: %i. "
+            warnings.warn("Number of MNPs to mix (%i) is greater than the number of MNPs in the VCF (%i). "
                           "Using all MNPs in the VCF." % (n_mnps, len_mnp_vars))
             n_mnps = len_mnp_vars
 
@@ -688,7 +688,7 @@ class VcfSubsampler(object):
         emp_nvars = self._get_nvars()
 
         if nvars > emp_nvars:
-            warnings.warn("Number of variants requested (%i) is greater than the number of variants in the VCF: %i. "
+            warnings.warn("Number of variants requested (%i) is greater than the number of variants in the VCF (%i). "
                           "Using all variants in the VCF." % (nvars, emp_nvars))
 
             # nvars must not exceed sample pop
@@ -731,7 +731,7 @@ class VcfSubsampler(object):
         emp_nvars = self._get_nvars()
 
         if nvars > emp_nvars:
-            warnings.warn("Number of variants requested (%i) is greater than the number of variants in the VCF: %i. "
+            warnings.warn("Number of variants requested (%i) is greater than the number of variants in the VCF (%i). "
                           "Using all variants in the VCF." % (nvars, emp_nvars))
 
             # nvars must not exceed sample pop
