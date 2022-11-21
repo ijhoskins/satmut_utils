@@ -5,3 +5,6 @@ Release Summary:
 
 1.0.0+001, April 18, 2022
 	Added minimum versions for dependencies. Download satmut_utils from pip during creation of conda environment.
+
+1.0.1, November 21, 2022
+	Fixed bug where default --nthreads argument causes variant calling to fail during consensus deduplication.
