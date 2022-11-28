@@ -1,8 +1,8 @@
 #!/bin/bash
 
-SATMUT_UTILS_REPO="https://github.com/CenikLab/satmut_utils.git"
+SATMUT_UTILS_REPO="https://github.com/ijhoskins/satmut_utils.git"
 
-SATMUT_UTILS_REFS_REPO="https://github.com/CenikLab/satmut_utils_refs.git"
+SATMUT_UTILS_REFS_REPO="https://github.com/ijhoskins/satmut_utils_refs.git"
 
 # FTP link to Ensembl-formatted genome 
 GENOME_URL="ftp://ftp.ensembl.org/pub/release-84/fasta/homo_sapiens/dna/Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz"

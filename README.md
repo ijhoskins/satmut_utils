@@ -26,7 +26,7 @@ Currently, only Unix/Linux and MacOSX operating systems are supported. To get st
 
 2. Clone the satmut\_utils repository:
 ```
-git clone https://github.com/CenikLab/satmut_utils.git
+git clone https://github.com/ijhoskins/satmut_utils.git
 SATMUT_ROOT="$PWD/satmut_utils"
 ```
 
