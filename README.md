@@ -44,7 +44,7 @@ satmut\_utils is the primary command, with subcommands 'sim' and 'call'.
 
 ## Code examples
 
-See the [satmut_utils manual](https://github.com/CenikLab/satmut_utils/blob/master/docs/satmut_utils_manual.md) for more detailed usage information.
+See the [satmut_utils manual](https://github.com/ijhoskins/satmut_utils/blob/satmut_utils_dev/docs/satmut_utils_manual.md) for more detailed usage information.
 
 Parameter help:
 ```
@@ -87,7 +87,7 @@ If the Ensembl ID is not in the curated set of primary transcripts, or if you wa
 satmut_utils -r $TEST_DIR/CBS.fa -o $OUTPUT_DIR -p $TEST_DIR/CBS_sim_primers.bed call -1 $TEST_DIR/CBS_sim.R1.fq.gz -2 $TEST_DIR/CBS_sim.R2.fq.gz -v -m 1 -g $TEST_DIR/CBS.gff -k $REF_DIR/GRCh38.fa.gz
 ```
 
-The 'call' workflow produces a VCF of candidate variant calls as well as a bedgraph file reporting fragment coverage across the transcript reference. The output VCF and its corresponding tab-delimited summary.txt file contain records for each mismatched base in a MNP. See the [satmut_utils manual](https://github.com/CenikLab/satmut_utils/blob/master/docs/satmut_utils_manual.md) or the corresponding VCF header for column/field descriptions.
+The 'call' workflow produces a VCF of candidate variant calls as well as a bedgraph file reporting fragment coverage across the transcript reference. The output VCF and its corresponding tab-delimited summary.txt file contain records for each mismatched base in a MNP. See the [satmut_utils manual](https://github.com/ijhoskins/satmut_utils/blob/satmut_utils_dev/docs/satmut_utils_manual.md) or the corresponding VCF header for column/field descriptions.
 
 ## Reference files
 
