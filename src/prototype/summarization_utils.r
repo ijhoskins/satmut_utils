@@ -250,11 +250,11 @@ collapse_mnps<- function(in_dt, key_features=c("Sample", "VAR_ID"), agg_fun=nume
 #' @return data.table with AF subtract of the negative applied to other samples
 subtract_af<- function(in_dt){
   
-  copy_dt<- copy(in_dt)
-  neg_dt<- copy_dt[Input=="Negative_control", .(VAR_ID, CAO, CAF, NORM_CAO)]
+  neg_dt<- in_dt[Input=="Negative_control", .(
+    CAO=median(CAO), CAF=median(CAF), NORM_CAO=median(NORM_CAO)), by=.(VAR_ID)]
   
   # Merge the two tables so we can easily subtract the negative frequencies via a vectorized operation
-  merged_dt<- merge(copy_dt[Input!="Negative_control"], neg_dt, by="VAR_ID", all.x=TRUE)
+  merged_dt<- merge(in_dt[Input!="Negative_control"], neg_dt, by="VAR_ID", all.x=TRUE)
   
   # Set baseline to 0 for variants unique to a polysomal fraction
   merged_dt[is.na(CAF.y), CAF.y:=0.0]
@@ -267,6 +267,7 @@ subtract_af<- function(in_dt){
   merged_dt[,NORM_CAO:=NORM_CAO.x-NORM_CAO.y]
   filtered_dt<- merged_dt[CAF>0,]
   filtered_dt[,log10_CAF:=log10(CAF)]
+  filtered_dt[,log_CAF:=log(CAF)]
   
   return(filtered_dt)
 }

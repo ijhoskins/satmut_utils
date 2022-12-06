@@ -235,13 +235,13 @@ class VariantCaller(object):
         for i, mm_tuple in enumerate(filt_r_mms_ext):
 
             # If we are at the second to last mismatch, break to avoid IndexErrors
-            if i >= break_index and i > 0:
+            if i > break_index and i > 0:
                 break
 
             if mm_tuple.pos in position_blacklist:
                 continue
 
-            if filt_r_mms[i + 1].pos - filt_r_mms[i].pos >= max_mnp_window:
+            if filt_r_mms_ext[i + 1].pos - filt_r_mms_ext[i].pos >= max_mnp_window:
                 continue
 
             if filt_r_mms_len == 2:
@@ -252,7 +252,7 @@ class VariantCaller(object):
                 continue
 
             # Here we know that the next mismatch is within the window, but we don't know if its position is +1 or +2
-            if filt_r_mms[i + 2].pos - filt_r_mms[i].pos < max_mnp_window:
+            if filt_r_mms_ext[i + 2].pos - filt_r_mms_ext[i].pos < max_mnp_window:
                 # Here we have a tri-nt MNP that spans 3 consecutive nts
                 mmts = [filt_r_mms[i], filt_r_mms[i + 1], filt_r_mms[i + 2]]
                 call_tuple, mm_pos_set = self._generate_call_tuple(mmts)
@@ -262,7 +262,7 @@ class VariantCaller(object):
 
             # if i + 1 and i + 2 are consecutive continue as i + 1 could initiate a tri-nt MNP
             # if they are not consecutive call a di-nt MNP
-            if (filt_r_mms[i + 2].pos - filt_r_mms[i + 1].pos) != 1:
+            if (filt_r_mms_ext[i + 2].pos - filt_r_mms_ext[i + 1].pos) != 1:
                 mmts = [filt_r_mms[i], filt_r_mms[i + 1]]
                 call_tuple, mm_pos_set = self._generate_call_tuple(mmts)
                 haplotypes[call_tuple] |= mm_pos_set
