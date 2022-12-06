@@ -256,7 +256,7 @@ class TestVariantCaller(unittest.TestCase):
             vc.CALL_TUPLE(contig="CBS_pEZY3", pos=2461, ref="GGG", alt="CCC", refs=None, alts=None, positions=None)
         }
 
-        expected_dict_val = {2456, 2457, 2458}
+        expected_dict_val = {2456, 2457, 2458, 2461, 2462, 2463}
 
         # This mismatch exists in MG01HS02:1483:HG7MTBCX3:1:1215:11984:60374_CGTTGATC
         mm1 = vc.MM_TUPLE("CBS_pEZY3", 2456, "A", "G", 39, 60)
