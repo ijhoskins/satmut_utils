@@ -1,7 +1,10 @@
 Release Summary:
 
-1.0.0-dev, April 18, 2022
-	Initial satmut_utils development release
+1.0.0, April 15, 2022
+	Initial release of satmut_utils
+
+1.0.0+001, April 18, 2022
+	Added minimum versions for dependencies. Download satmut_utils from pip during creation of conda environment.
 
 1.0.1-dev, November 21, 2022
 	Fixed bug that caused satmut_utils 'call' to fail when running consensus deduplication with --nthreads 0
@@ -16,5 +19,5 @@ Release Summary:
 	
 	Fixed links to manual in README.md to point to ijhoskins
 
-1.0.2-dev, December 6, 2022
+1.0.2-dev, December 9, 2022
 	Fixed variant calling bug that caused di-nt MNPs to be called as two SNPs when the di-nt MNP was downstream of a single SNP or another di-nt MNP
