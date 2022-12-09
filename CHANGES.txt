@@ -8,3 +8,6 @@ Release Summary:
 
 1.0.1, November 21, 2022
 	Fixed bug where default --nthreads argument causes variant calling to fail during consensus deduplication.
+
+1.0.2, December 9, 2022
+	Fixed variant calling bug that caused di-nt MNPs to be called as two SNPs when the di-nt MNP was downstream of a single SNP or another di-nt MNP.

@@ -154,7 +154,7 @@ class TestVariantCaller(unittest.TestCase):
         self.assertTrue(all(test_res))
 
     def test_get_haplotype_dict_outside_window(self):
-        """Tests that we can generate a dictionary containing positions of mismatches involved in a haplotype."""
+        """Tests that we can generate an empty dictionary for mismatches at a distance greater than the window."""
 
         mm1 = vc.MM_TUPLE("CBS_pEZY3", 2456, "A", "G", 39, 60)
         mm2 = vc.MM_TUPLE("CBS_pEZY3", 2458, "G", "C", 40, 62)
@@ -167,6 +167,118 @@ class TestVariantCaller(unittest.TestCase):
 
         self.assertTrue(all((test_1, test_2)))
 
+    def test_get_haplotype_dict_snp_dint_mnp(self):
+        """Tests that we can generate a haplotype dictionary for a di-nt MNP downstream of a SNP."""
+
+        expected_dict_key = vc.CALL_TUPLE(
+            contig="CBS_pEZY3", pos=2456, ref="ACG", alt="GCC", refs=None, alts=None, positions=None)
+
+        expected_dict_val = {2456, 2458}
+
+        mm1 = vc.MM_TUPLE("CBS_pEZY3", 2450, "A", "G", 39, 54)
+
+        # This mismatch exists in MG01HS02:1483:HG7MTBCX3:1:1215:11984:60374_CGTTGATC
+        mm2 = vc.MM_TUPLE("CBS_pEZY3", 2456, "A", "G", 39, 60)
+
+        # This mismatch does not exist in MG01HS02:1483:HG7MTBCX3:1:1215:11984:60374_CGTTGATC
+        # but we create it for testing
+        mm3 = vc.MM_TUPLE("CBS_pEZY3", 2458, "G", "C", 40, 62)
+
+        filt_r_mms = [mm1, mm2, mm3]
+        observed_haplo_dict, observed_pos_blacklist = self.vc._get_haplotype_dict(filt_r_mms, 3)
+
+        test_1 = list(observed_haplo_dict.keys())[0] == expected_dict_key
+        test_2 = len(list(observed_haplo_dict.values())[0] - expected_dict_val) == 0
+        test_3 = len(observed_pos_blacklist - expected_dict_val) == 0
+        test_res = (test_1, test_2, test_3)
+        self.assertTrue(all(test_res))
+
+    def test_get_haplotype_dict_snp_trint_mnp(self):
+        """Tests that we can generate a haplotype dictionary for a tri-nt MNP downstream of a SNP."""
+
+        expected_dict_key = vc.CALL_TUPLE(
+            contig="CBS_pEZY3", pos=2456, ref="ACG", alt="GAC", refs=None, alts=None, positions=None)
+
+        expected_dict_val = {2456, 2457, 2458}
+
+        mm1 = vc.MM_TUPLE("CBS_pEZY3", 2450, "A", "G", 39, 54)
+
+        # This mismatch exists in MG01HS02:1483:HG7MTBCX3:1:1215:11984:60374_CGTTGATC
+        mm2 = vc.MM_TUPLE("CBS_pEZY3", 2456, "A", "G", 39, 60)
+
+        # These mismatches do not exist in MG01HS02:1483:HG7MTBCX3:1:1215:11984:60374_CGTTGATC
+        # but we create it for testing
+        mm3 = vc.MM_TUPLE("CBS_pEZY3", 2457, "C", "A", 40, 61)
+        mm4 = vc.MM_TUPLE("CBS_pEZY3", 2458, "G", "C", 40, 62)
+
+        filt_r_mms = [mm1, mm2, mm3, mm4]
+        observed_haplo_dict, observed_pos_blacklist = self.vc._get_haplotype_dict(filt_r_mms, 3)
+
+        test_1 = list(observed_haplo_dict.keys())[0] == expected_dict_key
+        test_2 = len(list(observed_haplo_dict.values())[0] - expected_dict_val) == 0
+        test_3 = len(observed_pos_blacklist - expected_dict_val) == 0
+        test_res = (test_1, test_2, test_3)
+        self.assertTrue(all(test_res))
+
+    def test_get_haplotype_dict_two_dint_mnp(self):
+        """Tests that we can generate a haplotype dictionary for two di-nt MNPs not within the window."""
+
+        expected_dict_keys = {
+            vc.CALL_TUPLE(contig="CBS_pEZY3", pos=2456, ref="AC", alt="GA", refs=None, alts=None, positions=None),
+            vc.CALL_TUPLE(contig="CBS_pEZY3", pos=2461, ref="GG", alt="AA", refs=None, alts=None, positions=None)
+        }
+
+        expected_dict_val = {2456, 2457, 2461, 2462}
+
+        # This mismatch exists in MG01HS02:1483:HG7MTBCX3:1:1215:11984:60374_CGTTGATC
+        mm1 = vc.MM_TUPLE("CBS_pEZY3", 2456, "A", "G", 39, 60)
+
+        # These mismatches do not exist in MG01HS02:1483:HG7MTBCX3:1:1215:11984:60374_CGTTGATC
+        # but we create it for testing
+        mm2 = vc.MM_TUPLE("CBS_pEZY3", 2457, "C", "A", 40, 61)
+        mm3 = vc.MM_TUPLE("CBS_pEZY3", 2461, "G", "A", 40, 65)
+        mm4 = vc.MM_TUPLE("CBS_pEZY3", 2462, "G", "A", 40, 66)
+
+        filt_r_mms = [mm1, mm2, mm3, mm4]
+        observed_haplo_dict, observed_pos_blacklist = self.vc._get_haplotype_dict(filt_r_mms, 3)
+
+        test_1 = len(set(observed_haplo_dict.keys()) - expected_dict_keys) == 0
+        test_2 = len(list(observed_haplo_dict.values())[0] - expected_dict_val) == 0
+        test_3 = len(observed_pos_blacklist - expected_dict_val) == 0
+        test_res = (test_1, test_2, test_3)
+        self.assertTrue(all(test_res))
+
+    def test_get_haplotype_dict_two_trint_mnp(self):
+        """Tests that we can generate a haplotype dictionary for two tri-nt MNPs not within the window."""
+
+        expected_dict_keys = {
+            vc.CALL_TUPLE(contig="CBS_pEZY3", pos=2456, ref="ACG", alt="GAC", refs=None, alts=None, positions=None),
+            vc.CALL_TUPLE(contig="CBS_pEZY3", pos=2461, ref="GGG", alt="CCC", refs=None, alts=None, positions=None)
+        }
+
+        expected_dict_val = {2456, 2457, 2458, 2461, 2462, 2463}
+
+        # This mismatch exists in MG01HS02:1483:HG7MTBCX3:1:1215:11984:60374_CGTTGATC
+        mm1 = vc.MM_TUPLE("CBS_pEZY3", 2456, "A", "G", 39, 60)
+
+        # These mismatches do not exist in MG01HS02:1483:HG7MTBCX3:1:1215:11984:60374_CGTTGATC
+        # but we create it for testing
+        mm2 = vc.MM_TUPLE("CBS_pEZY3", 2457, "C", "A", 40, 61)
+        mm3 = vc.MM_TUPLE("CBS_pEZY3", 2458, "G", "C", 40, 62)
+
+        mm4 = vc.MM_TUPLE("CBS_pEZY3", 2461, "G", "C", 40, 65)
+        mm5 = vc.MM_TUPLE("CBS_pEZY3", 2462, "G", "C", 40, 66)
+        mm6 = vc.MM_TUPLE("CBS_pEZY3", 2463, "G", "C", 40, 67)
+
+        filt_r_mms = [mm1, mm2, mm3, mm4, mm5, mm6]
+        observed_haplo_dict, observed_pos_blacklist = self.vc._get_haplotype_dict(filt_r_mms, 3)
+
+        test_1 = len(set(observed_haplo_dict.keys()) - expected_dict_keys) == 0
+        test_2 = len(list(observed_haplo_dict.values())[0] - expected_dict_val) == 0
+        test_3 = len(observed_pos_blacklist - expected_dict_val) == 0
+        test_res = (test_1, test_2, test_3)
+        self.assertTrue(all(test_res))
+
     def test_call_haplotypes_one_mismatch(self):
         """Tests that no haplotypes are returned if there is only one mismatch in the mate pair."""
 
@@ -177,7 +289,7 @@ class TestVariantCaller(unittest.TestCase):
         self.assertIsNone(observed)
 
     def test_call_haplotypes_two_mismatches_outside_window(self):
-        """Tests that no haplotypes are returned if there is only one mismatch in the mate pair."""
+        """Tests that no haplotypes are returned two mismatches are at distance greater than the window."""
 
         mm1 = vc.MM_TUPLE("CBS_pEZY3", 2456, "A", "G", 39, 60)
         mm2 = vc.MM_TUPLE("CBS_pEZY3", 2466, "G", "C", 40, 70)
