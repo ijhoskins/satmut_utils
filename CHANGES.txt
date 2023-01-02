@@ -23,9 +23,11 @@ Release Summary:
 	Fixed variant calling bug that caused di-nt MNPs to be called as two SNPs when the di-nt MNP was downstream of a single SNP or another di-nt MNP
 	
 1.0.3-dev, December 19, 2022
-	Added back run_design_conversion.py to scripts directory
+	Added back run_design_conversion.py to prototype directory
 	
 	Added __init__.py to prototype directory. Now in package.
 	
 	Fixed URL links in setup.cfg and in satmut_utils_manual.md to point to ijhoskins repo
 	
+1.0.3-dev001, January 2, 2023
+	Moved run_design_conversion.py from prototype to scripts directory
