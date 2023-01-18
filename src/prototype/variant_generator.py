@@ -45,8 +45,9 @@ class VariantGenerator(object):
     DEFAULT_SNP_WEIGHT = 0.5
     DEFAULT_MUTAGENESIS_PRIMER_LEN = 25
 
-    def __init__(self, gff, ref, gff_ref, mut_sig=DEFAULT_MUT_SIG, haplotypes=DEFAULT_HAPLO, haplotype_len=DEFAULT_HAPLO_LEN,
-                 outdir=DEFAULT_OUTDIR, random_seed=DEFAULT_HAPLO_SEED):
+    def __init__(self, gff, ref, gff_ref, mut_sig=DEFAULT_MUT_SIG, haplotypes=DEFAULT_HAPLO,
+                 haplotype_len=DEFAULT_HAPLO_LEN, outdir=DEFAULT_OUTDIR, snp_weight=DEFAULT_SNP_WEIGHT,
+                 random_seed=DEFAULT_HAPLO_SEED):
         r"""Constructor for VariantGenerator.
 
         :param str gff: transcript GFF; must have "transcript_id" metafeature and "exon", "CDS", "start_codon", \
@@ -57,11 +58,15 @@ class VariantGenerator(object):
         :param bool haplotypes: should haplotypes be created with uniform number to codon variants? Default True.
         :param int haplotype_len: max length to create haplotypes. No longer than read length.
         :param str outdir: Output directory to write results
-        :param int random_seed: integer seed for haplotype generation if haplotypes=True.
+        :param float snp_weight: generate haplotypes with this proportion of SNPs. Default 0.5.
+        :param int random_seed: integer seed for haplotype generation if haplotypes=True. Default 9.
+        :raises NotImplementedError: if gff or gff_ref does not have a GFF or GTF extension
         """
 
-        file_ext = fu.get_extension(gff)
-        if not (re.match(ffu.GFF_FILETYPE, file_ext) or re.match(ffu.GTF_FILETYPE, file_ext)):
+        gff_ext = fu.get_extension(gff)
+        gff_ref_ext = fu.get_extension(gff_ref)
+        if not (re.match(ffu.GFF_FILETYPE, gff_ext) or re.match(ffu.GTF_FILETYPE, gff_ext)) or not \
+                (re.match(ffu.GFF_FILETYPE, gff_ref_ext) or re.match(ffu.GTF_FILETYPE, gff_ref_ext)):
             raise NotImplementedError("Input file must be a GFF/GTF filetype.")
 
         self.gff = gff
@@ -71,6 +76,7 @@ class VariantGenerator(object):
         self.haplotypes = haplotypes
         self.haplotype_len = haplotype_len
         self.outdir = outdir
+        self.snp_weight = snp_weight
         self.random_seed = random_seed
 
         if not os.path.exists(self.outdir):
@@ -186,12 +192,13 @@ class VariantGenerator(object):
         return var_id_tup
 
     def _get_all_trx_variants(self, trx_id, outfile, var_type=DEFAULT_VAR_TYPE, mnp_bases=DEFAULT_MNP_BASES):
-        """Generates a VCF of all permutation variants in  the coding region of a transcript.
+        """Generates a VCF of all permutation variants in the coding region of a transcript.
 
         :param str trx_id: transcript ID to generate variants for; only one version may be available in the input GFF
         :param str outfile: output VCF filename
         :param str var_type: one of {"snp", "mnp", "total"}
         :param int mnp_bases: report for di- or tri-nt MNP? Must be either 2 or 3. Default 3.
+
         :return str: name of the output VCF
         """
 
@@ -268,7 +275,7 @@ class VariantGenerator(object):
                 number_variants = len(all_vars)
                 haplotype_vars = 0
                 haplotype_snp_vars = 0
-                needed_snps = int(round(self.DEFAULT_SNP_WEIGHT * number_variants))
+                needed_snps = int(round(self.snp_weight * number_variants))
                 random.seed(self.random_seed)
                 variant_pop = snps
 
@@ -316,8 +323,8 @@ class VariantGenerator(object):
         fu.safe_remove((patch_vcf,))
         return outfile
 
-    def workflow(self, trx_id, targets=DEFAULT_TARGETS, outfile=DEFAULT_OUTFILE,
-                 var_type=DEFAULT_VAR_TYPE, mnp_bases=DEFAULT_MNP_BASES):
+    def workflow(self, trx_id, targets=DEFAULT_TARGETS, outfile=DEFAULT_OUTFILE, var_type=DEFAULT_VAR_TYPE,
+                 mnp_bases=DEFAULT_MNP_BASES):
         """Runs the VariantGenerator workflow.
 
         :param str trx_id: transcript ID to generate variants for; only one version may be available in the input GFF
@@ -647,7 +654,7 @@ class AminoAcidTypes(CodonPermuts):
     AA_TYPE_CHANGE_FORMAT = "{}:{}"
 
     def __init__(self, codons=CodonPermuts.ALL_CODONS, var_type="total", mnp_bases=3):
-        """Ctor for AminoAcidTypes.
+        """Constructor for AminoAcidTypes.
 
         :param tuple codons: tuple of codons to find permutations for
         :param str var_type: one of {"snp", "mnp", "total"}

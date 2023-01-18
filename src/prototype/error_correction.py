@@ -113,8 +113,8 @@ class ErrorCorrectionDataGenerator(object):
                  out_vcf=vg.VariantGenerator.DEFAULT_OUTFILE, var_type=vg.VariantGenerator.DEFAULT_VAR_TYPE,
                  mnp_bases=vg.VariantGenerator.DEFAULT_MNP_BASES, output_prefix=DEFAULT_PREFIX,
                  haplotypes=vg.VariantGenerator.DEFAULT_HAPLO, haplotype_len=vg.VariantGenerator.DEFAULT_HAPLO_LEN,
-                 random_seed=vu.VcfSubsampler.DEFAULT_SEED, buffer=ReadEditor.DEFAULT_BUFFER,
-                 force_edit=ReadEditor.DEFAULT_FORCE):
+                 snp_weight=vg.VariantGenerator.DEFAULT_SNP_WEIGHT, random_seed=vu.VcfSubsampler.DEFAULT_SEED,
+                 buffer=ReadEditor.DEFAULT_BUFFER, force_edit=ReadEditor.DEFAULT_FORCE):
         """Runs the ErrorCorrectionDataGenerator workflow.
 
         :param str trx_id: transcript ID to generate variants for; only one version may be available in the input GFF
@@ -126,7 +126,8 @@ class ErrorCorrectionDataGenerator(object):
         :param str | None output_prefix: Optional output prefix for the FASTQ(s) and BAM; if None, use same prefix as VCF
         :param bool haplotypes: should haplotypes be created with uniform number to codon variants? Default False.
         :param int haplotype_len: max length to create haplotypes. Must be no longer than read length. Default 12.
-        :param int random_seed: seed for variant sampling. Default 9.
+        :param float snp_weight: generate haplotypes with this proportion of SNPs. Default 0.5.
+        :param int random_seed: integer seed for variant generation, subsampling, and simulation. Default 9.
         :param int buffer: buffer about the edit span (position + REF len) to ensure lack of error before editing. Default 6.
         :param bool force_edit: flag to attempt editing of variants despite a NonconfiguredVariant exception.
         :return tuple: (str, str, str, str) paths of the truth VCF, edited BAM, R1 FASTQ, R2 FASTQ
@@ -147,7 +148,7 @@ class ErrorCorrectionDataGenerator(object):
         logger.info("Generating all codon-permutated variants.")
         variant_generator = vg.VariantGenerator(
             gff=self.gff, ref=self.ref, gff_ref=self.gff_ref, mut_sig=mut_sig, haplotypes=haplotypes,
-            haplotype_len=haplotype_len, outdir=self.outdir, random_seed=random_seed)
+            haplotype_len=haplotype_len, outdir=self.outdir, snp_weight=snp_weight, random_seed=random_seed)
 
         all_codon_permuts = variant_generator.workflow(
             trx_id=trx_id, targets=targets, outfile=out_vcf, var_type=var_type, mnp_bases=mnp_bases)

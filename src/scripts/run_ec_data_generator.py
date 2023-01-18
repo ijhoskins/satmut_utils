@@ -93,8 +93,13 @@ def parse_commandline_params(args):
                         help='For var_type==mnp or var_type==total, max bases for MNPs. Must be either 2 or 3. '
                              'Default %s.' % VariantGenerator.DEFAULT_MNP_BASES)
 
-    parser.add_argument("-y", "--random_seed", type=int, default=VariantGenerator.DEFAULT_HAPLO_SEED,
-                        help='Seed for random variant sampling.')
+    parser.add_argument("-w", "--snp_weight", type=float, default=VariantGenerator.DEFAULT_SNP_WEIGHT,
+                        help='Generate haplotypes with this proportion of SNPs. Default %f.' %
+                             VariantGenerator.DEFAULT_SNP_WEIGHT)
+
+    parser.add_argument("-y", "--random_seed", type=int, default=ReadEditor.DEFAULT_SEED,
+                        help='Integer seed for variant generation, subsampling, and variant simulation. Default %i.' %
+                             ReadEditor.DEFAULT_SEED)
 
     parser.add_argument("-e", "--edit_buffer", type=int, default=ReadEditor.DEFAULT_BUFFER,
                         help='Buffer +/- the edit coordinate position(s) to check for pre-existing errors in reads. '
@@ -121,9 +126,9 @@ def workflow(negative_summary, mutant_summary, negative_bam, trx_id, ref, gff, g
              output_dir=ErrorCorrectionDataGenerator.DEFAULT_OUTDIR, mut_sig=DEFAULT_MUT_SIG,
              output_prefix=ErrorCorrectionDataGenerator.DEFAULT_PREFIX, var_type=VariantGenerator.DEFAULT_VAR_TYPE,
              haplotypes=VariantGenerator.DEFAULT_HAPLO, haplotype_len=VariantGenerator.DEFAULT_HAPLO_LEN,
-             mnp_bases=VariantGenerator.DEFAULT_MNP_BASES, random_seed=VariantGenerator.DEFAULT_HAPLO_SEED,
-             buffer=ReadEditor.DEFAULT_BUFFER, force_edit=ReadEditor.DEFAULT_FORCE,
-             nthreads=ErrorCorrectionDataGenerator.DEFAULT_NTHREADS):
+             mnp_bases=VariantGenerator.DEFAULT_MNP_BASES, snp_weight=VariantGenerator.DEFAULT_SNP_WEIGHT,
+             random_seed=VariantGenerator.DEFAULT_HAPLO_SEED, buffer=ReadEditor.DEFAULT_BUFFER,
+             force_edit=ReadEditor.DEFAULT_FORCE, nthreads=ErrorCorrectionDataGenerator.DEFAULT_NTHREADS):
     r"""Runs the error correction data generation workflow.
 
     :param str negative_summary: vcf.summary.txt file for the negative control library
@@ -143,7 +148,8 @@ def workflow(negative_summary, mutant_summary, negative_bam, trx_id, ref, gff, g
     :param bool haplotypes: should haplotypes be created with uniform number to codon variants? Default True.
     :param int haplotype_len: max length to create haplotypes. No longer than read length.
     :param int mnp_bases: report for di- or tri-nt MNP? Must be either 2 or 3. Default 3.
-    :param int random_seed: seed for variant and qname random sampling
+    :param float snp_weight: generate haplotypes with this proportion of SNPs. Default 0.5.
+    :param int random_seed: integer seed for variant generation, subsampling, and simulation. Default 9.
     :param int buffer: buffer about the edit span (position + REF len) to ensure lack of error before editing. Default 3.
     :param bool force_edit: flag to attempt editing of variants despite a NonconfiguredVariant exception.
     :param int nthreads: Number of threads to use for BAM operations. Default 0 (autodetect).
@@ -156,8 +162,8 @@ def workflow(negative_summary, mutant_summary, negative_bam, trx_id, ref, gff, g
 
     truth_vcf, output_bam, zipped_r1_fastq, zipped_r2_fastq = ecdg.workflow(
         trx_id=trx_id, targets=targets, mut_sig=mut_sig, var_type=var_type, mnp_bases=mnp_bases,
-        output_prefix=output_prefix, haplotypes=haplotypes, haplotype_len=haplotype_len, random_seed=random_seed,
-        buffer=buffer, force_edit=force_edit)
+        output_prefix=output_prefix, haplotypes=haplotypes, haplotype_len=haplotype_len, snp_weight=snp_weight,
+        random_seed=random_seed, buffer=buffer, force_edit=force_edit)
 
     return truth_vcf, output_bam, zipped_r1_fastq, zipped_r2_fastq
 
@@ -185,8 +191,8 @@ def main():
              mut_sig=parsed_args["mutagenesis_signature"], output_prefix=parsed_args["output_prefix"],
              var_type=parsed_args["var_type"], haplotypes=parsed_args["add_haplotypes"],
              haplotype_len=parsed_args["haplotype_length"], mnp_bases=parsed_args["mnp_bases"],
-             random_seed=parsed_args["random_seed"], buffer=parsed_args["edit_buffer"],
-             force_edit=parsed_args["force_edit"], nthreads=parsed_args["nthreads"])
+             snp_weight=parsed_args["snp_weight"], random_seed=parsed_args["random_seed"],
+             buffer=parsed_args["edit_buffer"], force_edit=parsed_args["force_edit"], nthreads=parsed_args["nthreads"])
 
     logger.info("Completed %s" % sys.argv[0])
 

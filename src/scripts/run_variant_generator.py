@@ -76,7 +76,13 @@ def parse_commandline_params(args):
                         help='For var_type==mnp or var_type==total, max number of bases in MNPs. Must be either 2 or 3. '
                              'Default %i.' % VariantGenerator.DEFAULT_MNP_BASES)
 
-    parser.add_argument("-y", "--random_seed", type=int, default=9, help='Seed for random variant sampling.')
+    parser.add_argument("-w", "--snp_weight", type=float, default=VariantGenerator.DEFAULT_SNP_WEIGHT,
+                        help='Generate haplotypes with this proportion of SNPs. Default %f.' %
+                             VariantGenerator.DEFAULT_SNP_WEIGHT)
+
+    parser.add_argument("-y", "--random_seed", type=int, default=VariantGenerator.DEFAULT_HAPLO_SEED,
+                        help='Integer seed for haplotype generation if --add_haplotypes provided. Default %i.' %
+                             VariantGenerator.DEFAULT_HAPLO_SEED)
 
     parsed_args = vars(parser.parse_args(args))
     return parsed_args
@@ -85,8 +91,8 @@ def parse_commandline_params(args):
 def workflow(trx_id, transcript_gff, ref, gff_ref, targets=VariantGenerator.DEFAULT_TARGETS,
              out_vcf=VariantGenerator.DEFAULT_OUTFILE, outdir=VariantGenerator.DEFAULT_OUTDIR, mut_sig=DEFAULT_MUT_SIG,
              var_type=VariantGenerator.DEFAULT_VAR_TYPE, haplotypes=VariantGenerator.DEFAULT_HAPLO,
-             haplotype_len=VariantGenerator.DEFAULT_HAPLO_LEN, random_seed=VariantGenerator.DEFAULT_HAPLO_SEED,
-             mnp_bases=VariantGenerator.DEFAULT_MNP_BASES):
+             haplotype_len=VariantGenerator.DEFAULT_HAPLO_LEN, mnp_bases=VariantGenerator.DEFAULT_MNP_BASES,
+             snp_weight=VariantGenerator.DEFAULT_SNP_WEIGHT, random_seed=VariantGenerator.DEFAULT_HAPLO_SEED):
     r"""Runs the variant generation workflow.
 
     :param str trx_id: Transcript ID for which to generate variants
@@ -101,14 +107,15 @@ def workflow(trx_id, transcript_gff, ref, gff_ref, targets=VariantGenerator.DEFA
     :param str var_type: one of {"snp", "mnp", "total"}
     :param bool haplotypes: should haplotypes be created with uniform number to codon variants? Default True.
     :param int haplotype_len: max length to create haplotypes. No longer than read length.
-    :param int random_seed: seed for variant sampling.
     :param int mnp_bases: report for di- or tri-nt MNP? Must be either 2 or 3. Default 3.
+    :param float snp_weight: generate haplotypes with this proportion of SNPs. Default 0.5.
+    :param int random_seed: integer seed for haplotype generation if haplotypes=True. Default 9.
     :return str: name of the output VCF
     """
 
     vg = VariantGenerator(
         gff=transcript_gff, ref=ref, gff_ref=gff_ref, mut_sig=mut_sig, haplotypes=haplotypes,
-        haplotype_len=haplotype_len, outdir=outdir, random_seed=random_seed)
+        haplotype_len=haplotype_len, outdir=outdir, snp_weight=snp_weight, random_seed=random_seed)
 
     out_vcf = vg.workflow(trx_id=trx_id, targets=targets, outfile=out_vcf, var_type=var_type, mnp_bases=mnp_bases)
     return out_vcf
@@ -133,8 +140,8 @@ def main():
              gff_ref=parsed_args["gff_reference"], targets=parsed_args["targets"], out_vcf=parsed_args["out_vcf"],
              outdir=parsed_args["output_dir"],  mut_sig=parsed_args["mutagenesis_signature"],
              var_type=parsed_args["var_type"], haplotypes=parsed_args["add_haplotypes"],
-             haplotype_len=parsed_args["haplotype_length"], random_seed=parsed_args["random_seed"],
-             mnp_bases=parsed_args["mnp_bases"])
+             haplotype_len=parsed_args["haplotype_length"], mnp_bases=parsed_args["mnp_bases"],
+             snp_weight=parsed_args["snp_weight"], random_seed=parsed_args["random_seed"])
 
     logger.info("Completed %s" % sys.argv[0])
 
