@@ -172,9 +172,9 @@ def parse_commandline_params(args):
                                   VariantCaller.VARIANT_CALL_MIN_DP)
 
     parser_call.add_argument("-w", "--max_mnp_window", type=int, default=VariantCaller.VARIANT_CALL_MAX_MNP_WINDOW,
-                             help='Max window to search for a MNP and merge phased SNPs. Must be between 1 and 3.'
-                                  'Any consecutive SNPs within this window will be merged into a MNP, to the exclusion '
-                                  'of its component SNPs. Default %i.' % VariantCaller.VARIANT_CALL_MAX_MNP_WINDOW)
+                             help='Max window to search for a MNP and merge phased SNPs. Any consecutive SNPs within '
+                                  'this window will be merged into a MNP, to the exclusion of its component SNPs. '
+                                  'Default %i.' % VariantCaller.VARIANT_CALL_MAX_MNP_WINDOW)
 
     parser_call.add_argument("-n", "--ntrimmed", type=int, default=FastqPreprocessor.NTRIMMED,
                              help='Max number of adapters to trim from each read. Useful for trimming terminal tiles '
@@ -393,14 +393,11 @@ def call_workflow(fastq1, fastq2,
     :param str mut_sig: mutagenesis signature- one of {NNN, NNK, NNS}. Default NNN.
     :param bool keep_intermediates: flag to write intermediate files to the output_dir. Default False.
     :return tuple: (VCF, BED) filepaths
-    :raises NotImplementedError: if mut_sig is not one of NNN, NNK, NNS; or if not 1 <= max_mnp_window <= 3
+    :raises NotImplementedError: if mut_sig is not one of NNN, NNK, NNS
     """
 
     if mut_sig not in VALID_MUT_SIGS:
         raise NotImplementedError("Mutation signature %s must be one of {NNN, NNK, NNS}." % mut_sig)
-
-    if max_mnp_window not in {1, 2, 3}:
-        raise NotImplementedError("--max_mnp_window must be one of {1,2,3}.")
 
     # Unfortunately sort order harmony with `samtools sort -n` requires we know the format of the QNAME
     # Check to make sure we have either Illumina format or single integer read names (QNAMEs)
