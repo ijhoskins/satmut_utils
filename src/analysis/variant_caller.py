@@ -189,31 +189,9 @@ class VariantCaller(object):
         ref_mm_pos = [i for i, e in enumerate(ref_pos) if e in mm_pos_set]
         return ref_nts, ref_mm_pos
 
-    def _generate_call_tuple(self, mmts):
-        """Generates a CALL_TUPLE from MM_TUPLEs.
-
-        :param iter mmts: MM_TUPLEs
-        :return tuple: (collections.namedtuple, set) analysis.variant_caller.CALL_TUPLE and 1-based reference positions
-        """
-
-        first_mmt = mmts[0]
-        last_mmt = mmts[-1]
-        mm_pos_set = {mmt.pos for mmt in mmts}
-
-        # Generate the REF field based on the span of the haplotype
-        ref_nts, ref_mm_pos = self._get_haplotype_ref(first_mmt.contig, first_mmt.pos, last_mmt.pos, mm_pos_set)
-
-        # Generate the ALT field based on the 0-based mismatch positions in REF
-        alt_nts = list(copy.copy(ref_nts))
-        for mmt, mm_pos in zip(mmts, ref_mm_pos):
-            alt_nts[mm_pos] = mmt.alt
-
-        call_tuple = CALL_TUPLE(first_mmt.contig, first_mmt.pos, ref_nts, "".join(alt_nts), None, None, None)
-
-        return call_tuple, mm_pos_set
-
     def _get_haplotype_dict(self, filt_r_mms, max_mnp_window=VARIANT_CALL_MAX_MNP_WINDOW):
         """Finds haplotypes within a MNP window size.
+
         :param list filt_r_mms: list of R1 or R2 MM_TUPLEs
         :param int max_mnp_window: max number of consecutive nucleotides to search for haplotypes
         :return tuple: (collections.defaultdict, set) of ({collections.namedtuple: frozenset} dict keyed by \
@@ -262,7 +240,9 @@ class VariantCaller(object):
                 for mt, mm_pos in zip(final_group, ref_mm_pos):
                     alt_nts[mm_pos] = mt.alt
 
-                haplotypes[CALL_TUPLE(first_mt.contig, first_mt.pos, ref_nts, "".join(alt_nts))] |= mm_pos_set
+                haplotypes[CALL_TUPLE(
+                    first_mt.contig, first_mt.pos, ref_nts, "".join(alt_nts), None, None, None)] |= mm_pos_set
+
                 position_blacklist |= mm_pos_set
 
         return haplotypes, position_blacklist
