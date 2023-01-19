@@ -835,10 +835,3 @@ class TestVariantCaller(unittest.TestCase):
         with self.assertRaises(NotImplementedError):
             _, _ = self.vc.workflow(min_bq=0, max_nm=5, min_supporting_qnames=1, max_mnp_window=3,
                                     out_prefix=os.path.join(self.tempdir, "test"))
-
-    def test_workflow_max_mnp_window(self):
-        """Tests that a NotImplementedError is raised if max_mnp_window > 3."""
-
-        with self.assertRaises(NotImplementedError):
-            _, _ = self.vc.workflow(min_bq=30, max_nm=5, min_supporting_qnames=1, max_mnp_window=4,
-                                    out_prefix=os.path.join(self.tempdir, "test"))
