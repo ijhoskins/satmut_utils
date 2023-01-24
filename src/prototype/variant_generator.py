@@ -64,9 +64,8 @@ class VariantGenerator(object):
         """
 
         gff_ext = fu.get_extension(gff)
-        gff_ref_ext = fu.get_extension(gff_ref)
-        if not (re.match(ffu.GFF_FILETYPE, gff_ext) or re.match(ffu.GTF_FILETYPE, gff_ext)) or not \
-                (re.match(ffu.GFF_FILETYPE, gff_ref_ext) or re.match(ffu.GTF_FILETYPE, gff_ref_ext)):
+        
+        if not (re.match(ffu.GFF_FILETYPE, gff_ext) or re.match(ffu.GTF_FILETYPE, gff_ext)):
             raise NotImplementedError("Input file must be a GFF/GTF filetype.")
 
         self.gff = gff
