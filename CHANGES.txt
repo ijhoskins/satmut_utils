@@ -11,3 +11,6 @@ Release Summary:
 
 1.0.2, December 9, 2022
 	Fixed variant calling bug that caused di-nt MNPs to be called as two SNPs when the di-nt MNP was downstream of a single SNP or another di-nt MNP.
+
+1.0.3, June 23, 2023
+	Fixed bug where relative file paths for the FASTQs caused the alignment workflow to fail. Removed the filtering of GFF records that annotate contigs with RefSeq accession identifiers (NT or NW), as filtering may lead to errors with custom reference files specifying a contig that begins with NT or NW.

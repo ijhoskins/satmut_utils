@@ -54,7 +54,7 @@ then
 fi
 
 # Create and activate the conda environment
-if conda env list | grep "satmut_utils" >/dev/null 2>&1
+if conda env list | fgrep "satmut_utils " >/dev/null 2>&1
 then
 	echo "satmut_utils environment already exists. If you would like to regenerate the environment, remove it first with \"conda env remove --name satmut_utils\""
 	exit 1
