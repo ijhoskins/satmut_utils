@@ -34,6 +34,8 @@ SIM_WORKFLOW = "sim"
 CALL_WORKFLOW = "call"
 DEFAULT_NTHREADS = 0
 DEFAULT_SEED = 9
+DEFAULT_REFDIR = "./references"
+DEFAULT_OUTDIR = "./results"
 
 LOGFILE = fu.replace_extension(os.path.basename(__file__), "log")
 logger = logging.getLogger()
@@ -62,7 +64,7 @@ def parse_commandline_params(args):
 
     group.add_argument("-r", "--reference", type=none_or_str, default="None", help='Reference FASTA for alignment.')
 
-    parser.add_argument("-x", "--reference_dir", type=str, default="./references",
+    parser.add_argument("-x", "--reference_dir", type=str, default=DEFAULT_REFDIR,
                         help='Directory containing curated reference files.')
 
     parser.add_argument("-z", "--race_like", action="store_true",
@@ -73,7 +75,7 @@ def parse_commandline_params(args):
                         help='Optional primer BED file with a strand field. Recommended for removing synthetic errors '
                              'from alignments.')
 
-    parser.add_argument("-o", "--output_dir", type=str, default=".",
+    parser.add_argument("-o", "--output_dir", type=str, default=DEFAULT_OUTDIR,
                         help='Optional output directory. Must be an absolute path. Default current working directory.')
 
     parser.add_argument("-j", "--nthreads", type=int, default=DEFAULT_NTHREADS,
@@ -220,22 +222,24 @@ def get_sim_reference(reference_dir, ensembl_id, ref, outdir=ri.ReadEditor.DEFAU
     :param str reference_dir: directory containing curated APPRIS reference files
     :param str ensembl_id: Ensembl gene or transcript ID, with version number
     :param str ref: path to reference FASTA used in alignment. Must be bowtie2 FM-index and samtools faidx indexed.
-    :param str outdir: optional output dir for the reference files
+    :param str outdir: optional output dir for the reference files. Default /tmp/references
     :return str: reference FASTA filepath
     """
 
-    if not os.path.exists(outdir):
-        os.mkdir(outdir)
+    outdir_fullpath = os.path.abspath(outdir)
+
+    if not os.path.exists(outdir_fullpath):
+        os.mkdir(outdir_fullpath)
 
     # Determine if the provided Ensembl ID is found in the curated APPRIS references
     if ensembl_id is not None:
         if ref is not None:
             logger.error("Both an Ensembl ID and a reference FASTA were provided. Please choose one.")
 
-        ref_fa, _ = get_ensembl_references(reference_dir=reference_dir, ensembl_id=ensembl_id, outdir=outdir)
+        ref_fa, _ = get_ensembl_references(reference_dir=reference_dir, ensembl_id=ensembl_id, outdir=outdir_fullpath)
     else:
         logger.info("Copying input reference FASTA and indexing.")
-        ref_fa = os.path.join(outdir, os.path.basename(ref))
+        ref_fa = os.path.join(outdir_fullpath, os.path.basename(ref))
         copy(ref, ref_fa)
         index_reference(ref_fa)
 
@@ -252,23 +256,25 @@ def get_call_references(reference_dir, ensembl_id, ref, transcript_gff, gff_refe
     :param str transcript_gff: GFF/GTF file containing transcript metafeatures and exon features, in 5' to 3' order, \
     regardless of strand. Ordering is essential.
     :param str gff_reference: reference FASTA corresponding to the GFF features
-    :param str outdir: optional output dir for the reference files
+    :param str outdir: optional output dir for the reference files. Default /tmp/references
     :return tuple: (ref_fa, gff, gff_ref) filepaths
     """
 
-    if not os.path.exists(outdir):
-        os.mkdir(outdir)
+    outdir_fullpath = os.path.abspath(outdir)
+
+    if not os.path.exists(outdir_fullpath):
+        os.mkdir(outdir_fullpath)
 
     gff = transcript_gff
     gff_ref = gff_reference
 
     # Determine if the provided Ensembl ID is found in the curated APPRIS references
     if ensembl_id is not None:
-        ref_fa, gff = get_ensembl_references(reference_dir=reference_dir, ensembl_id=ensembl_id, outdir=outdir)
+        ref_fa, gff = get_ensembl_references(reference_dir=reference_dir, ensembl_id=ensembl_id, outdir=outdir_fullpath)
         gff_ref = os.path.join(reference_dir, GRCH38_FASTA)
     else:
         logger.info("Copying input reference FASTA and indexing.")
-        ref_fa = os.path.join(outdir, os.path.basename(ref))
+        ref_fa = os.path.join(outdir_fullpath, os.path.basename(ref))
         copy(ref, ref_fa)
         index_reference(ref_fa)
 
@@ -295,7 +301,7 @@ def sim_workflow(bam, vcf, race_like, ensembl_id=ri.ReadEditor.DEFAULT_ENSEMBL_I
     :param str reference_dir: directory containing curated APPRIS reference files. Default ./references.
     :param str | None ref: indexed reference FASTA; mutually exclusive with ensembl_id
     :param str | None primers: feature file of primer locations for read masking and primer detection
-    :param str outdir: Optional output directory to store generated FASTQs and BAM
+    :param str outdir: Optional output directory to store generated FASTQs and BAM. Default ./satmut_utils_sim_results
     :param int buffer: buffer about the edit span (position + REF len) to ensure lack of error before editing. Default 6.
     :param int max_nm: max edit distance to consider a read/pair for simulation. Default 10.
     :param int random_seed: seed for random qname sampling. Default 9.
@@ -310,18 +316,20 @@ def sim_workflow(bam, vcf, race_like, ensembl_id=ri.ReadEditor.DEFAULT_ENSEMBL_I
     if primers is not None:
         _ = QnameVerification(bam=bam)
 
-    if not os.path.exists(outdir):
-        os.mkdir(outdir)
+    outdir_fullpath = os.path.abspath(outdir)
+
+    if not os.path.exists(outdir_fullpath):
+        os.mkdir(outdir_fullpath)
 
     ref_fa = get_sim_reference(
-        reference_dir=reference_dir, ensembl_id=ensembl_id, ref=ref, outdir=outdir)
+        reference_dir=reference_dir, ensembl_id=ensembl_id, ref=ref, outdir=outdir_fullpath)
 
     out_prefix = fu.remove_extension(os.path.basename(bam))
 
     # Run the editing workflow
     output_bam, zipped_r1_fastq, zipped_r2_fastq = ri.ReadEditor(
         bam=bam, variants=vcf, ref=ref_fa, race_like=race_like, primers=primers,
-        output_dir=outdir, output_prefix=out_prefix, buffer=buffer, max_nm=max_nm,
+        output_dir=outdir_fullpath, output_prefix=out_prefix, buffer=buffer, max_nm=max_nm,
         random_seed=random_seed, force_edit=force_edit, nthreads=nthreads).workflow()
 
     return output_bam, zipped_r1_fastq, zipped_r2_fastq
@@ -400,18 +408,20 @@ def call_workflow(fastq1, fastq2,
         qv = QnameVerification(fastq=fastq1)
         sort_cmd = QNAME_SORTS[qv.format_index]
 
-    if not os.path.exists(outdir):
-        os.mkdir(outdir)
+    outdir_fullpath = os.path.abspath(outdir)
+
+    if not os.path.exists(outdir_fullpath):
+        os.mkdir(outdir_fullpath)
 
     # Create a temp dir for intermediate files unless user wants them
-    tempdir = outdir
+    tempdir = outdir_fullpath
     if not keep_intermediates:
         tempdir = tempfile.mkdtemp(suffix=".call.tmp")
 
     # Get and index the references
     ref_fa, gff, gff_ref = get_call_references(
         reference_dir=reference_dir, ensembl_id=ensembl_id, ref=ref, transcript_gff=transcript_gff,
-        gff_reference=gff_reference, outdir=outdir)
+        gff_reference=gff_reference, outdir=tempdir)
 
     fqp_r1 = fastq1
     fqp_r2 = fastq2
@@ -464,7 +474,9 @@ def call_workflow(fastq1, fastq2,
         output_dir=tempdir, nthreads=nthreads, mut_sig=mut_sig)
 
     # Run variant calling
-    out_prefix = os.path.join(outdir, fu.remove_extension(os.path.basename(os.path.commonprefix((fastq1, fastq2)))))
+    out_prefix = os.path.join(outdir_fullpath, fu.remove_extension(
+        os.path.basename(os.path.commonprefix((fastq1, fastq2)))))
+
     output_vcf, output_bed = vc.workflow(min_bq, max_nm, min_supporting_qnames, max_mnp_window, out_prefix)
 
     if not keep_intermediates:

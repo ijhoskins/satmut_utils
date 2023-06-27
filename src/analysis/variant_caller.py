@@ -63,7 +63,7 @@ class VariantCaller(object):
     VARIANT_CALL_PRIMERS = None
     VARIANT_CALL_DEDUP = rp.DEDUP_FLAG
     VARIANT_CALL_CDEDUP = rp.CDEDUP_FLAG
-    VARIANT_CALL_OUTDIR = "."
+    VARIANT_CALL_OUTDIR = "./satmut_utils_call_results"
     VARIANT_CALL_PREFIX = "./out"
     VARIANT_CALL_STATS = False
 
