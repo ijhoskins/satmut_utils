@@ -14,3 +14,6 @@ Release Summary:
 
 1.0.3, June 23, 2023
 	Fixed bug where relative file paths for the FASTQs caused the alignment workflow to fail. Removed the filtering of GFF records that annotate contigs with RefSeq accession identifiers (NT or NW), as filtering may lead to errors with custom reference files specifying a contig that begins with NT or NW.
+	
+1.0.4, June 27, 2023
+	Fixed bug where relative file paths for the output directory caused the alignment workflow to fail.

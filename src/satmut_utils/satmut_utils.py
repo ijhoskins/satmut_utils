@@ -23,7 +23,7 @@ from scripts.run_bowtie2_aligner import workflow as baw
 __author__ = "Ian Hoskins"
 __credits__ = ["Ian Hoskins"]
 __license__ = "GPLv3"
-__version__ = "1.0.3"
+__version__ = "1.0.4"
 __maintainer__ = "Ian Hoskins"
 __email__ = "ianjameshoskins@utexas.edu"
 __status__ = "Development"
@@ -35,7 +35,7 @@ CALL_WORKFLOW = "call"
 DEFAULT_NTHREADS = 0
 DEFAULT_SEED = 9
 DEFAULT_REFDIR = "./references"
-DEFAULT_OUTDIR = "./results"
+DEFAULT_OUTDIR = "./satmut_utils_results"
 
 LOGFILE = fu.replace_extension(os.path.basename(__file__), "log")
 logger = logging.getLogger()
