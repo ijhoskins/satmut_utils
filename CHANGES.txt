@@ -31,3 +31,6 @@ Release Summary:
 	
 1.0.3-dev001, January 2, 2023
 	Moved run_design_conversion.py from prototype to scripts directory
+	
+1.0.4-dev, July 3, 2023
+	Fixed bug where relative file paths caused the alignment workflow to fail. Removed the filtering of GFF records that annotate contigs with RefSeq accession identifiers (NT or NW), as filtering may lead to errors with custom reference files specifying a contig that begins with NT or NW.

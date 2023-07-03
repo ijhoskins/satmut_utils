@@ -37,7 +37,7 @@ class ReadEditorPreprocessor(object):
 
     DEFAULT_RACE_LIKE = False
     DEFAULT_PRIMERS = None
-    DEFAULT_OUTDIR = "."
+    DEFAULT_OUTDIR = "./satmut_utils_sim_results"
     DEFAULT_NTHREADS = 0
     EDIT_INPUT_SUFFIX = "edit.input.bam"
     QNAME_INPUT_SUFFIX = "qname.sort.bam"
@@ -116,11 +116,11 @@ class InvalidVariantConfig(NotImplementedError):
 class ReadEditor(object):
     """Class for editing concordant variants into paired-end sequencing alignments."""
 
-    DEFAULT_REFERENCE_DIR = "./references"
+    DEFAULT_REFERENCE_DIR = "/tmp/references"
     DEFAULT_ENSEMBL_ID = None
     DEFAULT_REF = None
     DEFAULT_PRIMERS = None
-    DEFAULT_OUTDIR = "."
+    DEFAULT_OUTDIR = "./satmut_utils_sim_results"
     DEFAULT_PREFIX = None
     DEFAULT_FORCE = False
     DEFAULT_SEED = 9

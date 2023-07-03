@@ -256,9 +256,6 @@ class AminoAcidMapper(MapperBase):
         # feature will be a pybedtools.Interval object
         for feature in self.gff_bedtool:
 
-            if self.CONTIGS_TO_OMIT.match(feature.chrom):
-                continue
-
             # Filter the feature file of certain features so we have exon, CDS, and stop codon features only
             if self.FEATURES_TO_OMIT.match(feature.fields[ffu.GFF_FEATURE_TYPE_FIELD]):
                 continue

@@ -72,14 +72,17 @@ def workflow(f1, ref, f2=None, outdir=Bowtie2.DEFAULT_OUTDIR, outbam=Bowtie2.DEF
     :return analysis.aligners.Bowtie2: aligner object
     """
 
-    # Need to change dir to scratch in case temp BAMs are created, as bowtie2 does not have an option for setting
-    # the temp directory; make sure to handle relative paths for output_dir
+    # Need to change to tempdir in case temp BAMs are created, as bowtie2 does not have an option for setting
+    # the temp directory; make sure to handle relative paths
+    f1_full = os.path.abspath(f1)
+    f2_full = os.path.abspath(f2)
     outdir_full = os.path.abspath(outdir)
+
     call_dir = os.getcwd()
     os.chdir(DEFAULT_TEMPDIR)
 
     bc = BowtieConfig(ref, local, nthreads, DEFAULT_QUALITY_OFFSET)
-    bt = Bowtie2(config=bc, f1=f1, f2=f2, output_dir=outdir_full, output_bam=outbam)
+    bt = Bowtie2(config=bc, f1=f1_full, f2=f2_full, output_dir=outdir_full, output_bam=outbam)
 
     os.chdir(call_dir)
 

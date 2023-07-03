@@ -411,19 +411,19 @@ R2 FASTQ of the pair.
 
 Useful for input where adapters have been previously trimmed (e.g. simulated data). Trimming when no adapters are present may degrade the data quality by nonspecific trimming of the reads. For this reason, it is best to directly re-align these inputs.
 
-4. -5 --r1\_fiveprime\_adapters
+4. --r1\_fiveprime\_adapters
 
 Comma-delimited R1 5' adapters, or None (default) if no R1 5' adapters exist.
 
-5. -3 --r1\_threeprime\_adapters
+5. --r1\_threeprime\_adapters
 
 Comma-delimited R1 3' adapters, or None (default) if no R1 3' adapters exist.
 
-6. -5 --r2\_fiveprime\_adapters
+6. --r2\_fiveprime\_adapters
 
 Comma-delimited R2 5' adapters, or None (default) if no R2 5' adapters exist. 
 
-7. -3 --r2\_threeprime\_adapters
+7. --r2\_threeprime\_adapters
 
 Comma-delimited R2 3' adapters, or None (default) if no R2 3' adapters exist.
 
@@ -431,7 +431,7 @@ Comma-delimited R2 3' adapters, or None (default) if no R2 3' adapters exist.
 
 Transcript GFF where **features are ordered from 5' to 3', regardless of strand**. For examples, see src/tests/test\_data/gencode.v29.annotation.gtf for a standard genome-based GFF example, or src/tests/test\_data/CBS_pEZY3.gff for a custom, composite vector GFF example.
 
-IMPORTANT: the GFF seqname field and a "transcript_id" attribute in the attribute field should match the contig name in the reference FASTA (-r/--reference).
+IMPORTANT: the GFF seqname field should match a contig name in the GFF reference FASTA (-k/--gff\_reference). Furthermore, each GFF record should have a "transcript\_id" attribute in the attribute field that matches the contig name in the reference FASTA (-r/--reference).
 
 The minimum expected GFF records have a feature field (3rd column of the GFF) specifying one of the following:
 ```
