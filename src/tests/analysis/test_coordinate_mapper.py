@@ -157,14 +157,17 @@ class TestAminoAcidMapper(unittest.TestCase):
         """Tests that mutation info is properly generate for a WT and mutant CDS."""
 
         # NNK means A and C are not expected in the wobble position, but only if it does not match the REF
-        expected = cm.MUT_INFO_TUPLE(location="CDS", wt_codons="ATG,AAA", mut_codons="AGG,AGA",
-                                     wt_aas="M,K", mut_aas="R,R", aa_changes="p.M1R,p.K2R",
+        expected = cm.MUT_INFO_TUPLE(location="CDS", wt_codons="ATG,CCT", mut_codons="AGG,CAT",
+                                     wt_aas="M,P", mut_aas="R,H", aa_changes="p.M1R,p.P2H",
                                      aa_positions="1,2", matches_mut_sig="True,True")
 
-        wt_cds_seq = "ATGAAA"
-        mut_cds_seq = "AGGAGA"
+        _, cds_start_offset, _, trx_seq, cds_seq = self.appris_aa_mapper.cds_info["ENST00000398165.7"]
 
-        observed = self.appris_aa_mapper._get_mut_info(wt_cds_seq, mut_cds_seq)
+        wt_cds_seq = "ATGCCT"
+        mut_cds_seq = "AGGCAT"
+
+        observed = self.appris_aa_mapper._get_mut_info(
+            trx_seq, wt_cds_seq, mut_cds_seq, 261, "TGCC", "GGCA", cds_start_offset)
 
         self.assertEqual(expected, observed)
 
@@ -172,14 +175,17 @@ class TestAminoAcidMapper(unittest.TestCase):
         """Tests that mutation info is properly generate for a WT and mutant CDS with mut_sig mismatch."""
 
         # NNK means A and C are not expected in the wobble position, but only if it does not match the REF
-        expected = cm.MUT_INFO_TUPLE(location="CDS", wt_codons="ATG,AAA", mut_codons="AGG,AGC",
-                                     wt_aas="M,K", mut_aas="R,S", aa_changes="p.M1R,p.K2S",
-                                     aa_positions="1,2", matches_mut_sig="True,False")
+        expected = cm.MUT_INFO_TUPLE(location="CDS", wt_codons="ATG,CCT", mut_codons="AGA,CAT",
+                                     wt_aas="M,P", mut_aas="R,H", aa_changes="p.M1R,p.P2H",
+                                     aa_positions="1,2", matches_mut_sig="False,True")
 
-        wt_cds_seq = "ATGAAA"
-        mut_cds_seq = "AGGAGC"
+        _, cds_start_offset, _, trx_seq, cds_seq = self.appris_aa_mapper.cds_info["ENST00000398165.7"]
 
-        observed = self.appris_aa_mapper._get_mut_info(wt_cds_seq, mut_cds_seq)
+        wt_cds_seq = "ATGCCT"
+        mut_cds_seq = "AGACAT"
+
+        observed = self.appris_aa_mapper._get_mut_info(
+            trx_seq, wt_cds_seq, mut_cds_seq, 261, "TGCC", "GACA", cds_start_offset)
 
         self.assertEqual(expected, observed)
 

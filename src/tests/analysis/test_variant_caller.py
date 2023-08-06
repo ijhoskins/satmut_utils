@@ -373,7 +373,7 @@ class TestVariantCaller(unittest.TestCase):
         observed = self.vc._enumerate_mismatches(align_seg=self.test_align_seg_r1_negative_discordant, min_bq=20)
         self.assertEqual(0, len(observed))
 
-    def test_intersect_mismatches_discordant(self):
+    def test_intersect_edits_discordant(self):
         """Test that we find no intersected mismatches for a discordant pair."""
 
         expected = ([], [])
@@ -382,11 +382,11 @@ class TestVariantCaller(unittest.TestCase):
         r1_mms = self.vc._enumerate_mismatches(align_seg=self.test_align_seg_r1_negative_discordant, min_bq=10)
         r2_mms = self.vc._enumerate_mismatches(align_seg=self.test_align_seg_r2_positive_discordant, min_bq=10)
 
-        observed = self.vc._intersect_mismatches(r1_mms, r2_mms)
+        observed = self.vc._intersect_edits(r1_mms, r2_mms)
 
         self.assertEqual(expected, observed)
 
-    def test_intersect_mismatches_concordant(self):
+    def test_intersect_edits_concordant(self):
         """Test that we find intersected mismatches for a concordant pair."""
 
         expected = ([vc.MM_TUPLE(contig="CBS_pEZY3", pos=2456, ref="A", alt="G", bq=39, read_pos=60)],
@@ -394,7 +394,7 @@ class TestVariantCaller(unittest.TestCase):
 
         r1_mms = self.vc._enumerate_mismatches(align_seg=self.test_align_seg_r1_positive_concordant, min_bq=30)
         r2_mms = self.vc._enumerate_mismatches(align_seg=self.test_align_seg_r2_negative_concordant, min_bq=30)
-        observed = self.vc._intersect_mismatches(r1_mms, r2_mms)
+        observed = self.vc._intersect_edits(r1_mms, r2_mms)
 
         self.assertEqual(expected, observed)
 
@@ -403,7 +403,7 @@ class TestVariantCaller(unittest.TestCase):
 
         r1_mms = self.vc._enumerate_mismatches(align_seg=self.test_align_seg_r1_positive_concordant, min_bq=30)
         r2_mms = self.vc._enumerate_mismatches(align_seg=self.test_align_seg_r2_negative_concordant, min_bq=30)
-        filt_r1_mms, filt_r2_mms = self.vc._intersect_mismatches(r1_mms, r2_mms)
+        filt_r1_mms, filt_r2_mms = self.vc._intersect_edits(r1_mms, r2_mms)
         support_pos = {2456}
 
         refs, alts, positions, per_bp_stats = self.vc._unpack_stats(
@@ -535,7 +535,7 @@ class TestVariantCaller(unittest.TestCase):
 
         r1_mms = self.vc._enumerate_mismatches(align_seg=self.test_align_seg_r1_positive_concordant, min_bq=30)
         r2_mms = self.vc._enumerate_mismatches(align_seg=self.test_align_seg_r2_negative_concordant, min_bq=30)
-        filt_r1_mms, filt_r2_mms = self.vc._intersect_mismatches(r1_mms, r2_mms)
+        filt_r1_mms, filt_r2_mms = self.vc._intersect_edits(r1_mms, r2_mms)
 
         self.vc._update_counts(
             collective_variants=collective_variants, filt_r1_mms=filt_r1_mms, filt_r2_mms=filt_r2_mms,
@@ -633,7 +633,12 @@ class TestVariantCaller(unittest.TestCase):
         call_tuple_1 = vc.CALL_TUPLE(
             contig="CBS_pEZY3", pos=2456, ref="A", alt="G", refs="A", alts="G", positions="2456")
 
+        # For InDels, the refs and alts field will just be the reference base
+        # Insertions might have per-base BQ data, but for now consider just the base prior to the insertion
         call_tuple_2 = vc.CALL_TUPLE(
+            contig="CBS_pEZY3", pos=2460, ref="TG", alt="T", refs="T", alts="T", positions="2460")
+
+        call_tuple_3 = vc.CALL_TUPLE(
             contig="CBS_pEZY3", pos=2489, ref="G", alt="T", refs="G", alts="T", positions="2489")
 
         expected[call_tuple_1] = [
@@ -644,6 +649,13 @@ class TestVariantCaller(unittest.TestCase):
         ]
 
         expected[call_tuple_2] = [
+            [2, ["40", "40"], ["64", "64"], [2, 2]],  # R1, +
+            [0, [], [], []],  # R1, -
+            [0, [], [], []],  # R2, +
+            [2, ["40", "40"], ["99", "99"], [2, 2]]  # R2, -
+        ]
+
+        expected[call_tuple_3] = [
             [1, ["40"], ["92"], [2]],  # R1, +
             [0, [], [], []],  # R1, -
             [0, [], [], []],  # R2, +
@@ -827,6 +839,7 @@ class TestVariantCaller(unittest.TestCase):
 
         vcf, bed = self.vc.workflow(min_bq=30, max_nm=5, min_supporting_qnames=1, max_mnp_window=3,
                                     out_prefix=os.path.join(self.tempdir, "test"))
+
         self.assertTrue(all((os.path.exists(vcf), os.path.exists(bed),)))
 
     def test_workflow_primers_and_min_bq(self):
