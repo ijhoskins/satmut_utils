@@ -292,6 +292,22 @@ class VariantCaller(object):
 
         return snp_dict
 
+    @staticmethod
+    def _call_indels(filt_r_mms):
+        r"""Calls InDels if the mismatches are not included in existing MNPs/haplotypes.
+
+        :param list filt_r_mms: list of filtered R1 or R2 MM_TUPLEs
+        :return dict: {collections.namedtuple: set} keyed by CALL_TUPLE with values a set of starting coordinate
+        position for the InDel (just one pos, but consistent with haplotypes dict format)
+        """
+
+        indel_dict = collections.defaultdict(set)
+
+        for mmt in filt_r_mms:
+            indel_dict[CALL_TUPLE(mmt.contig, mmt.pos, mmt.ref, mmt.alt, None, None, None)] |= {mmt.pos}
+
+        return indel_dict
+
     def _enumerate_mismatches(self, align_seg, min_bq=VARIANT_CALL_MIN_BQ):
         """Enumerates the mismatches in a read and excludes detection of InDels.
 
@@ -345,16 +361,105 @@ class VariantCaller(object):
         return mms
 
     @staticmethod
-    def _intersect_mismatches(r1_mms, r2_mms):
-        """Intersects the mismatches between read pairs.
+    def _enumerate_indels(align_seg, min_bq=VARIANT_CALL_MIN_BQ):
+        """Enumerates the InDels in a read.
+
+        :param pysam.AlignedSegment align_seg: read object
+        :param int min_bq: min base quality for an insertion to be considered as supporting a variant call
+        :return list: list of MM_TUPLEs
+
+        We require a MD tag for pysam.AlignedSegment.get_aligned_pairs(), which forms the basis of read-level calling.
+        The output of get_aligned_pairs is a 3-tuple for each base.
+
+        if query_pos is None, we are in a del operation
+        if reference_pos is None, we are in an ins operation
+        if reference_base is lowercase that indicates a mismatch to the reference
+        """
+
+        read_strand = su.Strand(align_seg.is_reverse)
+        mms = []
+
+        for apt in align_seg.get_aligned_pairs(with_seq=True):
+
+            # Determine attrs of the current base
+            query_pos, reference_pos, reference_base = apt
+
+            # Here we have a simple deletion
+            if query_pos is None:
+                # Determine if we need to keep extending the deletion
+                if last_query_pos is not None:
+                    # Start new deletion; since reference_pos is 0-based and we want 1-based, and because the first
+                    # match before del should be the REF field, just use current reference_pos
+                    # Fields are POS, REF, ALT, and last query position so position in read can be determined
+                    new_del = (reference_pos, [last_reference_base, reference_base], last_reference_base, last_query_pos,)
+                else:
+                    # Otherwise extend the deletion
+                    new_del[1].append(reference_base)
+
+            elif "new_del" in locals():
+                # Once the deletion is finished enumerate it
+                # We want the deletion position 1-based with respect to the 5' end
+                var_pos = new_del[3] + 1 if read_strand == su.Strand.PLUS else align_seg.query_length - new_del[3]
+                var_qual = align_seg.query_qualities[new_del[3]]
+
+                # Append the candidate InDel using the mismatch tuple
+                mms.append(MM_TUPLE(
+                    contig=align_seg.reference_name, pos=new_del[0], ref="".join(new_del[1]), alt=new_del[2],
+                    bq=var_qual, read_pos=var_pos))
+
+                del new_del
+
+            # Here we have an simple insertion
+            if reference_pos is None:
+
+                # Filter insertions using BQ of the first inserted base
+                ins_qual = align_seg.query_qualities[query_pos]
+                if ins_qual < min_bq:
+                    continue
+
+                if last_reference_base is not None:
+                    # Start new ins
+                    # Fields are POS, REF, ALT, and last query position so position in read can be determined
+                    new_ins = (last_reference_pos + 1, last_reference_base,
+                               [last_reference_base, align_seg.query_sequence[query_pos].upper()], last_query_pos,)
+                else:
+                    # Otherwise extend the insertion
+                    new_ins[2].append(align_seg.query_sequence[query_pos].upper())
+
+            elif "new_ins" in locals():
+                # Once the insertion is finished enumerate it
+                # We want the insertion position 1-based with respect to the 5' end
+                var_pos = new_ins[3] + 1 if read_strand == su.Strand.PLUS else align_seg.query_length - new_ins[3]
+                ins_bases_query_start = new_ins[3] + 1
+                ins_nbases = len(new_ins[2])
+                # Use average quality of the inserted bases for simplicity
+                var_qual = sum(
+                    align_seg.query_qualities[ins_bases_query_start:ins_bases_query_start+ins_nbases]) / ins_nbases
+
+                # Append the candidate InDel using the mismatch tuple
+                mms.append(MM_TUPLE(
+                    contig=align_seg.reference_name, pos=new_ins[0], ref=new_ins[1], alt="".join(new_ins[2]),
+                    bq=var_qual, read_pos=var_pos))
+
+                del new_ins
+
+            last_query_pos = query_pos
+            last_reference_pos = reference_pos
+            last_reference_base = reference_base
+
+        return mms
+
+    @staticmethod
+    def _intersect_edits(r1_mms, r2_mms):
+        """Intersects the mismatches and InDels between read pairs.
 
         :param list r1_mms: list of MM_TUPLEs for R1
         :param list r2_mms: list of MM_TUPLEs for R2
         :return tuple: filtered list of R1 and R2 MM_TUPLES
         """
 
-        r1_mm_bases = {(r1_mm.contig, r1_mm.pos, r1_mm.alt,) for r1_mm in r1_mms}
-        r2_mm_bases = {(r2_mm.contig, r2_mm.pos, r2_mm.alt,) for r2_mm in r2_mms}
+        r1_mm_bases = {(r1_mm.contig, r1_mm.pos, r1_mm.ref, r1_mm.alt,) for r1_mm in r1_mms}
+        r2_mm_bases = {(r2_mm.contig, r2_mm.pos, r2_mm.ref, r2_mm.alt,) for r2_mm in r2_mms}
         r_intersect = r1_mm_bases & r2_mm_bases
 
         # Now we can iterate back through the list and filter it
@@ -365,10 +470,10 @@ class VariantCaller(object):
         # Must use itertools.zip_longest in case differing number of mismatches are found in the pair
         for r1_mm, r2_mm in itertools.zip_longest(r1_mms, r2_mms):
 
-            if r1_mm is not None and (r1_mm.contig, r1_mm.pos, r1_mm.alt,) in r_intersect:
+            if r1_mm is not None and (r1_mm.contig, r1_mm.pos, r1_mm.ref, r1_mm.alt,) in r_intersect:
                 filtered_r1_mms.append(r1_mm)
 
-            if r2_mm is not None and (r2_mm.contig, r2_mm.pos, r2_mm.alt,) in r_intersect:
+            if r2_mm is not None and (r2_mm.contig, r2_mm.pos, r2_mm.ref, r2_mm.alt,) in r_intersect:
                 filtered_r2_mms.append(r2_mm)
 
         return filtered_r1_mms, filtered_r2_mms
@@ -596,14 +701,17 @@ class VariantCaller(object):
                 raise RuntimeError(
                     "Improper pairing of reads. R1 was %s and R2 was %s." % (r1.query_name, r2.query_name))
 
+            if not self._reads_overlap(r1, r2):
+                continue
+
             # Only call variants for pairs that pass filters
             r1_nm = su.get_edit_distance(r1)
             r2_nm = su.get_edit_distance(r2)
             if r1_nm > max_nm or r2_nm > max_nm:
                 continue
 
-            if not self._reads_overlap(r1, r2):
-                continue
+            r1_strand = su.Strand(r1.is_reverse)
+            r2_strand = su.Strand(r2.is_reverse)
 
             # Compute fragment coverage/depth; note only filtered read pairs contribute to depth
             self._update_pos_dp(r1, r2)
@@ -613,40 +721,44 @@ class VariantCaller(object):
             r2_mms = self._enumerate_mismatches(r2, min_bq)
 
             # Now find intersections between the mismatches
-            filt_r1_mms, filt_r2_mms = self._intersect_mismatches(r1_mms, r2_mms)
+            filt_r1_mms, filt_r2_mms = self._intersect_edits(r1_mms, r2_mms)
+
+            # Enumerate simple InDels with another pass over the aligned_pairs
+            r1_indel_mms = self._enumerate_indels(r1, min_bq)
+            r2_indel_mms = self._enumerate_indels(r2, min_bq)
+
+            # Now find intersections between the mismatches
+            filt_r1_indel_mms, filt_r2_indel_mms = self._intersect_edits(r1_indel_mms, r2_indel_mms)
 
             # If we found no intersected mismatches, continue to the next read pair
-            if len(filt_r1_mms) == 0:
-                continue
+            if len(filt_r1_mms) != 0:
+                # Call SNPs, MNPs, and haplotypes
+                haplotype_res = self._call_haplotypes(filt_r1_mms, max_mnp_window)
 
-            # Call MNPs and haplotypes
-            haplotype_res = self._call_haplotypes(filt_r1_mms, max_mnp_window)
-
-            if isinstance(haplotype_res, tuple):
-                haplotypes, position_blacklist = haplotype_res
-                if len(position_blacklist) == 0:
-                    # In this case we had >= 3 mismatches but they were not within the window and position_blacklist
-                    # is an empty set
+                if isinstance(haplotype_res, tuple):
+                    haplotypes, position_blacklist = haplotype_res
+                    if len(position_blacklist) == 0:
+                        # In this case we had >= 3 mismatches but they were not within the window and position_blacklist
+                        # is an empty set
+                        haplotypes = None
+                else:
+                    # In this case we had either 1 mismatch or 2 mismatches that were not within the window
                     haplotypes = None
-            else:
-                # In this case we had either 1 mismatch or 2 mismatches that were not within the window
-                haplotypes = None
-                position_blacklist = set()
+                    position_blacklist = set()
 
-            # Call SNPs not captured in a MNP or haplotype
-            snps = self._call_snps(filt_r1_mms, position_blacklist, haplotypes)
+                # Call SNPs not captured in a MNP or haplotype
+                snps = self._call_snps(filt_r1_mms, position_blacklist, haplotypes)
 
-            collective_variants = snps
-            if haplotypes is not None:
-                collective_variants = {**haplotypes, **snps}
+                collective_variants = snps
+                if haplotypes is not None:
+                    collective_variants = {**haplotypes, **snps}
 
-            r1_strand = su.Strand(r1.is_reverse)
-            r2_strand = su.Strand(r2.is_reverse)
+                # Now that we have called haplotypes and SNPs for the pair, update the dict of counts and stats
+                self._update_counts(collective_variants, filt_r1_mms, filt_r2_mms, r1_nm, r2_nm, r1_strand, r2_strand)
 
-            # Now that we have called haplotypes and SNPs for the pair, update the dict of counts and stats
-            self._update_counts(collective_variants, filt_r1_mms, filt_r2_mms, r1_nm, r2_nm, r1_strand, r2_strand)
-
-            # InDel enumeration can exist as a separate call here in the future
+            if len(filt_r1_indel_mms) != 0:
+                indels = self._call_indels(filt_r1_indel_mms)
+                self._update_counts(indels, filt_r1_indel_mms, filt_r2_indel_mms, r1_nm, r2_nm, r1_strand, r2_strand)
 
     def _summarize_stats(self, var_list, read_index, stat_index, pos_index):
         """Summarizes per-bp stats across reads for a particular contributing base to a variant call.

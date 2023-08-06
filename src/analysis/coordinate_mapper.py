@@ -50,6 +50,8 @@ CODON_AAS = ["A"] * 4 + ["C"] * 2 + ["D"] * 2 + ["E"] * 2 + ["F"] * 2 + ["G"] * 
             ["Y"] * 2 + ["*"] * 3
 
 CODON_AA_DICT = dict(zip(CODONS, CODON_AAS))
+STOP_CODONS = {"TGA", "TAA", "TAG"}
+
 HGVS_AA_FORMAT = "p.{}{}{}"
 MUT_SIG_UNEXPECTED_WOBBLE_BPS = {"NNN": set(), "NNK": {"A", "C"}, "NNS": {"A", "T"}}
 
@@ -57,6 +59,8 @@ EXON_COORDS_TUPLE = collections.namedtuple("EXON_COORDS_TUPLE", "exon_id, contig
 
 MUT_INFO_TUPLE = collections.namedtuple(
     "MUT_INFO_TUPLE", "location, wt_codons, mut_codons, wt_aas, mut_aas, aa_changes, aa_positions, matches_mut_sig")
+
+CODON_TUPLE = collections.namedtuple("CODON_TUPLE", "codon_pos, codon, base_index")
 
 tempfile.tempdir = DEFAULT_TEMPDIR
 logger = logging.getLogger(__name__)
@@ -162,6 +166,7 @@ class AminoAcidMapper(MapperBase):
     CDS_INFO_CDS_SEQ_INDEX = 4
     DEFAULT_ARGS = MUT_INFO_TUPLE._fields[1:]
     DEFAULT_KWARGS = dict(zip(DEFAULT_ARGS, [su.R_COMPAT_NA] * len(DEFAULT_ARGS)))
+    NONSTOP_CHAR = "X"
 
     def __init__(self, gff, ref, outdir=DEFAULT_OUTDIR, use_pickle=True, make_pickle=True, overwrite_pickle=False,
                  mut_sig=MUT_SIG_ANY, filter_unexpected=False):
@@ -308,7 +313,7 @@ class AminoAcidMapper(MapperBase):
     def _concat_multi_mut_info(self, mut_info_tuple):
         """Concatenates multi-position mutation changes into comma-delimited strings.
 
-        :param collections.namedtuple mut_info_tuple: MUT_INFO_TUPLE with multi-position mutations in list
+        :param collections.namedtuple mut_info_tuple: MUT_INFO_TUPLE with multi-position mutations in iterable
         :return collections.namedtuple MUT_INFO_TUPLE: MUT_INFO_TUPLE with multi-position mutations in str
         """
 
@@ -317,7 +322,7 @@ class AminoAcidMapper(MapperBase):
         wt_aas = self.MUT_INFO_DELIM.join(mut_info_tuple.wt_aas)
         mut_aas = self.MUT_INFO_DELIM.join(mut_info_tuple.mut_aas)
         aa_changes = self.MUT_INFO_DELIM.join(mut_info_tuple.aa_changes)
-        aa_pos_list = [re.sub("[p.A-Z*]", "", aa) for aa in mut_info_tuple.aa_changes]
+        aa_pos_list = [re.sub("[,p.A-Z*]", "", aa) for aa in mut_info_tuple.aa_changes]
         aa_positions = self.MUT_INFO_DELIM.join(aa_pos_list)
         matches_mut_sig = self.MUT_INFO_DELIM.join(list(map(str, mut_info_tuple.matches_mut_sig)))
 
@@ -327,67 +332,288 @@ class AminoAcidMapper(MapperBase):
 
         return new_mut_info_tuple
 
-    def _get_mut_info(self, wt_cds_seq, mut_cds_seq):
-        """Finds codon and amino acid changes given a WT and mutant CDS.
+    @staticmethod
+    def _get_pos_codon_dict(cds_seq):
+        """Gets a mapping between index in the coding sequence and codon.
 
+        :param str cds_seq: coding sequence
+        :return dict: index in the CDS: CODON_TUPLE (codon, index of base in the codon)
+        """
+
+        cds_dict = {}
+        wobble_positions = set(range(2, len(cds_seq), 3))
+        codon_pos = 0
+
+        for i in range(0, len(cds_seq)):
+            if i % 3 == 0:
+                codon_pos += 1
+                curr_codon = cds_seq[i:i + 3]
+                cds_dict[i] = CODON_TUPLE(codon_pos, curr_codon, 0)
+                last_codon = curr_codon
+            else:
+                if i in wobble_positions:
+                    cds_dict[i] = CODON_TUPLE(codon_pos, last_codon, 2)
+                else:
+                    cds_dict[i] = CODON_TUPLE(codon_pos, last_codon, 1)
+
+        return cds_dict
+
+    def _get_ins_downstream_remainder(self, trx_seq, pos, alt, curr_codon, base_index):
+        """Gets the remaining codons and amino acids downstream of an insertion.
+
+        :param str trx_seq: transcript sequence
+        :param int pos: 1-based position of the variant within the transcript
+        :param str alt: alternate bases
+        :param str curr_codon: current reference codon
+        :param int base_index: index of variant position in codon
+        :return tuple: (remaining codons, remaining amino acids)
+        """
+
+        alt_plus_downstream = curr_codon[:base_index] + alt + trx_seq[pos:]
+
+        alt_plus_downstream_codons = [
+            alt_plus_downstream[i:i + 3] for i in range(0, len(alt_plus_downstream), 3)]
+
+        remaining_codons = []
+        remaining_aas = []
+
+        for codon in alt_plus_downstream_codons:
+
+            if len(codon) != 3:
+                # Very unlikely this would happen before we break (if nonsense codon is not seen before the end of
+                # the transcript), but need to handle
+                remaining_codons.append(codon)
+                remaining_aas.append(self.NONSTOP_CHAR)
+                break
+
+            remaining_codons.append(codon)
+            remaining_aas.append(translate(codon))
+
+            if codon in STOP_CODONS:
+                break
+
+        return tuple(remaining_codons), tuple(remaining_aas)
+
+    def _get_del_downstream_remainder(self, trx_seq, pos, ref_len, curr_codon, base_index):
+        """Gets the remaining codons and amino acids downstream of a deletion.
+
+        :param str trx_seq: transcript sequence
+        :param int pos: 1-based position of the variant within the transcript
+        :param int ref_len: length of REF
+        :param str curr_codon: current reference codon
+        :param int base_index: 0-based index of variant position in codon
+        :return tuple: (remaining codons, remaining amino acids)
+        """
+
+        alt_plus_downstream = curr_codon[:base_index + 1] + trx_seq[pos + ref_len - 1:]
+
+        alt_plus_downstream_codons = [
+            alt_plus_downstream[i:i + 3] for i in range(0, len(alt_plus_downstream), 3)]
+
+        remaining_codons = []
+        remaining_aas = []
+
+        for codon in alt_plus_downstream_codons:
+
+            if len(codon) != 3:
+                # Very unlikely this would happen before we break (if nonsense codon is not seen before the end of
+                # the transcript), but need to handle
+                remaining_codons.append(codon)
+                remaining_aas.append(self.NONSTOP_CHAR)
+                break
+
+            remaining_codons.append(codon)
+            remaining_aas.append(translate(codon))
+
+            if codon in STOP_CODONS:
+                break
+
+        return tuple(remaining_codons), tuple(remaining_aas)
+
+    def _annotate_snp(self, ref_codon_dict, alt_codon_dict, start_index):
+        """Gets annotations for a single-codon change.
+
+        :param dict ref_codon_dict: index in the REF CDS: CODON_TUPLE (codon, index of base in the codon)
+        :param dict alt_codon_dict: index in the ALT CDS: CODON_TUPLE (codon, index of base in the codon)
+        :param int start_index: 0-based position of the variant in the CDS
+        :return tuple: (ref_codons, alt_codons, ref_aas, alt_aas, aa_changes, matches_mut_sigs)
+        """
+
+        ref_codons = (ref_codon_dict[start_index].codon,)
+        alt_codons = (alt_codon_dict[start_index].codon,)
+        ref_aas = (translate(ref_codons[0]),)
+        alt_aas = (translate(alt_codons[0]),)
+        aa_changes = (HGVS_AA_FORMAT.format(ref_aas[0], ref_codon_dict[start_index].codon_pos, alt_aas[0]),)
+        wt_wobble = ref_codons[0][2]
+        mut_wobble = alt_codons[0][2]
+        matches_mut_sigs = (False if self.mut_sig != self.MUT_SIG_ANY and wt_wobble != mut_wobble and
+                                     mut_wobble in MUT_SIG_UNEXPECTED_WOBBLE_BPS[self.mut_sig] else True,)
+
+        return ref_codons, alt_codons, ref_aas, alt_aas, aa_changes, matches_mut_sigs
+
+    def _annotate_mnp(self, ref_codon_dict, alt_codon_dict, start_index, end_index):
+        """Gets annotations for a multi-codon change.
+
+        :param dict ref_codon_dict: index in the REF CDS: CODON_TUPLE (codon, index of base in the codon)
+        :param dict alt_codon_dict: index in the ALT CDS: CODON_TUPLE (codon, index of base in the codon)
+        :param int start_index: 0-based position of the first mismatch in the CDS
+        :param int end_index: 0-based position of the last mismatch in the CDS
+        :return tuple: (ref_codons, alt_codons, ref_aas, alt_aas, aa_changes, matches_mut_sigs)
+        """
+
+        ref_codons = []
+        alt_codons = []
+        ref_aas = []
+        alt_aas = []
+        aa_changes = []
+        matches_mut_sigs = []
+
+        for i in range(start_index, end_index + 1, 3):
+            ref_codon = ref_codon_dict[i].codon
+            alt_codon = alt_codon_dict[i].codon
+
+            # Skip intervening codons that match
+            if ref_codon == alt_codon:
+                continue
+
+            ref_aa = translate(ref_codon)
+            alt_aa = translate(alt_codon)
+            aa_change = HGVS_AA_FORMAT.format(ref_aa, ref_codon_dict[i].codon_pos, alt_aa)
+            wt_wobble = ref_codon[2]
+            mut_wobble = alt_codon[2]
+            matches_mut_sig = False if self.mut_sig != self.MUT_SIG_ANY and wt_wobble != mut_wobble and \
+                                       mut_wobble in MUT_SIG_UNEXPECTED_WOBBLE_BPS[self.mut_sig] else True
+
+            ref_codons.append(ref_codon)
+            alt_codons.append(alt_codon)
+            ref_aas.append(ref_aa)
+            alt_aas.append(alt_aa)
+            aa_changes.append(aa_change)
+            matches_mut_sigs.append(matches_mut_sig)
+
+        return tuple(ref_codons), tuple(alt_codons), tuple(ref_aas), tuple(alt_aas), \
+               tuple(aa_changes), tuple(matches_mut_sigs)
+
+    def _annotate_ins(self, trx_seq, ref_codon_dict, start_index, pos, alt):
+        """Gets annotations for an insertion.
+
+        :param str trx_seq: transcript sequence
+        :param dict ref_codon_dict: index in the REF CDS: CODON_TUPLE (codon, index of base in the codon)
+        :param int start_index: 0-based position of the first mismatch in the CDS
+        :param int pos: 1-based position of the variant within the transcript
+        :param str alt: alternate bases
+        :return tuple: (ref_codons, alt_codons, ref_aas, alt_aas, aa_changes, matches_mut_sigs)
+        """
+
+        alt_len = len(alt)
+
+        if ref_codon_dict[start_index].base_index == 2 and ((alt_len - 1) % 3) == 0:
+            # Insertion is in-frame and does not change current/downstream codons
+            alt_ins = alt[1:]
+            alt_list = [alt_ins[i:i + 3] for i in range(0, len(alt_ins), 3)]
+            ref_codons = (ref_codon_dict[start_index].codon,)
+            alt_codons = (ref_codons[0], *alt_list,)
+            ref_aas = (translate(ref_codons[0]),)
+            alt_aas = (ref_aas[0], *[translate(e) for e in alt_list],)
+            aa_changes = (HGVS_AA_FORMAT.format(ref_aas[0], ref_codon_dict[start_index].codon_pos, ",".join(alt_aas)),)
+            matches_mut_sigs = (True,)
+        else:
+            # Out-of-frame insertion or shuffling of downstream codons
+            codon_remainder, aa_remainder = self._get_ins_downstream_remainder(
+                trx_seq, pos, alt, ref_codon_dict[start_index].codon, ref_codon_dict[start_index].base_index)
+
+            ref_codons = (ref_codon_dict[start_index].codon,)
+            alt_codons = codon_remainder
+            ref_aas = (translate(ref_codons[0]),)
+            alt_aas = aa_remainder
+            aa_changes = (HGVS_AA_FORMAT.format(ref_aas[0], ref_codon_dict[start_index].codon_pos, ",".join(alt_aas)),)
+            matches_mut_sigs = (False,)
+
+        return ref_codons, alt_codons, ref_aas, alt_aas, aa_changes, matches_mut_sigs
+
+    def _annotate_del(self, trx_seq, ref_codon_dict, start_index, pos, ref):
+        """Gets annotations for an insertion.
+
+        :param str trx_seq: transcript sequence
+        :param dict ref_codon_dict: index in the REF CDS: CODON_TUPLE (codon, index of base in the codon)
+        :param int start_index: 0-based position of the first mismatch in the CDS
+        :param int pos: 1-based position of the variant within the transcript
+        :param str ref: reference bases
+        :return tuple: (ref_codons, alt_codons, ref_aas, alt_aas, aa_changes, matches_mut_sigs)
+        """
+
+        ref_len = len(ref)
+
+        if ref_codon_dict[start_index].base_index == 2 and ((ref_len - 1) % 3) == 0:
+            # Deletion is in-frame and does not change current/downstream codons
+            ref_del = ref[1:]
+            ref_list = [ref_del[i:i + 3] for i in range(0, len(ref_del), 3)]
+            ref_codons = (ref_codon_dict[start_index].codon, *ref_list,)
+            alt_codons = (ref_codons[0],)
+            ref_aas = (translate(ref_codons[0]), *[translate(e) for e in ref_list],)
+            alt_aas = (ref_aas[0],)
+            aa_changes = (HGVS_AA_FORMAT.format(",".join(ref_aas), ref_codon_dict[start_index].codon_pos, alt_aas[0]),)
+            matches_mut_sigs = (True,)
+        else:
+            # Out-of-frame deletion or shuffling of downstream codons
+            codon_remainder, aa_remainder = self._get_del_downstream_remainder(
+                trx_seq, pos, ref_len, ref_codon_dict[start_index].codon, ref_codon_dict[start_index].base_index)
+
+            ref_codons = (ref_codon_dict[start_index].codon,)
+            alt_codons = codon_remainder
+            ref_aas = (translate(ref_codons[0]),)
+            alt_aas = aa_remainder
+            aa_changes = (HGVS_AA_FORMAT.format(ref_aas[0], ref_codon_dict[start_index].codon_pos, ",".join(alt_aas)),)
+            matches_mut_sigs = (False,)
+
+        return ref_codons, alt_codons, ref_aas, alt_aas, aa_changes, matches_mut_sigs
+
+    def _get_mut_info(self, trx_seq, wt_cds_seq, mut_cds_seq, pos, ref, alt, cds_start_offset):
+        """Finds codon and amino acid changes given a variant POS, REF, and ALT fields.
+
+        :param str trx_seq: transcript sequence
         :param str wt_cds_seq: WT CDS sequence
         :param str mut_cds_seq: Mutant CDS sequence
+        :param int pos: 1-based position of the variant within the transcript
+        :param str ref: reference bases
+        :param str alt: alternate bases
+        :param int cds_start_offset: transcript position of the CDS start nucleotide
         :return collections.namedtuple: MUT_INFO_TUPLE
         """
 
-        # If we weren't interested in reporting silent mutations, we might just translate the whole sequences then
-        # compare AAs; but multi-base MNPs (haplotypes) make optimization logic a little tricky, as the MNP may
-        # span multiple codons. For now just iterate over all the codons/AAs
-        codon_comparitors = zip(
-            [wt_cds_seq[i:i + 3] for i in range(0, len(wt_cds_seq), 3)],
-            [mut_cds_seq[i:i + 3] for i in range(0, len(mut_cds_seq), 3)]
-        )
+        ref_len = len(ref)
+        alt_len = len(alt)
+        start_index = pos - cds_start_offset - 1
+        end_index = start_index if (ref_len == alt_len and ref_len == 1) else start_index + ref_len
+        ref_codon_dict = self._get_pos_codon_dict(wt_cds_seq)
 
-        # In the future this may need to be modified to handle InDels
-        # Checking codons is needed to call synonymous AA changes
-        wt_codons = []
-        mut_codons = []
-        wt_aas = []
-        mut_aas = []
-        mut_pos = set()
-        aa_changes = []
-        matches_mut_sig = []
+        if ref_len == alt_len:
+            # Here we have a SNP or MNP so we can simply index into the codon lists
+            alt_codon_dict = self._get_pos_codon_dict(mut_cds_seq)
 
-        for i, (wt_codon, mut_codon) in enumerate(codon_comparitors):
+            if start_index == end_index:
+                # Here we have a SNP
+                ref_codons, alt_codons, ref_aas, alt_aas, aa_changes, matches_mut_sigs = self._annotate_snp(
+                    ref_codon_dict, alt_codon_dict, start_index)
+            else:
+                # Here we have a single-codon MNP or a multi-codon change (haplotype)
+                ref_codons, alt_codons, ref_aas, alt_aas, aa_changes, matches_mut_sigs = self._annotate_mnp(
+                    ref_codon_dict, alt_codon_dict, start_index, end_index)
 
-            if wt_codon != mut_codon:
-
-                wt_codons.append(wt_codon)
-                mut_codons.append(mut_codon)
-
-                # Either mark or filter changes that are unexpected by looking at the wobble bp
-                wt_wobble = wt_codon[2]
-                mut_wobble = mut_codon[2]
-
-                # Determine if the mutation matches the mutagenesis signature
-                matches_sig = True
-                if self.mut_sig != self.MUT_SIG_ANY and wt_wobble != mut_wobble and \
-                        mut_wobble in MUT_SIG_UNEXPECTED_WOBBLE_BPS[self.mut_sig]:
-
-                    matches_sig = False
-
-                    if self.filter_unexpected:
-                        continue
-
-                matches_mut_sig.append(matches_sig)
-
-                wt_aa = translate(wt_codon)
-                mut_aa = translate(mut_codon)
-                wt_aas.append(wt_aa)
-                mut_aas.append(mut_aa)
-                mut_pos.add(i + 1)
-                aa_changes.append(HGVS_AA_FORMAT.format(wt_aa, i + 1, mut_aa))
+        elif ref_len < alt_len:
+            # Here we have an insertion
+            ref_codons, alt_codons, ref_aas, alt_aas, aa_changes, matches_mut_sigs = self._annotate_ins(
+                trx_seq, ref_codon_dict, start_index, pos, alt)
+        else:
+            # Here we have a deletion
+            ref_codons, alt_codons, ref_aas, alt_aas, aa_changes, matches_mut_sigs = self._annotate_del(
+                trx_seq, ref_codon_dict, start_index, pos, ref)
 
         # Collect the data into a mutation info tuple
         mut_info_tuple = MUT_INFO_TUPLE(
-            location=self.CDS_ID, wt_codons=wt_codons, mut_codons=mut_codons,
-            wt_aas=wt_aas, mut_aas=mut_aas, aa_changes=aa_changes, aa_positions=[],
-            matches_mut_sig=matches_mut_sig)
+            location=self.CDS_ID, wt_codons=ref_codons, mut_codons=alt_codons,
+            wt_aas=ref_aas, mut_aas=alt_aas, aa_changes=aa_changes, aa_positions=[],
+            matches_mut_sig=matches_mut_sigs)
 
         concat_mut_info_tuple = self._concat_multi_mut_info(mut_info_tuple)
 
@@ -439,17 +665,23 @@ class AminoAcidMapper(MapperBase):
         elif zbased_pos >= cds_stop_offset:
             return MUT_INFO_TUPLE(location=self.THREEPRIME_UTR, **self.DEFAULT_KWARGS)
         else:
-            # To determine the AA change, translate the mutant CDS sequence and find the differences
+            # We have a valid variant in the coding region; annotate AA changes
             cds_len = len(cds_seq)
             ref_len = len(ref)
 
             # Create the ALT within the CDS sequence
             cds_pos = zbased_pos - cds_start_offset
             mut_cds_seq = cds_seq[:cds_pos] + alt + cds_seq[cds_pos + ref_len:]
-            mut_cds_seq = mut_cds_seq[:cds_len]
+
+            # For SNPs and MNPs, ensure the WT and mutant CDS sequences are the same length
+            # This will not call MNPs that span the CDS/3' UTR junction; this is a potential bug, but
+            # nonstop variants are unlikely to be generated in most mutagenesis strategies
+            # We should not slice back to the same length of the WT CDS for insertions; _get_mut_info will handle InDels
+            if ref_len == len(alt):
+                mut_cds_seq = mut_cds_seq[:cds_len]
 
             # Extract the information about the consequences of the variant change
-            mut_info_tuple = self._get_mut_info(wt_cds_seq=cds_seq, mut_cds_seq=mut_cds_seq)
+            mut_info_tuple = self._get_mut_info(trx_seq, cds_seq, mut_cds_seq, pos, ref, alt, cds_start_offset)
 
             return mut_info_tuple
 
