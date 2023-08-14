@@ -174,6 +174,30 @@ class VariantCaller(object):
 
         return False
 
+    @staticmethod
+    def _get_clipped_indices(cigartuples):
+        """Determines the query (read) positions that are clipped.
+
+        :param pysam.AlignedSegment align_seg: read object
+        :return set: indices of clipped bases
+        """
+
+        base_index = 0
+        clip_indices = set()
+
+        for op, length in cigartuples:
+
+            # Skip deletions
+            if op == su.PYSAM_CIGARTUPLES_DEL:
+                continue
+
+            if op == su.PYSAM_CIGARTUPLES_SOFTCLIP:
+                clip_indices |= set(range(base_index, base_index + length))
+
+            base_index += length
+
+        return clip_indices
+
     def _get_haplotype_ref(self, contig, first_pos, last_pos, mm_pos_set):
         r"""Determines the variant REF and local mismatch positions given the first and last MM_TUPLE positions.
 
@@ -360,8 +384,7 @@ class VariantCaller(object):
 
         return mms
 
-    @staticmethod
-    def _enumerate_indels(align_seg, min_bq=VARIANT_CALL_MIN_BQ):
+    def _enumerate_indels(self, align_seg, min_bq=VARIANT_CALL_MIN_BQ):
         """Enumerates the InDels in a read.
 
         :param pysam.AlignedSegment align_seg: read object
@@ -378,11 +401,16 @@ class VariantCaller(object):
 
         read_strand = su.Strand(align_seg.is_reverse)
         mms = []
+        clip_indices = self._get_clipped_indices(align_seg.cigartuples)
 
         for apt in align_seg.get_aligned_pairs(with_seq=True):
 
             # Determine attrs of the current base
             query_pos, reference_pos, reference_base = apt
+
+            # Skip soft-clipped bases as the reference_pos and reference_base are None and interfere with ins detection
+            if query_pos in clip_indices:
+                continue
 
             # Here we have a simple deletion
             if query_pos is None:
@@ -391,7 +419,9 @@ class VariantCaller(object):
                     # Start new deletion; since reference_pos is 0-based and we want 1-based, and because the first
                     # match before del should be the REF field, just use current reference_pos
                     # Fields are POS, REF, ALT, and last query position so position in read can be determined
-                    new_del = (reference_pos, [last_reference_base, reference_base], last_reference_base, last_query_pos,)
+                    new_del = (
+                        reference_pos, [last_reference_base.upper(), reference_base],
+                        last_reference_base.upper(), last_query_pos,)
                 else:
                     # Otherwise extend the deletion
                     new_del[1].append(reference_base)
@@ -412,16 +442,20 @@ class VariantCaller(object):
             # Here we have an simple insertion
             if reference_pos is None:
 
-                # Filter insertions using BQ of the first inserted base
+                # Filter bases of insertions using BQs
                 ins_qual = align_seg.query_qualities[query_pos]
                 if ins_qual < min_bq:
+                    last_query_pos = query_pos
+                    # Note we do not reset last_reference_pos and last_reference_base because they need to point
+                    # to a match/mismatch and not a ins
                     continue
 
                 if last_reference_base is not None:
                     # Start new ins
                     # Fields are POS, REF, ALT, and last query position so position in read can be determined
-                    new_ins = (last_reference_pos + 1, last_reference_base,
-                               [last_reference_base, align_seg.query_sequence[query_pos].upper()], last_query_pos,)
+                    new_ins = (
+                        last_reference_pos + 1, last_reference_base.upper(),
+                        [last_reference_base.upper(), align_seg.query_sequence[query_pos].upper()], last_query_pos,)
                 else:
                     # Otherwise extend the insertion
                     new_ins[2].append(align_seg.query_sequence[query_pos].upper())
@@ -945,7 +979,7 @@ class VariantCaller(object):
 
         # Determine the codon, AA change(s) and whether or not the variant matches the mutagenesis signature
         var_location, var_wt_codons, var_mut_codons, var_wt_aas, var_mut_aas, var_aa_changes, var_aa_positions, \
-        var_matches_mut_sig = self.amino_acid_mapper.get_codon_and_aa_changes(
+        var_matches_mut_sig, hgvs_nt, hgvs_tx, hgvs_pro = self.amino_acid_mapper.get_codon_and_aa_changes(
             trx_id=trx_id, pos=vckt.pos, ref=vckt.ref, alt=vckt.alt)
 
         # Create an INFO field for the VCF
@@ -982,7 +1016,10 @@ class VariantCaller(object):
             vu.VCF_AAM_AA_ALT_ID: var_mut_aas,
             vu.VCF_AAM_AA_CHANGE_ID: var_aa_changes,
             vu.VCF_AAM_AA_POS_ID: var_aa_positions,
-            vu.VCF_MUT_SIG_MATCH: str(var_matches_mut_sig)
+            vu.VCF_MUT_SIG_MATCH: str(var_matches_mut_sig),
+            vu.VCF_MAVE_HGVS_NT_ID: hgvs_nt,
+            vu.VCF_MAVE_HGVS_TX_ID: hgvs_tx,
+            vu.VCF_MAVE_HGVS_PRO_ID: hgvs_pro,
         }
 
         # Generate a VCF record from scracth
@@ -1054,7 +1091,10 @@ class VariantCaller(object):
              "%s comma-delimited amino acid change(s). NA if the variant is out of CDS bounds." % aa_mapper_module_path),
             (vu.VCF_AAM_AA_POS_ID, ".", "String",
              "%s comma-delimited amino acid position(s). NA if the variant is out of CDS bounds." % aa_mapper_module_path),
-            (vu.VCF_MUT_SIG_MATCH, ".", "String", "Whether or not the variant matches the mutagenesis signature.")
+            (vu.VCF_MUT_SIG_MATCH, ".", "String", "Whether or not the variant matches the mutagenesis signature."),
+            (vu.VCF_MAVE_HGVS_NT_ID, ".", "String", "MAVE-HGVS nucleotide change."),
+            (vu.VCF_MAVE_HGVS_TX_ID, ".", "String", "MAVE-HGVS transcript change."),
+            (vu.VCF_MAVE_HGVS_PRO_ID, ".", "String", "MAVE-HGVS protein change.")
         ]
 
         # Add the INFO fields to be populated in the variant records
