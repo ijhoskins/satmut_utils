@@ -119,6 +119,34 @@ class TestVariantCaller(unittest.TestCase):
         observed = self.vc._is_indel((None, 10, "G"))
         self.assertTrue(observed)
 
+    def test_get_clipped_indices_left(self):
+        """Tests that soft-clips at the left of a read are identified"""
+
+        observed = self.vc._get_clipped_indices([(su.PYSAM_CIGARTUPLES_SOFTCLIP, 5), (su.PYSAM_CIGARTUPLES_MATCH, 100)])
+        expected = set(range(0, 5))
+        self.assertEqual(expected, observed)
+
+    def test_get_clipped_indices_right(self):
+        """Tests that soft-clips at the right of a read are identified"""
+
+        observed = self.vc._get_clipped_indices([(su.PYSAM_CIGARTUPLES_MATCH, 100), (su.PYSAM_CIGARTUPLES_SOFTCLIP, 5)])
+        expected = set(range(100, 105))
+        self.assertEqual(expected, observed)
+
+    def test_get_clipped_indices_both(self):
+        """Tests that soft-clips at both ends of a read are identified"""
+
+        observed = self.vc._get_clipped_indices(
+            [(su.PYSAM_CIGARTUPLES_SOFTCLIP, 5), (su.PYSAM_CIGARTUPLES_MATCH, 100),
+             (su.PYSAM_CIGARTUPLES_DEL, 1), (su.PYSAM_CIGARTUPLES_MATCH, 20),
+             (su.PYSAM_CIGARTUPLES_INS, 2), (su.PYSAM_CIGARTUPLES_MATCH, 20),
+             (su.PYSAM_CIGARTUPLES_SOFTCLIP, 5)])
+
+        # 147-152
+        expected = set(range(0, 5))
+        expected |= set(range(147, 152))
+        self.assertEqual(expected, observed)
+
     def test_get_haplotype_ref(self):
         """Tests that a proper REF field is constructed from mismatch tuples."""
 

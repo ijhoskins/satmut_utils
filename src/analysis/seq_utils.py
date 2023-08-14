@@ -201,6 +201,33 @@ def reverse_complement(seq):
     return rc
 
 
+def hamming_distance(seq1, seq2, return_indices=False):
+    """Gets the Hamming distance of two strings.
+
+    :param str seq1: first sequence
+    :param str seq2: second sequence
+    :param bool return_indices: return the indices of the mismatched bases
+    :return tuple: Hamming distance, indices of mismatched bases if return_indices=True or None if return_indices=False
+    :raises NotImplementedError: if the sequences are of differing lengths
+    """
+
+    if len(seq1) != len(seq2):
+        raise NotImplementedError
+
+    hd = 0
+    indices = []
+    for i, (b1, b2) in enumerate(zip(seq1, seq2)):
+        if b1 != b2:
+            hd += 1
+            if return_indices:
+                indices.append(i)
+
+    if return_indices:
+        return hd, indices
+
+    return hd, None
+
+
 def extract_seq(contig, start, stop, ref):
     """Extracts a sequence from a reference given coordinates. Reference should have a samtools faidx index.
 
