@@ -336,7 +336,9 @@ class AminoAcidMapper(MapperBase):
 
         new_mut_info_tuple = MUT_INFO_TUPLE(
             location=mut_info_tuple.location, wt_codons=wt_codons, mut_codons=mut_codons, wt_aas=wt_aas, mut_aas=mut_aas,
-            aa_changes=aa_changes, aa_positions=aa_positions, matches_mut_sig=matches_mut_sig)
+            aa_changes=aa_changes, aa_positions=aa_positions, matches_mut_sig=matches_mut_sig,
+            mave_hgvs_nt=mut_info_tuple.mave_hgvs_nt, mave_hgvs_tx=mut_info_tuple.mave_hgvs_tx,
+            mave_hgvs_pro=mut_info_tuple.mave_hgvs_pro)
 
         return new_mut_info_tuple
 
@@ -642,17 +644,18 @@ class AminoAcidMapper(MapperBase):
 
         if location == self.FIVEPRIME_UTR:
             hgvs_nt = "%s:c.-%i%s>%s" % (trx_id, start_index, ref.lower(), alt.lower())
-            hgvs_tx = "%s:r.-%i%s>%s" % (trx_id, start_index, ref.lower(), su.dna_to_rna(alt.lower()))
+            hgvs_tx = "%s:r.-%i%s>%s" % (trx_id, start_index, su.dna_to_rna(ref.lower()), su.dna_to_rna(alt.lower()))
             hgvs_pro = "p.(=)"
 
         elif location == self.THREEPRIME_UTR:
             hgvs_nt = "%s:c.+%i%s>%s" % (trx_id, pos - cds_stop_offset, ref.lower(), alt.lower())
-            hgvs_tx = "%s:r.+%i%s>%s" % (trx_id, pos - cds_stop_offset, ref.lower(), su.dna_to_rna(alt.lower()))
+            hgvs_tx = "%s:r.+%i%s>%s" % (
+                trx_id, pos - cds_stop_offset, su.dna_to_rna(ref.lower()), su.dna_to_rna(alt.lower()))
             hgvs_pro = "p.(=)"
 
         elif location == self.CDS_ID:
             hgvs_nt = "%s:c.%i%s>%s" % (trx_id, start_index + 1, ref.lower(), alt.lower())
-            hgvs_tx = "%s:r.%i%s>%s" % (trx_id, start_index + 1, ref.lower(), su.dna_to_rna(alt.lower()))
+            hgvs_tx = "%s:r.%i%s>%s" % (trx_id, start_index + 1, su.dna_to_rna(ref.lower()), su.dna_to_rna(alt.lower()))
             hgvs_pro = "p.%s%i%s" % (AA_MAP[ref_aa], aa_pos, AA_MAP[alt_aa])
         else:
             raise NotImplementedError
@@ -687,8 +690,8 @@ class AminoAcidMapper(MapperBase):
             hgvs_pro = "p.(=)"
 
         elif location == self.CDS_ID:
-            hgvs_nt = "%s:c.%i_%idelins%s" % (trx_id, start_index + 1, start_index + 3, alt.lower())
-            hgvs_tx = "%s:r.%i_%idelins%s" % (trx_id, start_index + 1, start_index + 3, su.dna_to_rna(alt.lower()))
+            hgvs_nt = "%s:c.%i_%idelins%s" % (trx_id, start_index + 1, start_index + 2, alt.lower())
+            hgvs_tx = "%s:r.%i_%idelins%s" % (trx_id, start_index + 1, start_index + 2, su.dna_to_rna(alt.lower()))
             hgvs_pro = "p.%s%idelins%s" % (AA_MAP[ref_aa], aa_pos, AA_MAP[alt_aa])
         else:
             raise NotImplementedError
@@ -801,7 +804,7 @@ class AminoAcidMapper(MapperBase):
                 return False
 
     @staticmethod
-    def _get_ins_first_alt_aa(alt_aas, cds_stop_offset, start_index, ref_codon_dict):
+    def _get_fs_first_alt_aa(alt_aas, cds_stop_offset, start_index, ref_codon_dict):
         """Gets the first altered amino acid from a frameshift.
 
         :param tuple alt_aas: alternate amino acids
@@ -850,7 +853,7 @@ class AminoAcidMapper(MapperBase):
             hgvs_tx = "%s:r.%idup" % (trx_id, start_index + 1)
 
             # Get the first alt amino acid
-            ref_aa, aa_pos = self._get_ins_first_alt_aa(alt_aas, cds_stop_offset, start_index, ref_codon_dict)
+            ref_aa, aa_pos = self._get_fs_first_alt_aa(alt_aas, cds_stop_offset, start_index, ref_codon_dict)
             hgvs_pro = "p.%s%ifs" % (AA_MAP[translate(ref_aa)], aa_pos)
 
         else:
@@ -870,7 +873,7 @@ class AminoAcidMapper(MapperBase):
 
         return hgvs_nt, hgvs_tx, hgvs_pro
 
-    def _annotate_ins_hgvs(self, trx_id, trx_seq, location, pos, ref, alt, cds_stop_offset, start_index, alt_aas,
+    def _annotate_ins_hgvs(self, trx_id, trx_seq, location, pos, alt, cds_stop_offset, start_index, alt_aas,
                            ref_codon_dict):
         """Annotates MAVE-HGVS for an insertion of duplication.
 
@@ -878,7 +881,6 @@ class AminoAcidMapper(MapperBase):
         :param str trx_seq: transcript sequence
         :param str location:
         :param int pos: 1-based position of the variant within the transcript
-        :param str ref: reference bases
         :param str alt: alternate bases
         :param int cds_stop_offset: transcript position of the CDS last nucleotide
         :param int start_index: 0-based position of the first mismatch in the CDS
@@ -887,8 +889,6 @@ class AminoAcidMapper(MapperBase):
         :return tuple: (hgvs_nt, hgvs_tx, hgvs_pro)
         :raises NotImplementedError: if the variant has an intergenic or untranslated (intronic) location
         """
-
-        ref_len = len(ref)
 
         if location == self.FIVEPRIME_UTR:
             hgvs_nt = "%s:c.-%i_%iins" % (trx_id, start_index + 1, start_index + 2)
@@ -916,23 +916,22 @@ class AminoAcidMapper(MapperBase):
                 hgvs_tx = "%s:r.%i_%iins%s" % (
                     trx_id, start_index + 1, start_index + 2, su.dna_to_rna(alt[1:].lower()))
 
-                if ref_codon_dict[start_index].base_index == 2 & ((alt_len - 1) % 3) == 0:
+                if ref_codon_dict[start_index].base_index == 2 and ((alt_len - 1) % 3) == 0:
                     # In-frame insertion
-                    alt_aa_str = "".join([AA_MAP[translate(e)] for e in alt_aas[1:]])
+                    alt_aa_str = "".join([AA_MAP[e] for e in alt_aas[1:]])
                     hgvs_pro = "p.%i_%iins%s" % (
                         ref_codon_dict[start_index].codon_pos,
                         ref_codon_dict[start_index + 3].codon_pos, alt_aa_str)
                 else:
                     # Out-of-frame insertion
-                    hgvs_pro = "p.%s%ifs" % (
-                        AA_MAP[translate(ref_codon_dict[start_index].codon)],
-                        ref_codon_dict[start_index].codon_pos)
+                    ref_aa, aa_pos = self._get_fs_first_alt_aa(alt_aas, cds_stop_offset, start_index, ref_codon_dict)
+                    hgvs_pro = "p.%s%ifs" % (AA_MAP[ref_aa], aa_pos)
         else:
             raise NotImplementedError
 
         return hgvs_nt, hgvs_tx, hgvs_pro
 
-    def _annotate_del_hgvs(self, trx_id, location, pos, ref, cds_stop_offset, start_index, ref_codon_dict):
+    def _annotate_del_hgvs(self, trx_id, location, pos, ref, cds_stop_offset, start_index, alt_aas, ref_codon_dict):
         """Annotates MAVE-HGVS for a deletion.
 
         :param str trx_id: transcript ID
@@ -941,9 +940,7 @@ class AminoAcidMapper(MapperBase):
         :param str ref: reference bases
         :param int cds_stop_offset: transcript position of the CDS last nucleotide
         :param int start_index: 0-based position of the first mismatch in the CDS
-        :param str ref_aa: reference amino acid
-        :param int aa_pos: amino acid position
-        :param str alt_aa: alternate amino acid
+        :param tuple alt_aas: alternate amino acids
         :param dict ref_codon_dict: index in the REF CDS: CODON_TUPLE (codon, index of base in the codon)
         :return tuple: (hgvs_nt, hgvs_tx, hgvs_pro)
         :raises NotImplementedError: if the variant has an intergenic or untranslated (intronic) location
@@ -963,8 +960,8 @@ class AminoAcidMapper(MapperBase):
 
         elif location == self.CDS_ID:
 
-            hgvs_nt = "%s:c.%i_%idel" % (trx_id, start_index + 1, start_index + ref_len - 1)
-            hgvs_tx = "%s:r.%i_%idel" % (trx_id, start_index + 1, start_index + ref_len - 1)
+            hgvs_nt = "%s:c.%i_%idel" % (trx_id, start_index + 2, start_index + ref_len)
+            hgvs_tx = "%s:r.%i_%idel" % (trx_id, start_index + 2, start_index + ref_len)
 
             if ref_codon_dict[start_index].base_index == 2 and ((ref_len - 1) % 3) == 0:
                 # In-frame deletion
@@ -983,14 +980,9 @@ class AminoAcidMapper(MapperBase):
             else:
                 # Out-of-frame deletion with frameshift
                 # The amino acid should be the first AA that is changed
-                if ref_codon_dict[start_index].base_index == 2:
-                    hgvs_pro = "p.%s%ifs" % (
-                        AA_MAP[translate(ref_codon_dict[start_index].codon)],
-                        ref_codon_dict[start_index].codon_pos)
-                else:
-                    hgvs_pro = "p.%s%ifs" % (
-                        AA_MAP[translate(ref_codon_dict[start_index + 1].codon)],
-                        ref_codon_dict[start_index + 1].codon_pos)
+                ref_aa, aa_pos = self._get_fs_first_alt_aa(alt_aas, cds_stop_offset, start_index, ref_codon_dict)
+                hgvs_pro = "p.%s%ifs" % (AA_MAP[ref_aa], aa_pos)
+
         else:
             raise NotImplementedError
 
@@ -1038,7 +1030,7 @@ class AminoAcidMapper(MapperBase):
                 trx_seq, ref_codon_dict, start_index, pos, alt)
 
             hgvs_nt, hgvs_tx, _ = self._annotate_ins_hgvs(
-                trx_id, trx_seq, location, pos, ref, alt, cds_stop_offset, start_index, alt_aas, ref_codon_dict)
+                trx_id, trx_seq, location, pos, alt, cds_stop_offset, start_index, alt_aas, ref_codon_dict)
 
         else:
             hgvs_nt, hgvs_tx, _ = self._annotate_del_hgvs(
@@ -1119,7 +1111,7 @@ class AminoAcidMapper(MapperBase):
                 trx_seq, ref_codon_dict, start_index, pos, alt)
 
             hgvs_nt, hgvs_tx, hgvs_pro = self._annotate_ins_hgvs(
-                trx_id, trx_seq, location, pos, ref, alt, cds_stop_offset, start_index, alt_aas, ref_codon_dict)
+                trx_id, trx_seq, location, pos, alt, cds_stop_offset, start_index, alt_aas, ref_codon_dict)
 
         else:
 
@@ -1128,7 +1120,7 @@ class AminoAcidMapper(MapperBase):
                 trx_seq, ref_codon_dict, start_index, pos, ref)
 
             hgvs_nt, hgvs_tx, hgvs_pro = self._annotate_del_hgvs(
-                trx_id, location, pos, ref, cds_stop_offset, start_index, ref_codon_dict)
+                trx_id, location, pos, ref, cds_stop_offset, start_index, alt_aas, ref_codon_dict)
 
         # Collect the data into a mutation info tuple
         mut_info_tuple = MUT_INFO_TUPLE(
