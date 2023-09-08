@@ -2,7 +2,6 @@
 """Objects for mapping between transcriptomic and protein coordinates."""
 
 import collections
-import copy
 import gzip
 import logging
 import pickle
@@ -60,7 +59,7 @@ MUT_SIG_UNEXPECTED_WOBBLE_BPS = {"NNN": set(), "NNK": {"A", "C"}, "NNS": {"A", "
 
 AA_MAP = {"A": "Ala", "V": "Val", "I": "Ile", "L": "Leu", "M": "Met", "F": "Phe", "Y": "Tyr", "W": "Trp",
           "S": "Ser", "T": "Thr", "N": "Asn", "Q": "Gln", "C": "Cys", "U": "Sec", "G": "Gly", "P": "Pro",
-          "R": "Arg", "H": "His", "K": "Lys", "D": "Asp", "E": "Glu"}
+          "R": "Arg", "H": "His", "K": "Lys", "D": "Asp", "E": "Glu", "*": "Ter"}
 
 EXON_COORDS_TUPLE = collections.namedtuple("EXON_COORDS_TUPLE", "exon_id, contig, start, stop, exon_len, strand")
 
@@ -333,12 +332,14 @@ class AminoAcidMapper(MapperBase):
         aa_pos_list = [re.sub("[,p.A-Z*]", "", aa) for aa in mut_info_tuple.aa_changes]
         aa_positions = self.MUT_INFO_DELIM.join(aa_pos_list)
         matches_mut_sig = self.MUT_INFO_DELIM.join(list(map(str, mut_info_tuple.matches_mut_sig)))
+        mave_hgvs_nt = self.MUT_INFO_DELIM.join(mut_info_tuple.mave_hgvs_nt)
+        mave_hgvs_tx = self.MUT_INFO_DELIM.join(mut_info_tuple.mave_hgvs_tx)
+        mave_hgvs_pro = self.MUT_INFO_DELIM.join(mut_info_tuple.mave_hgvs_pro)
 
         new_mut_info_tuple = MUT_INFO_TUPLE(
             location=mut_info_tuple.location, wt_codons=wt_codons, mut_codons=mut_codons, wt_aas=wt_aas, mut_aas=mut_aas,
             aa_changes=aa_changes, aa_positions=aa_positions, matches_mut_sig=matches_mut_sig,
-            mave_hgvs_nt=mut_info_tuple.mave_hgvs_nt, mave_hgvs_tx=mut_info_tuple.mave_hgvs_tx,
-            mave_hgvs_pro=mut_info_tuple.mave_hgvs_pro)
+            mave_hgvs_nt=mave_hgvs_nt, mave_hgvs_tx=mave_hgvs_tx, mave_hgvs_pro=mave_hgvs_pro)
 
         return new_mut_info_tuple
 
@@ -347,7 +348,7 @@ class AminoAcidMapper(MapperBase):
         """Gets a mapping between index in the coding sequence and codon.
 
         :param str cds_seq: coding sequence
-        :return dict: index in the CDS: CODON_TUPLE (codon, index of base in the codon)
+        :return dict: index in the CDS: CODON_TUPLE (codon_pos, codon, base_index)
         """
 
         cds_dict = {}
@@ -355,7 +356,7 @@ class AminoAcidMapper(MapperBase):
         codon_pos = 0
 
         for i in range(0, len(cds_seq)):
-            if i % 3 == 0:
+            if (i % 3) == 0:
                 codon_pos += 1
                 curr_codon = cds_seq[i:i + 3]
                 cds_dict[i] = CODON_TUPLE(codon_pos, curr_codon, 0)
@@ -368,6 +369,7 @@ class AminoAcidMapper(MapperBase):
 
         return cds_dict
 
+    # IH TODO: merge downstream remainder codon into one method
     def _get_ins_downstream_remainder(self, trx_seq, pos, alt, curr_codon, base_index):
         """Gets the remaining codons and amino acids downstream of an insertion.
 
@@ -478,7 +480,7 @@ class AminoAcidMapper(MapperBase):
         aa_changes = []
         matches_mut_sigs = []
 
-        for i in range(start_index, end_index + 1, 3):
+        for i in range(start_index, end_index + 1):
             ref_codon = ref_codon_dict[i].codon
             alt_codon = alt_codon_dict[i].codon
 
@@ -501,8 +503,8 @@ class AminoAcidMapper(MapperBase):
             aa_changes.append(aa_change)
             matches_mut_sigs.append(matches_mut_sig)
 
-        return tuple(ref_codons), tuple(alt_codons), tuple(ref_aas), tuple(alt_aas), \
-               tuple(aa_changes), tuple(matches_mut_sigs)
+        return tuple(ref_codons), tuple(alt_codons), tuple(ref_aas), tuple(alt_aas), tuple(aa_changes), \
+               tuple(matches_mut_sigs)
 
     def _annotate_ins(self, trx_seq, ref_codon_dict, start_index, pos, alt):
         """Gets annotations for an insertion.
@@ -520,7 +522,7 @@ class AminoAcidMapper(MapperBase):
         if ref_codon_dict[start_index].base_index == 2 and ((alt_len - 1) % 3) == 0:
             # Insertion is in-frame and does not change current/downstream codons
             alt_ins = alt[1:]
-            alt_list = [alt_ins[i:i + 3] for i in range(0, len(alt_ins), 3)]
+            alt_list = [alt_ins[i:i + 3] for i in range(0, alt_len, 3)]
             ref_codons = (ref_codon_dict[start_index].codon,)
             alt_codons = (ref_codons[0], *alt_list,)
             ref_aas = (translate(ref_codons[0]),)
@@ -582,8 +584,8 @@ class AminoAcidMapper(MapperBase):
 
         return ref_codons, alt_codons, ref_aas, alt_aas, aa_changes, matches_mut_sigs
 
-    def _annotate_nonstop(self, trx_seq, pos, ref, alt, cds_start_offset, ref_codon_dict, alt_codon_dict):
-        """Annotates a nonstop variant.
+    def _annotate_stopvar(self, trx_seq, pos, ref, alt, cds_start_offset, ref_codon_dict, alt_codon_dict):
+        """Annotates a variant in the stop codon.
 
         :param str trx_seq: transcript sequence
         :param int pos: 1-based position of the variant within the transcript
@@ -610,7 +612,8 @@ class AminoAcidMapper(MapperBase):
             else:
 
                 # Here we have a single-codon MNP or a multi-codon change (haplotype, multivariant)
-                # TODO: this is not accurate
+                # NOTE: this is not accurate if a MNP spans the CDS/3' UTR junction, because alt_codon_dict
+                # derives from a sliced mut_cds_seq in get_codon_and_aa_changes()
                 mut_info_tuple = self._annotate_mnp(ref_codon_dict, alt_codon_dict, start_index, end_index)
 
         elif ref_len < alt_len:
@@ -625,152 +628,231 @@ class AminoAcidMapper(MapperBase):
 
         return mut_info_tuple
 
-    def _annotate_snp_hgvs(self, trx_id, location, pos, ref, alt, cds_stop_offset, start_index, ref_aa, aa_pos, alt_aa):
+    # Note: MAVE-HGVS formatting assumes the transcript has a coding region (not noncoding)
+    def _annotate_snp_hgvs(self, trx_id, location, pos, ref, alt, cds_start_offset, cds_stop_offset, start_index,
+                           ref_aa, aa_pos, alt_aa):
         """Annotates MAVE-HGVS for a substitution.
 
         :param str trx_id: transcript ID
-        :param str location:
+        :param str location: transcript location, one of {5_UTR, CDS, 3_UTR}
         :param int pos: 1-based position of the variant within the transcript
         :param str ref: reference bases
         :param str alt: alternate bases
-        :param int cds_stop_offset: transcript position of the CDS last nucleotide
-        :param int start_index: 0-based position of the first mismatch in the CDS
-        :param str ref_aa: reference amino acid
-        :param int aa_pos: amino acid position
-        :param str alt_aa: alternate amino acid
+        :param int cds_start_offset: 0-based transcript position of the CDS start nucleotide
+        :param int cds_stop_offset: 0-based transcript position of the nucleotide after the last CDS position
+        :param int | None start_index: 0-based position of the first mismatch in the CDS
+        :param str | None ref_aa: reference amino acid
+        :param int | None aa_pos: amino acid position
+        :param str | None alt_aa: alternate amino acid
         :return tuple: (hgvs_nt, hgvs_tx, hgvs_pro)
         :raises NotImplementedError: if the variant has an intergenic or untranslated (intronic) location
         """
 
         if location == self.FIVEPRIME_UTR:
-            hgvs_nt = "%s:c.-%i%s>%s" % (trx_id, start_index, ref.lower(), alt.lower())
-            hgvs_tx = "%s:r.-%i%s>%s" % (trx_id, start_index, su.dna_to_rna(ref.lower()), su.dna_to_rna(alt.lower()))
+            utr_pos = pos - cds_start_offset - 1
+            hgvs_nt = "%s:c.%i%s>%s" % (trx_id, utr_pos, ref.lower(), alt.lower())
+            hgvs_tx = "%s:r.%i%s>%s" % (trx_id, utr_pos, su.dna_to_rna(ref.lower()), su.dna_to_rna(alt.lower()))
             hgvs_pro = "p.(=)"
 
         elif location == self.THREEPRIME_UTR:
-            hgvs_nt = "%s:c.+%i%s>%s" % (trx_id, pos - cds_stop_offset, ref.lower(), alt.lower())
-            hgvs_tx = "%s:r.+%i%s>%s" % (
-                trx_id, pos - cds_stop_offset, su.dna_to_rna(ref.lower()), su.dna_to_rna(alt.lower()))
+            utr_pos = pos - cds_stop_offset
+            hgvs_nt = "%s:c.*%i%s>%s" % (trx_id, utr_pos, ref.lower(), alt.lower())
+            hgvs_tx = "%s:r.*%i%s>%s" % (trx_id, utr_pos, su.dna_to_rna(ref.lower()), su.dna_to_rna(alt.lower()))
             hgvs_pro = "p.(=)"
 
         elif location == self.CDS_ID:
             hgvs_nt = "%s:c.%i%s>%s" % (trx_id, start_index + 1, ref.lower(), alt.lower())
             hgvs_tx = "%s:r.%i%s>%s" % (trx_id, start_index + 1, su.dna_to_rna(ref.lower()), su.dna_to_rna(alt.lower()))
-            hgvs_pro = "p.%s%i%s" % (AA_MAP[ref_aa], aa_pos, AA_MAP[alt_aa])
+            if ref_aa == alt_aa:
+                hgvs_pro = "p.%s%i=" % (AA_MAP[ref_aa], aa_pos)
+            else:
+                hgvs_pro = "p.%s%i%s" % (AA_MAP[ref_aa], aa_pos, AA_MAP[alt_aa])
         else:
             raise NotImplementedError
 
         return hgvs_nt, hgvs_tx, hgvs_pro
 
-    def _annotate_mnp_hgvs(self, trx_id, location, pos, alt, cds_stop_offset, start_index, ref_aa, aa_pos, alt_aa):
-        """Annotates MAVE-HGVS for a single-codon MNP.
+    def _annotate_mnp_hgvs(self, trx_id, location, pos, alt, cds_start_offset, cds_stop_offset, start_index,
+                           ref_codon_dict, alt_codon_dict):
+        """Annotates MAVE-HGVS for a MNP (single or dicodon change).
 
         :param str trx_id: transcript ID
-        :param str location:
+        :param str location: transcript location, one of {5_UTR, CDS, 3_UTR}
         :param int pos: 1-based position of the variant within the transcript
         :param str alt: alternate bases
-        :param int cds_stop_offset: transcript position of the CDS last nucleotide
-        :param int start_index: 0-based position of the first mismatch in the CDS
-        :param str ref_aa: reference amino acid
-        :param int aa_pos: amino acid position
-        :param str alt_aa: alternate amino acid
+        :param int cds_start_offset: 0-based transcript position of the CDS start nucleotide
+        :param int cds_stop_offset: 0-based transcript position of the nucleotide after the last CDS position
+        :param int | None start_index: 0-based position of the first mismatch in the CDS
+        :param dict ref_codon_dict: index in the REF CDS: CODON_TUPLE (codon, index of base in the codon)
+        :param dict alt_codon_dict: index in the ALT CDS: CODON_TUPLE (codon, index of base in the codon)
         :return tuple: (hgvs_nt, hgvs_tx, hgvs_pro)
         :raises NotImplementedError: if the variant has an intergenic or untranslated (intronic) location
         """
 
+        alt_len = len(alt)
+
         if location == self.FIVEPRIME_UTR:
-            hgvs_nt = "%s:c.-%i_%idelins%s" % (trx_id, start_index, start_index + 2, alt.lower())
-            hgvs_tx = "%s:r.-%i_%idelins%s" % (trx_id, start_index, start_index + 2, su.dna_to_rna(alt.lower()))
-            hgvs_pro = "p.(=)"
+            utr_start = pos - cds_start_offset - 1
+            utr_stop = utr_start + alt_len - 1
+
+            # Test for MNP spanning 5' UTR-CDS junction
+            if utr_stop >= 0:
+                # We can use alt_codon_dict because we generated the mut_cds_seq in get_codon_and_aa_changes
+                # for this special case of MNP spanning 5' UTR-CDS junction
+                hgvs_nt = "%s:c.%i_%idelins%s" % (trx_id, utr_start + 1, utr_stop + 1, alt.lower())
+                hgvs_tx = "%s:r.%i_%idelins%s" % (trx_id, utr_start + 1, utr_stop + 1, su.dna_to_rna(alt.lower()))
+
+                ref_aa = translate(ref_codon_dict[0].codon)
+                alt_aa = translate(alt_codon_dict[0].codon)
+                if ref_aa == alt_aa:
+                    hgvs_pro = "p.%s%i=" % (AA_MAP[ref_aa], 1)
+                else:
+                    # Unclear if this should be a substitution or delins if only one mismatch is in the start codon
+                    # For now leave as delins to indicate variant is a MNP
+                    hgvs_pro = "p.(=),p.%s%idelins%s" % (AA_MAP[ref_aa], 1, AA_MAP[alt_aa])
+            else:
+                # MNP is isolated in the 5' UTR
+                hgvs_nt = "%s:c.%i_%idelins%s" % (trx_id, utr_start, utr_stop, alt.lower())
+                hgvs_tx = "%s:r.%i_%idelins%s" % (trx_id, utr_start, utr_stop, su.dna_to_rna(alt.lower()))
+                hgvs_pro = "p.(=)"
 
         elif location == self.THREEPRIME_UTR:
-            hgvs_nt = "%s:c.+%i_%idelins%s" % (trx_id, pos - cds_stop_offset, pos - cds_stop_offset + 2, alt.lower())
-            hgvs_tx = "%s:r.+%i_%idelins%s" % (
-                trx_id, pos - cds_stop_offset, pos - cds_stop_offset + 2, su.dna_to_rna(alt.lower()))
+            utr_start = pos - cds_stop_offset
+            utr_stop = utr_start + alt_len - 1
+            hgvs_nt = "%s:c.*%i_*%idelins%s" % (trx_id, utr_start, utr_stop, alt.lower())
+            hgvs_tx = "%s:r.*%i_*%idelins%s" % (trx_id, utr_start, utr_stop, su.dna_to_rna(alt.lower()))
             hgvs_pro = "p.(=)"
 
         elif location == self.CDS_ID:
-            hgvs_nt = "%s:c.%i_%idelins%s" % (trx_id, start_index + 1, start_index + 2, alt.lower())
-            hgvs_tx = "%s:r.%i_%idelins%s" % (trx_id, start_index + 1, start_index + 2, su.dna_to_rna(alt.lower()))
-            hgvs_pro = "p.%s%idelins%s" % (AA_MAP[ref_aa], aa_pos, AA_MAP[alt_aa])
+            hgvs_nt = "%s:c.%i_%idelins%s" % (trx_id, start_index + 1, start_index + alt_len, alt.lower())
+            hgvs_tx = "%s:r.%i_%idelins%s" % (
+                trx_id, start_index + 1, start_index + alt_len, su.dna_to_rna(alt.lower()))
+
+            ref_aa = translate(ref_codon_dict[start_index].codon)
+            alt_aa = translate(alt_codon_dict[start_index].codon)
+
+            # Determine if the MNP spans codons
+            if (ref_codon_dict[start_index].base_index == 1 and alt_len == 3) or \
+                    ref_codon_dict[start_index].base_index == 2:
+
+                # MNP spans codons
+                second_ref_aa = translate(ref_codon_dict[start_index + 3].codon)
+                ref_aas = "".join((ref_aa, second_ref_aa,))
+                alt_aas = "".join((AA_MAP[alt_aa], AA_MAP[translate(alt_codon_dict[start_index + 3].codon)],))
+
+                if ref_aas == alt_aas:
+                    hgvs_pro = "p.%s%i_%s%i=" % (
+                        AA_MAP[ref_aa], ref_codon_dict[start_index].codon_pos, AA_MAP[second_ref_aa],
+                        ref_codon_dict[start_index + 3].codon_pos)
+                else:
+                    hgvs_pro = "p.%s%i_%s%idelins%s" % (
+                        AA_MAP[ref_aa], ref_codon_dict[start_index].codon_pos, AA_MAP[second_ref_aa],
+                        ref_codon_dict[start_index + 3].codon_pos, alt_aas)
+            else:
+                # MNP affects one codon
+                if ref_aa == alt_aa:
+                    hgvs_pro = "p.%s%i=" % (AA_MAP[ref_aa], ref_codon_dict[start_index].codon_pos)
+                else:
+                    hgvs_pro = "p.%s%idelins%s" % (AA_MAP[ref_aa], ref_codon_dict[start_index].codon_pos, AA_MAP[alt_aa])
         else:
             raise NotImplementedError
 
         return hgvs_nt, hgvs_tx, hgvs_pro
 
     @staticmethod
-    def _get_multivariant_data(pos, start_index, ref_codon, alt_codon):
-        r"""Gets a Hamming distance, shifted position and start_index, and updated REF and ALT field for codon changes \
-        within multivariants.
+    def _group_mismatches(mm_positions, mm_indices):
+        """Groups mismatches to enable determination of substitution or delins type.
 
-        :param int pos: 1-based position of the variant within the transcript
-        :param int start_index: 0-based position of the first mismatch in the CDS
-        :param str ref_codon: reference codon with full or partial REF field
-        :param str alt_codon: alternate codon with full or partial ALT field
-        :return tuple: (Hamming distance, pos_shift, start_index_shift, ref_shift, alt_shift)
+        :param tuple mm_positions: mismatched positions
+        :param tuple mm_indices: mismatched indices of REF and ALT fields
+        :return tuple: group tuple containing lists of indices and positions
         """
 
-        hd, mm_indices = su.hamming_distance(ref_codon, alt_codon, return_indices=True)
-        min_index = min(mm_indices)
-        max_index = max(mm_indices)
-        pos_shift = pos + min_index
-        start_index_shift = start_index + min_index
-        ref_shift = ref_codon[min_index:max_index + 1]
-        alt_shift = alt_codon[min_index:max_index + 1]
+        mm_groups = [[]]
+        for i, (mm_idx, mm_pos) in enumerate(zip(mm_indices, mm_positions)):
+            if i == 0:
+                mm_groups[0].append((mm_idx, mm_pos,))
+                continue
 
-        return hd, pos_shift, start_index_shift, ref_shift, alt_shift
+            for j, mm_group in enumerate(mm_groups):
 
-    def _annotate_multivariant_hgvs(self, trx_id, location, pos, cds_stop_offset, start_index, ref_codons, alt_codons,
-                                    ref_codon_dict):
-        """Annotates MAVE-HGVS for a multi-codon MNP or haplotype.
+                mm_group_positions = [i[1] for i in mm_group]
+                min_pos = min(mm_group_positions)
+
+                if mm_pos - min_pos < 3:
+                    mm_groups[j].append((mm_idx, mm_pos,))
+                    break
+            else:
+                # If the mismatch could not be merged with an existing group create a new one
+                mm_groups.append([(mm_idx, mm_pos,)])
+
+        return tuple(mm_groups)
+
+    def _annotate_multivariant_hgvs(self, trx_id, location, pos, ref, alt, cds_start_offset, cds_stop_offset,
+                                    ref_codon_dict, alt_codon_dict):
+        """Concatenates HGVS for multivariants (alleles).
 
         :param str trx_id: transcript ID
-        :param str location:
+        :param str location: transcript location, one of {5_UTR, CDS, 3_UTR}
         :param int pos: 1-based position of the variant within the transcript
-        :param int cds_stop_offset: transcript position of the CDS last nucleotide
-        :param int start_index: 0-based position of the first mismatch in the CDS
-        :param tuple ref_codons: reference codons
-        :param tuple alt_codons: alternate codons
+        :param str ref: reference bases
+        :param str alt: alternate bases
+        :param int cds_start_offset: 0-based transcript position of the CDS start nucleotide
+        :param int cds_stop_offset: 0-based transcript position of the nucleotide after the last CDS position
         :param dict ref_codon_dict: index in the REF CDS: CODON_TUPLE (codon, index of base in the codon)
+        :param dict alt_codon_dict: index in the ALT CDS: CODON_TUPLE (codon, index of base in the codon)
         :return tuple: (hgvs_nt, hgvs_tx, hgvs_pro)
         :raises NotImplementedError: if the variant has an intergenic or untranslated (intronic) location
         """
 
+        if location not in {self.FIVEPRIME_UTR, self.THREEPRIME_UTR, self.CDS_ID}:
+            return NotImplementedError
+
         hgvs_nt_list = []
         hgvs_tx_list = []
         hgvs_pro_list = []
-        ref_codon_start_index = start_index - ref_codon_dict[start_index].base_index
 
-        for i, (ref_codon, alt_codon) in enumerate(zip(ref_codons, alt_codons)):
+        # Group mismatches to determine substitution versus delins types
+        mm_indices = tuple([i for i, (e1, e2) in enumerate(zip(ref, alt)) if e1 != e2])
+        mm_positions = tuple([i + pos for i in mm_indices])
+        mm_groups = self._group_mismatches(mm_positions, mm_indices)
 
-            if i != 0:
-                ref_codon_start_index += 3
+        # Each group is a list of tuples (mm_index, mm_pos)
+        for mm_group in mm_groups:
 
-            if ref_codon == alt_codon:
-                continue
+            if len(mm_group) == 1:
 
-            hd, pos_shift, start_index_shift, ref_shift, alt_shift = self._get_multivariant_data(
-                pos, ref_codon_start_index, ref_codon, alt_codon)
-
-            ref_aa = translate(ref_codon)
-            alt_aa = translate(alt_codon)
-            aa_pos = ref_codon_dict[start_index_shift].codon_pos
-
-            if hd == 1:
-                # Here we have a substitution
-                hgvs_nt, hgvs_tx, hgvs_pro = self._annotate_snp_hgvs(
-                    trx_id, location, pos_shift, ref_shift, alt_shift, cds_stop_offset, start_index_shift, ref_aa,
-                    aa_pos, alt_aa)
+                # Call a substitution
+                if location == self.FIVEPRIME_UTR or location == self.THREEPRIME_UTR:
+                    hgvs_nt, hgvs_tx, hgvs_pro = self._annotate_snp_hgvs(
+                        trx_id, location, mm_group[0][1], ref[mm_group[0][0]], alt[mm_group[0][0]],
+                        cds_start_offset, cds_stop_offset, None, None, None, None)
+                else:
+                    start_index = mm_group[0][1] - cds_start_offset - 1
+                    ref_aa = translate(ref_codon_dict[start_index].codon)
+                    aa_pos = ref_codon_dict[start_index].codon_pos
+                    alt_aa = translate(alt_codon_dict[start_index].codon)
+                    hgvs_nt, hgvs_tx, hgvs_pro = self._annotate_snp_hgvs(
+                        trx_id, location, mm_group[0][1], ref[mm_group[0][0]], alt[mm_group[0][0]],
+                        cds_start_offset, cds_stop_offset, start_index, ref_aa, aa_pos, alt_aa)
             else:
-                # Here we have a single-codon MNP (delins)
-                hgvs_nt, hgvs_tx, hgvs_pro = self._annotate_mnp_hgvs(
-                    trx_id, location, pos_shift, alt_shift, cds_stop_offset, start_index_shift, ref_aa, aa_pos, alt_aa)
+
+                # Call an delins
+                if location == self.FIVEPRIME_UTR or location == self.THREEPRIME_UTR:
+                    hgvs_nt, hgvs_tx, hgvs_pro = self._annotate_mnp_hgvs(
+                        trx_id, location, mm_group[0][1], alt[mm_group[0][0]:mm_group[len(mm_group) - 1][0] + 1],
+                        cds_start_offset, cds_stop_offset, None, ref_codon_dict, alt_codon_dict)
+                else:
+                    start_index = mm_group[0][1] - cds_start_offset - 1
+                    hgvs_nt, hgvs_tx, hgvs_pro = self._annotate_mnp_hgvs(
+                        trx_id, location, mm_group[0][1], alt[mm_group[0][0]:mm_group[len(mm_group) - 1][0] + 1],
+                        cds_start_offset, cds_stop_offset, start_index, ref_codon_dict, alt_codon_dict)
 
             hgvs_nt_list.append(hgvs_nt)
             hgvs_tx_list.append(hgvs_tx)
             hgvs_pro_list.append(hgvs_pro)
 
-        # MAVEdb wants these as semicolon delimited changes, but because write to VCF INFO field, use common delim
+        # MAVEdb wants these as semicolon delimited changes, but because write to VCF INFO field, use comma delim
         hgvs_nt = self.MUT_INFO_DELIM.join(hgvs_nt_list)
         hgvs_tx = self.MUT_INFO_DELIM.join(hgvs_tx_list)
         hgvs_pro = self.MUT_INFO_DELIM.join(hgvs_pro_list)
@@ -791,17 +873,18 @@ class AminoAcidMapper(MapperBase):
         alt_len = len(alt)
 
         # Need to check for cases where the 5' UTR is non-existent or very short and/or the insertion is large
-        upstream_start = pos - alt_len - 1
+        upstream_start = pos - alt_len
         if upstream_start < 0:
             # This may actually be True, but difficult to index into intergenic space to verify
-            # For now this is a safe assumption
+            # For now assume False
             return False
-        else:
-            upstream_bases = trx_seq[upstream_start:pos]
-            if upstream_bases == alt[1:]:
-                return True
-            else:
-                return False
+
+        upstream_bases = trx_seq[upstream_start + 1:pos]
+
+        if upstream_bases == alt[1:]:
+            return True
+
+        return False
 
     @staticmethod
     def _get_fs_first_alt_aa(alt_aas, cds_stop_offset, start_index, ref_codon_dict):
@@ -833,83 +916,142 @@ class AminoAcidMapper(MapperBase):
             if ref_aa != alt_aa:
                 return ref_aa, aa_pos
 
-    def _annotate_dup_hgvs(self, trx_id, alt_len, cds_stop_offset, start_index, alt_aas, ref_codon_dict):
+    def _annotate_dup_hgvs(self, trx_id, location, pos, alt_len, cds_start_offset, cds_stop_offset, start_index,
+                           alt_aas, ref_codon_dict):
         """Annotates MAVE-HGVS for a duplication.
 
         :param str trx_id: transcript ID
-        :param int alt_len: alternate length
-        :param int cds_stop_offset: transcript position of the CDS last nucleotide
-        :param int start_index: 0-based position of the first mismatch in the CDS
-        :param tuple alt_aas: alternate amino acids
-        :param dict ref_codon_dict: index in the REF CDS: CODON_TUPLE (codon, index of base in the codon)
-        :return tuple: (hgvs_nt, hgvs_tx, hgvs_pro)
-        :raises NotImplementedError: if the variant has an intergenic or untranslated (intronic) location
-        """
-
-        # Determine if ins is 1 base (simpler annotation), if ins is in-frame, or is out-of-frame
-        if alt_len == 2:
-            # Dup is 1 base and we have a frameshift at the level of protein
-            hgvs_nt = "%s:c.%idup" % (trx_id, start_index + 1)
-            hgvs_tx = "%s:r.%idup" % (trx_id, start_index + 1)
-
-            # Get the first alt amino acid
-            ref_aa, aa_pos = self._get_fs_first_alt_aa(alt_aas, cds_stop_offset, start_index, ref_codon_dict)
-            hgvs_pro = "p.%s%ifs" % (AA_MAP[translate(ref_aa)], aa_pos)
-
-        else:
-            hgvs_nt = "%s:c.%i_%idup" % (trx_id, start_index - (alt_len - 2) + 1, start_index + 1)
-            hgvs_tx = "%s:r.%i_%idup" % (trx_id, start_index - (alt_len - 2) + 1, start_index + 1)
-            if ((alt_len - 1) % 3) == 0:
-                # In-frame dup
-                hgvs_pro = "p.%s%i_%s%idup" % (
-                    AA_MAP[translate(ref_codon_dict[start_index - (alt_len - 2)].codon)],
-                    ref_codon_dict[start_index - (alt_len - 2)].codon_pos,
-                    AA_MAP[translate(ref_codon_dict[start_index].codon)], ref_codon_dict[start_index].codon_pos)
-            else:
-                # Frameshift dup
-                hgvs_pro = "p.%s%ifs" % (
-                    AA_MAP[translate(ref_codon_dict[start_index].codon)],
-                    ref_codon_dict[start_index].codon_pos)
-
-        return hgvs_nt, hgvs_tx, hgvs_pro
-
-    def _annotate_ins_hgvs(self, trx_id, trx_seq, location, pos, alt, cds_stop_offset, start_index, alt_aas,
-                           ref_codon_dict):
-        """Annotates MAVE-HGVS for an insertion of duplication.
-
-        :param str trx_id: transcript ID
-        :param str trx_seq: transcript sequence
-        :param str location:
+        :param str location: transcript location, one of {5_UTR, CDS, 3_UTR}
         :param int pos: 1-based position of the variant within the transcript
-        :param str alt: alternate bases
-        :param int cds_stop_offset: transcript position of the CDS last nucleotide
-        :param int start_index: 0-based position of the first mismatch in the CDS
-        :param tuple alt_aas: alternate amino acids
-        :param dict ref_codon_dict: index in the REF CDS: CODON_TUPLE (codon, index of base in the codon)
+        :param int alt_len: alternate length
+        :param int cds_start_offset: 0-based transcript position of the CDS start nucleotide
+        :param int cds_stop_offset: 0-based transcript position of the nucleotide after the last CDS position
+        :param int | None start_index: 0-based position of the first mismatch in the CDS
+        :param tuple | None alt_aas: alternate amino acids
+        :param dict | None ref_codon_dict: index in the REF CDS: CODON_TUPLE (codon, index of base in the codon)
         :return tuple: (hgvs_nt, hgvs_tx, hgvs_pro)
         :raises NotImplementedError: if the variant has an intergenic or untranslated (intronic) location
         """
 
         if location == self.FIVEPRIME_UTR:
-            hgvs_nt = "%s:c.-%i_%iins" % (trx_id, start_index + 1, start_index + 2)
-            hgvs_tx = "%s:r.-%i_%iins" % (trx_id, start_index + 1, start_index + 2)
+            utr_stop = pos - cds_start_offset - 1
+            if alt_len == 2:
+                # Dup is 1 base
+                hgvs_nt = "%s:c.%idup" % (trx_id, utr_stop)
+                hgvs_tx = "%s:r.%idup" % (trx_id, utr_stop)
+            else:
+                utr_start = utr_stop - alt_len + 2
+                hgvs_nt = "%s:c.%i_%idup" % (trx_id, utr_start, utr_stop)
+                hgvs_tx = "%s:r.%i_%idup" % (trx_id, utr_start, utr_stop)
+
             hgvs_pro = "p.(=)"
 
         elif location == self.THREEPRIME_UTR:
-            hgvs_nt = "%s:c.+%i_%iins" % (trx_id, pos - cds_stop_offset, pos - cds_stop_offset + 1)
-            hgvs_tx = "%s:r.+%i_%iins" % (trx_id, pos - cds_stop_offset, pos - cds_stop_offset + 1)
+            utr_start = pos - cds_stop_offset
+            if alt_len == 2:
+                # Dup is 1 base
+                hgvs_nt = "%s:c.*%idup" % (trx_id, utr_start)
+                hgvs_tx = "%s:r.*%idup" % (trx_id, utr_start)
+            elif utr_start != 1:
+                # multi-nt dup is at +2 or more
+                utr_start = utr_start - alt_len + 2
+                utr_stop = utr_start + alt_len - 2
+                hgvs_nt = "%s:c.*%i_*%idup" % (trx_id, utr_start, utr_stop)
+                hgvs_tx = "%s:r.*%i_*%idup" % (trx_id, utr_start, utr_stop)
+            else:
+                # Special case where multi-nt dup ends at +1
+                utr_start = cds_stop_offset - alt_len + 3
+                hgvs_nt = "%s:c.%i_*%idup" % (trx_id, utr_start, 1)
+                hgvs_tx = "%s:r.%i_*%idup" % (trx_id, utr_start, 1)
+
             hgvs_pro = "p.(=)"
 
         elif location == self.CDS_ID:
+            # Determine if ins is 1 base (simpler annotation), if ins is in-frame, or is out-of-frame
+            if alt_len == 2:
+                # Dup is 1 base and we have a frameshift at the level of protein
+                hgvs_nt = "%s:c.%idup" % (trx_id, start_index + 1)
+                hgvs_tx = "%s:r.%idup" % (trx_id, start_index + 1)
 
-            alt_len = len(alt)
+                # Get the first alt amino acid
+                ref_aa, aa_pos = self._get_fs_first_alt_aa(alt_aas, cds_stop_offset, start_index, ref_codon_dict)
+                hgvs_pro = "p.%s%ifs" % (AA_MAP[ref_aa], aa_pos)
 
-            # Determine if we have an insertion or duplication
+            else:
+                hgvs_nt = "%s:c.%i_%idup" % (trx_id, start_index - (alt_len - 2) + 1, start_index + 1)
+                hgvs_tx = "%s:r.%i_%idup" % (trx_id, start_index - (alt_len - 2) + 1, start_index + 1)
+                if ((alt_len - 1) % 3) == 0:
+                    # In-frame dup
+                    if alt_len == 4:
+                        # Single amino acid dup
+                        hgvs_pro = "p.%s%idup" % (
+                            AA_MAP[translate(ref_codon_dict[start_index].codon)], ref_codon_dict[start_index].codon_pos)
+                    else:
+                        # Multi amino acid dup
+                        hgvs_pro = "p.%s%i_%s%idup" % (
+                            AA_MAP[translate(ref_codon_dict[start_index - (alt_len - 2)].codon)],
+                            ref_codon_dict[start_index - (alt_len - 2)].codon_pos,
+                            AA_MAP[translate(ref_codon_dict[start_index].codon)], ref_codon_dict[start_index].codon_pos)
+                else:
+                    # Frameshift dup
+                    ref_aa, aa_pos = self._get_fs_first_alt_aa(alt_aas, cds_stop_offset, start_index, ref_codon_dict)
+                    hgvs_pro = "p.%s%ifs" % (AA_MAP[translate(ref_aa)], aa_pos)
+        else:
+            raise NotImplementedError
+
+        return hgvs_nt, hgvs_tx, hgvs_pro
+
+    def _annotate_ins_hgvs(self, trx_id, trx_seq, location, pos, alt, cds_start_offset, cds_stop_offset, start_index,
+                           alt_aas, ref_codon_dict):
+        """Annotates MAVE-HGVS for an insertion of duplication.
+
+        :param str trx_id: transcript ID
+        :param str trx_seq: transcript sequence
+        :param str location: transcript location, one of {5_UTR, CDS, 3_UTR}
+        :param int pos: 1-based position of the variant within the transcript
+        :param str alt: alternate bases
+        :param int cds_start_offset: 0-based transcript position of the CDS start nucleotide
+        :param int cds_stop_offset: 0-based transcript position of the nucleotide after the last CDS position
+        :param int | None start_index: 0-based position of the first mismatch in the CDS
+        :param tuple | None alt_aas: alternate amino acids
+        :param dict | None ref_codon_dict: index in the REF CDS: CODON_TUPLE (codon, index of base in the codon)
+        :return tuple: (hgvs_nt, hgvs_tx, hgvs_pro)
+        :raises NotImplementedError: if the variant has an intergenic or untranslated (intronic) location
+        """
+
+        alt_len = len(alt)
+
+        # For each location, determine if we have an insertion or duplication
+        if location == self.FIVEPRIME_UTR:
             if self._is_duplication(trx_seq, pos, alt):
-
                 hgvs_nt, hgvs_tx, hgvs_pro = self._annotate_dup_hgvs(
-                    trx_id, alt_len, cds_stop_offset, start_index, alt_aas, ref_codon_dict)
+                    trx_id, location, pos, alt_len, cds_start_offset, cds_stop_offset, start_index, alt_aas,
+                    ref_codon_dict)
+            else:
+                utr_start = pos - cds_start_offset - 1
+                utr_stop = utr_start + 1
+                hgvs_nt = "%s:c.%i_%iins%s" % (trx_id, utr_start, utr_stop, alt[1:].lower())
+                hgvs_tx = "%s:r.%i_%iins%s" % (trx_id, utr_start, utr_stop, su.dna_to_rna(alt[1:].lower()))
+                hgvs_pro = "p.(=)"
 
+        elif location == self.THREEPRIME_UTR:
+            if self._is_duplication(trx_seq, pos, alt):
+                hgvs_nt, hgvs_tx, hgvs_pro = self._annotate_dup_hgvs(
+                    trx_id, location, pos, alt_len, cds_start_offset, cds_stop_offset, start_index, alt_aas,
+                    ref_codon_dict)
+            else:
+                utr_start = pos - cds_stop_offset
+                utr_stop = utr_start + 1
+                hgvs_nt = "%s:c.*%i_*%iins%s" % (trx_id, utr_start, utr_stop, alt[1:].lower())
+                hgvs_tx = "%s:r.*%i_*%iins%s" % (trx_id, utr_start, utr_stop, su.dna_to_rna(alt[1:].lower()))
+                hgvs_pro = "p.(=)"
+
+        elif location == self.CDS_ID:
+
+            if self._is_duplication(trx_seq, pos, alt):
+                hgvs_nt, hgvs_tx, hgvs_pro = self._annotate_dup_hgvs(
+                    trx_id, location, pos, alt_len, cds_start_offset, cds_stop_offset, start_index, alt_aas,
+                    ref_codon_dict)
             else:
                 # We have a non-dup insertion
                 hgvs_nt = "%s:c.%i_%iins%s" % (trx_id, start_index + 1, start_index + 2, alt[1:].lower())
@@ -919,8 +1061,9 @@ class AminoAcidMapper(MapperBase):
                 if ref_codon_dict[start_index].base_index == 2 and ((alt_len - 1) % 3) == 0:
                     # In-frame insertion
                     alt_aa_str = "".join([AA_MAP[e] for e in alt_aas[1:]])
-                    hgvs_pro = "p.%i_%iins%s" % (
-                        ref_codon_dict[start_index].codon_pos,
+                    hgvs_pro = "p.%s%i_%s%iins%s" % (
+                        AA_MAP[translate(ref_codon_dict[start_index].codon)], ref_codon_dict[start_index].codon_pos,
+                        AA_MAP[translate(ref_codon_dict[start_index + 3].codon)],
                         ref_codon_dict[start_index + 3].codon_pos, alt_aa_str)
                 else:
                     # Out-of-frame insertion
@@ -931,16 +1074,18 @@ class AminoAcidMapper(MapperBase):
 
         return hgvs_nt, hgvs_tx, hgvs_pro
 
-    def _annotate_del_hgvs(self, trx_id, location, pos, ref, cds_stop_offset, start_index, alt_aas, ref_codon_dict):
+    def _annotate_del_hgvs(self, trx_id, location, pos, ref, cds_start_offset, cds_stop_offset, start_index, alt_aas,
+                           ref_codon_dict):
         """Annotates MAVE-HGVS for a deletion.
 
         :param str trx_id: transcript ID
         :param str location:
         :param int pos: 1-based position of the variant within the transcript
         :param str ref: reference bases
-        :param int cds_stop_offset: transcript position of the CDS last nucleotide
-        :param int start_index: 0-based position of the first mismatch in the CDS
-        :param tuple alt_aas: alternate amino acids
+        :param int cds_start_offset: 0-based transcript position of the CDS start nucleotide
+        :param int cds_stop_offset: 0-based transcript position of the nucleotide after the last CDS position
+        :param int | None start_index: 0-based position of the first mismatch in the CDS
+        :param tuple | None alt_aas: alternate amino acids
         :param dict ref_codon_dict: index in the REF CDS: CODON_TUPLE (codon, index of base in the codon)
         :return tuple: (hgvs_nt, hgvs_tx, hgvs_pro)
         :raises NotImplementedError: if the variant has an intergenic or untranslated (intronic) location
@@ -949,21 +1094,64 @@ class AminoAcidMapper(MapperBase):
         ref_len = len(ref)
 
         if location == self.FIVEPRIME_UTR:
-            hgvs_nt = "%s:c.-%i_%idel" % (trx_id, start_index + 1, start_index + ref_len - 1)
-            hgvs_tx = "%s:r.-%i_%idel" % (trx_id, start_index + 1, start_index + ref_len - 1)
-            hgvs_pro = "p.(=)"
+            utr_start = pos - cds_start_offset
+            utr_stop = utr_start + ref_len - 2
+            if ref_len == 2:
+                # Single nt deleted
+                hgvs_nt = "%s:c.%idel" % (trx_id, utr_start)
+                hgvs_tx = "%s:r.%idel" % (trx_id, utr_start)
+            else:
+                # Multiple nts deleted
+                hgvs_nt = "%s:c.%i_%idel" % (trx_id, utr_start, utr_stop)
+                hgvs_tx = "%s:r.%i_%idel" % (trx_id, utr_start, utr_stop)
+
+            if utr_stop >= 0:
+                # The deletion removes the start codon; determine which amino acids were affected
+                n_aa_del = len(list(range(0, utr_stop, 3)))
+                if n_aa_del == 1:
+                    # Deletion affects only the start codon
+                    hgvs_pro = "p.%s%idel" % (AA_MAP[translate(ref_codon_dict[0].codon)], 1)
+                elif (utr_stop + 1) % 3 == 0:
+                    # Deletion affects start codon and downstream codons
+                    # Multiple nts deleted
+                    hgvs_nt = "%s:c.%i_%idel" % (trx_id, utr_start, utr_stop + 1)
+                    hgvs_tx = "%s:r.%i_%idel" % (trx_id, utr_start, utr_stop + 1)
+                    hgvs_pro = "p.%s%i_%s%idel" % (
+                        AA_MAP[translate(ref_codon_dict[0].codon)], 1,
+                        AA_MAP[translate(ref_codon_dict[utr_stop - 1].codon)], ref_codon_dict[utr_stop - 1].codon_pos)
+                else:
+                    # Deletion affects start codon and is a frameshift
+                    hgvs_pro = "p.%s%ifs" % (AA_MAP[translate(ref_codon_dict[0].codon)], 1)
+            else:
+                hgvs_pro = "p.(=)"
 
         elif location == self.THREEPRIME_UTR:
-            hgvs_nt = "%s:c.+%i_%idel" % (trx_id, pos - cds_stop_offset, pos - cds_stop_offset + ref_len)
-            hgvs_tx = "%s:r.+%i_%idel" % (trx_id, pos - cds_stop_offset, pos - cds_stop_offset + ref_len)
+            utr_start = pos - cds_stop_offset + 1
+            if ref_len == 2:
+                # Single nt deleted
+                hgvs_nt = "%s:c.*%idel" % (trx_id, utr_start)
+                hgvs_tx = "%s:r.*%idel" % (trx_id, utr_start)
+            else:
+                # Multiple nts deleted
+                utr_stop = utr_start + ref_len - 2
+                hgvs_nt = "%s:c.*%i_*%idel" % (trx_id, utr_start, utr_stop)
+                hgvs_tx = "%s:r.*%i_*%idel" % (trx_id, utr_start, utr_stop)
+
             hgvs_pro = "p.(=)"
 
         elif location == self.CDS_ID:
 
-            hgvs_nt = "%s:c.%i_%idel" % (trx_id, start_index + 2, start_index + ref_len)
-            hgvs_tx = "%s:r.%i_%idel" % (trx_id, start_index + 2, start_index + ref_len)
+            if ref_len == 2:
+                # Single nt deleted
+                hgvs_nt = "%s:c.%idel" % (trx_id, start_index + 2)
+                hgvs_tx = "%s:r.%idel" % (trx_id, start_index + 2)
+            else:
+                # Multiple nts deleted
+                hgvs_nt = "%s:c.%i_%idel" % (trx_id, start_index + 2, start_index + ref_len)
+                hgvs_tx = "%s:r.%i_%idel" % (trx_id, start_index + 2, start_index + ref_len)
 
             if ref_codon_dict[start_index].base_index == 2 and ((ref_len - 1) % 3) == 0:
+
                 # In-frame deletion
                 if ref_len == 4:
                     # Single-codon del
@@ -988,20 +1176,24 @@ class AminoAcidMapper(MapperBase):
 
         return hgvs_nt, hgvs_tx, hgvs_pro
 
-    def _annotate_nonstop_hgvs(self, trx_id, location, trx_seq, pos, ref, alt, ref_len, alt_len, cds_stop_offset,
-                               start_index, end_index, ref_codon_dict, alt_codon_dict):
-        """Annotates MAVE-HGVS for a nonstop variant (one abolishing the stop codon).
+    def _annotate_stopvar_hgvs(self, trx_id, location, trx_seq, pos, ref, alt, ref_len, alt_len, cds_start_offset,
+                               cds_stop_offset, start_index, end_index, ref_codon_dict, alt_codon_dict):
+        """Annotates MAVE-HGVS for a variant at the stop codon (including nonstop/extension variant).
 
         :param str trx_id: transcript ID
-        :param str location:
+        :param str location: transcript location, one of {5_UTR, CDS, 3_UTR}
         :param str trx_seq: transcript sequence
-        :param int start_index: 0-based position of the first mismatch in the CDS
-        :param tuple ref_codons: reference codons
-        :param tuple alt_codons: alternate codons
         :param int pos: 1-based position of the variant within the transcript
         :param str ref: reference bases
         :param str alt: alternate bases
+        :param int ref_len: reference length
+        :param int alt_len: alternate length
+        :param int cds_start_offset: 0-based transcript position of the CDS start nucleotide
+        :param int cds_stop_offset: 0-based transcript position of the nucleotide after the last CDS position
+        :param int start_index: 0-based position of the first mismatch in the CDS
+        :param int end_index: 0-based position of the last mismatch in the CDS
         :param dict ref_codon_dict: index in the REF CDS: CODON_TUPLE (codon, index of base in the codon)
+        :param dict alt_codon_dict: index in the ALT CDS: CODON_TUPLE (codon, index of base in the codon)
         :return tuple: (hgvs_nt, hgvs_tx, hgvs_pro)
         :raises NotImplementedError: if the variant has an intergenic or untranslated (intronic) location
         """
@@ -1010,41 +1202,42 @@ class AminoAcidMapper(MapperBase):
             # Here we have a SNP or MNP so we can simply index into the codon lists
             if start_index == end_index:
                 # Here we have a SNP
-                ref_codons, alt_codons, ref_aas, alt_aas, aa_changes, matches_mut_sigs = self._annotate_snp(
+                _, _, ref_aas, alt_aas, _, _ = self._annotate_snp(
                     ref_codon_dict, alt_codon_dict, start_index)
 
                 hgvs_nt, hgvs_tx, _ = self._annotate_snp_hgvs(
-                    trx_id, location, pos, ref, alt, cds_stop_offset, start_index, ref_aas[0],
+                    trx_id, location, pos, ref, alt, cds_start_offset, cds_stop_offset, start_index, ref_aas[0],
                     ref_codon_dict[start_index].codon_pos, alt_aas[0])
             else:
                 # Here we have a single-codon MNP or a multi-codon change (haplotype, multivariant)
-                ref_codons, alt_codons, ref_aas, alt_aas, aa_changes, matches_mut_sigs = self._annotate_mnp(
-                    ref_codon_dict, alt_codon_dict, start_index, end_index)
-
                 hgvs_nt, hgvs_tx, _ = self._annotate_multivariant_hgvs(
-                    trx_id, location, pos, cds_stop_offset, start_index, ref_codons, alt_codons, ref_codon_dict)
+                    trx_id, location, pos, ref, alt, cds_start_offset, cds_stop_offset, ref_codon_dict, alt_codon_dict)
 
         elif ref_len < alt_len:
             # Here we have an insertion or duplication
-            ref_codons, alt_codons, ref_aas, alt_aas, aa_changes, matches_mut_sigs = self._annotate_ins(
+            _, _, _, alt_aas, _, _ = self._annotate_ins(
                 trx_seq, ref_codon_dict, start_index, pos, alt)
 
             hgvs_nt, hgvs_tx, _ = self._annotate_ins_hgvs(
-                trx_id, trx_seq, location, pos, alt, cds_stop_offset, start_index, alt_aas, ref_codon_dict)
+                trx_id, trx_seq, location, pos, alt, cds_start_offset, cds_stop_offset, start_index, alt_aas,
+                ref_codon_dict)
 
         else:
+            # Here we have a deletion
+            _, _, _, alt_aas, _, _ = self._annotate_del(trx_seq, ref_codon_dict, start_index, pos, ref)
+
             hgvs_nt, hgvs_tx, _ = self._annotate_del_hgvs(
-                trx_id, location, pos, ref, cds_stop_offset, start_index, ref_codon_dict)
+                trx_id, location, pos, ref, cds_start_offset, cds_stop_offset, start_index, alt_aas, ref_codon_dict)
 
         # Either the variant changes the stop codon or it doesn't
-        if ref_codon_dict[start_index] == STOP_AA and alt_codon_dict[start_index] == STOP_AA:
-            # If there is a variant in which the stop codon was not altered, ignore the downstream changes
-            hgvs_pro = "p.(=)"
+        if translate(ref_codon_dict[start_index].codon) == STOP_AA and \
+                translate(alt_codon_dict[start_index].codon) == STOP_AA:
+            # If there is a variant in which the stop codon was not altered, no protein change
+            hgvs_pro = "p.%s%i=" % (AA_MAP["*"], ref_codon_dict[start_index].codon_pos)
             return hgvs_nt, hgvs_tx, hgvs_pro
 
-        # Otherwise assume a frameshift
-        hgvs_pro = "p.%s%ifs" % (AA_MAP[translate(ref_codon_dict[start_index].codon)],
-                                 ref_codon_dict[start_index].codon_pos)
+        # Otherwise we have a frameshift
+        hgvs_pro = "p.%s%ifs" % (AA_MAP["*"], ref_codon_dict[start_index].codon_pos)
 
         return hgvs_nt, hgvs_tx, hgvs_pro
 
@@ -1053,74 +1246,111 @@ class AminoAcidMapper(MapperBase):
         """Finds codon and amino acid changes given a variant POS, REF, and ALT fields.
 
         :param str trx_id: transcript ID
-        :param str location: location of the transcript; one of {5_UTR, CDS, 3_UTR}
+        :param str location: transcript location, one of {5_UTR, CDS, 3_UTR}
         :param str trx_seq: transcript sequence
         :param str wt_cds_seq: WT CDS sequence
         :param str mut_cds_seq: Mutant CDS sequence
         :param int pos: 1-based position of the variant within the transcript
         :param str ref: reference bases
         :param str alt: alternate bases
-        :param int cds_start_offset: transcript position of the CDS start nucleotide
-        :param int cds_stop_offset: transcript position of the CDS last nucleotide
+        :param int cds_start_offset: 0-based transcript position of the CDS start nucleotide
+        :param int cds_stop_offset: 0-based transcript position of the nucleotide after the last CDS position
         :return collections.namedtuple: MUT_INFO_TUPLE
         """
+
+        # First set defaults for cases where the variant is in a UTR
+        ref_codons, alt_codons, ref_aas, alt_aas, aa_changes, matches_mut_sigs = tuple([su.R_COMPAT_NA] * 6)
 
         ref_len = len(ref)
         alt_len = len(alt)
         start_index = pos - cds_start_offset - 1
-        end_index = start_index if (ref_len == alt_len and ref_len == 1) else start_index + ref_len
-        ref_codon_dict = self._get_pos_codon_dict(wt_cds_seq)
-        alt_codon_dict = self._get_pos_codon_dict(mut_cds_seq)
 
-        # We annotate each variant with a verbose representation and standardized MAVE-HGVS format
+        # Handle UTR variants as start_index will be an invalid key
+        # Make start_index and stop_index valid, but ensure annotation functions do not make use of them
+        if location == self.FIVEPRIME_UTR or location == self.THREEPRIME_UTR:
+            start_index = 0
+
+        end_index = start_index if (ref_len == alt_len and ref_len == 1) else start_index + ref_len
+
+        # Note: If end_index is greater than the stop codon for a long-range haplotype in a short CDS, annotation
+        # will be incorrect; however, this would be extremely rare so don't check
+
+        ref_codon_dict = self._get_pos_codon_dict(wt_cds_seq)
+
+        # We annotate each variant with a verbose representation (for CDS variants only),
+        # as well as a standardized MAVE-HGVS format (for CDS or UTR variants)
+
         if translate(ref_codon_dict[start_index].codon) == STOP_AA:
 
-            # Annotate nonstop variants first as they are a special case
-            ref_codons, alt_codons, ref_aas, alt_aas, aa_changes, matches_mut_sigs = self._annotate_nonstop(
+            # Annotate variants at the stop codon first as they are a special case
+            # Any nonstop variant will be assumed a frameshift variant
+            alt_codon_dict = self._get_pos_codon_dict(mut_cds_seq)
+
+            ref_codons, alt_codons, ref_aas, alt_aas, aa_changes, matches_mut_sigs = self._annotate_stopvar(
                 trx_seq, pos, ref, alt, cds_start_offset, ref_codon_dict, alt_codon_dict)
 
-            # Special case requires investigation of all variant types to determine if the non-stop variant exists
-            hgvs_nt, hgvs_tx, hgvs_pro = self._annotate_nonstop_hgvs(
-                trx_id, location, trx_seq, pos, ref, alt, ref_len, alt_len, cds_stop_offset, start_index, end_index,
-                ref_codon_dict, alt_codon_dict)
+            # Special case requires investigation of all variant types to determine if a non-stop variant exists
+            hgvs_nt, hgvs_tx, hgvs_pro = self._annotate_stopvar_hgvs(
+                trx_id, location, trx_seq, pos, ref, alt, ref_len, alt_len, cds_start_offset, cds_stop_offset,
+                start_index, end_index, ref_codon_dict, alt_codon_dict)
 
         elif ref_len == alt_len:
 
             # Here we have a SNP or MNP so we can simply index into the codon lists
-            if start_index == end_index:
-                # Here we have a SNP
-                ref_codons, alt_codons, ref_aas, alt_aas, aa_changes, matches_mut_sigs = self._annotate_snp(
-                    ref_codon_dict, alt_codon_dict, start_index)
+            alt_codon_dict = self._get_pos_codon_dict(mut_cds_seq)
 
-                hgvs_nt, hgvs_tx, hgvs_pro = self._annotate_snp_hgvs(
-                    trx_id, location, pos, ref, alt, cds_stop_offset, start_index, ref_aas[0],
-                    ref_codon_dict[start_index].codon_pos, alt_aas[0])
+            if start_index == end_index:
+
+                # We have a SNP
+                if location == self.CDS_ID:
+                    ref_codons, alt_codons, ref_aas, alt_aas, aa_changes, matches_mut_sigs = self._annotate_snp(
+                        ref_codon_dict, alt_codon_dict, start_index)
+
+                    hgvs_nt, hgvs_tx, hgvs_pro = self._annotate_snp_hgvs(
+                        trx_id, location, pos, ref, alt, cds_start_offset, cds_stop_offset, start_index, ref_aas[0],
+                        ref_codon_dict[start_index].codon_pos, alt_aas[0])
+                else:
+                    hgvs_nt, hgvs_tx, hgvs_pro = self._annotate_snp_hgvs(
+                        trx_id, location, pos, ref, alt, cds_start_offset, cds_stop_offset, None, None, None, None)
+
             else:
 
                 # Here we have a single-codon MNP or a multi-codon change (haplotype, multivariant)
-                ref_codons, alt_codons, ref_aas, alt_aas, aa_changes, matches_mut_sigs = self._annotate_mnp(
-                    ref_codon_dict, alt_codon_dict, start_index, end_index)
+                if location == self.CDS_ID:
+                    # For MNPs that span the start codon, we will not have custom annotations, but the MAVE-HGVS
+                    # annotation will be correct
+                    ref_codons, alt_codons, ref_aas, alt_aas, aa_changes, matches_mut_sigs = self._annotate_mnp(
+                        ref_codon_dict, alt_codon_dict, start_index, end_index)
 
                 hgvs_nt, hgvs_tx, hgvs_pro = self._annotate_multivariant_hgvs(
-                    trx_id, location, pos, cds_stop_offset, start_index, ref_codons, alt_codons, ref_codon_dict)
+                    trx_id, location, pos, ref, alt, cds_start_offset, cds_stop_offset, ref_codon_dict, alt_codon_dict)
 
         elif ref_len < alt_len:
 
             # Here we have an insertion or duplication
-            ref_codons, alt_codons, ref_aas, alt_aas, aa_changes, matches_mut_sigs = self._annotate_ins(
-                trx_seq, ref_codon_dict, start_index, pos, alt)
+            if location == self.CDS_ID:
+                ref_codons, alt_codons, ref_aas, alt_aas, aa_changes, matches_mut_sigs = self._annotate_ins(
+                    trx_seq, ref_codon_dict, start_index, pos, alt)
 
-            hgvs_nt, hgvs_tx, hgvs_pro = self._annotate_ins_hgvs(
-                trx_id, trx_seq, location, pos, alt, cds_stop_offset, start_index, alt_aas, ref_codon_dict)
+                hgvs_nt, hgvs_tx, hgvs_pro = self._annotate_ins_hgvs(
+                    trx_id, trx_seq, location, pos, alt, cds_start_offset, cds_stop_offset, start_index, alt_aas,
+                    ref_codon_dict)
+            else:
+                hgvs_nt, hgvs_tx, hgvs_pro = self._annotate_ins_hgvs(
+                    trx_id, trx_seq, location, pos, alt, cds_start_offset, cds_stop_offset, None, None, None)
 
         else:
 
             # Here we have a deletion
-            ref_codons, alt_codons, ref_aas, alt_aas, aa_changes, matches_mut_sigs = self._annotate_del(
-                trx_seq, ref_codon_dict, start_index, pos, ref)
+            if location == self.CDS_ID:
+                ref_codons, alt_codons, ref_aas, alt_aas, aa_changes, matches_mut_sigs = self._annotate_del(
+                    trx_seq, ref_codon_dict, start_index, pos, ref)
 
-            hgvs_nt, hgvs_tx, hgvs_pro = self._annotate_del_hgvs(
-                trx_id, location, pos, ref, cds_stop_offset, start_index, alt_aas, ref_codon_dict)
+                hgvs_nt, hgvs_tx, hgvs_pro = self._annotate_del_hgvs(
+                    trx_id, location, pos, ref, cds_start_offset, cds_stop_offset, start_index, alt_aas, ref_codon_dict)
+            else:
+                hgvs_nt, hgvs_tx, hgvs_pro = self._annotate_del_hgvs(
+                    trx_id, location, pos, ref, cds_start_offset, cds_stop_offset, None, None, ref_codon_dict)
 
         # Collect the data into a mutation info tuple
         mut_info_tuple = MUT_INFO_TUPLE(
@@ -1175,16 +1405,21 @@ class AminoAcidMapper(MapperBase):
         cds_len = len(cds_seq)
         ref_len = len(ref)
 
-        # Create the ALT within the CDS sequence
+        # Create the ALT within the CDS sequence for SNP and MNP calling
+        # Set default mutant CDS sequence for isolated UTR variants; update for CDS variants
+        mut_cds_seq = cds_seq
         cds_pos = zbased_pos - cds_start_offset
-        mut_cds_seq = cds_seq[:cds_pos] + alt + cds_seq[cds_pos + ref_len:]
 
         # For SNPs and MNPs, ensure the WT and mutant CDS sequences are the same length
-        # This will not call MNPs that span the CDS/3' UTR junction; this is a potential bug, but
-        # nonstop variants are unlikely to be generated in most mutagenesis strategies
-        # We should not slice back to the same length of the WT CDS for insertions; _get_mut_info will handle InDels
-        if ref_len == len(alt):
+        # mut_cds_seq will only be used for SNP and MNP, not InDel, calling
+        if cds_stop_offset > cds_pos >= 0:
+            # Variant is within the CDS
+            mut_cds_seq = cds_seq[:cds_pos] + alt + cds_seq[cds_pos + ref_len:]
             mut_cds_seq = mut_cds_seq[:cds_len]
+            # NOTE: as a result of slice we will not call MNPs that span the CDS/3' UTR junction
+        elif cds_pos < 0 < (cds_pos + ref_len):
+            # Variant starts in 5' UTR and spans the 5' UTR/CDS junction
+            mut_cds_seq = (alt + cds_seq)[-cds_len:]
 
         # Now that we have ensured our variant is valid, we can check for its placement
         if cds_start_offset is None and cds_stop_offset is None:
@@ -1192,19 +1427,15 @@ class AminoAcidMapper(MapperBase):
             return MUT_INFO_TUPLE(location=self.UNTRANSLATED, **self.DEFAULT_KWARGS)
 
         elif zbased_pos < cds_start_offset:
-            mut_info_tuple = self._get_mut_info(
-                trx_id, self.FIVEPRIME_UTR, trx_seq, cds_seq, mut_cds_seq, pos, ref, alt, cds_start_offset,
-                cds_stop_offset)
-
+            location = self.FIVEPRIME_UTR
         elif zbased_pos >= cds_stop_offset:
-            mut_info_tuple = self._get_mut_info(
-                trx_id, self.THREEPRIME_UTR, trx_seq, cds_seq, mut_cds_seq, pos, ref, alt, cds_start_offset,
-                cds_stop_offset)
-
+            location = self.THREEPRIME_UTR
         else:
-            # Extract the information about the consequences of the variant change
-            mut_info_tuple = self._get_mut_info(
-                trx_id, self.CDS_ID, trx_seq, cds_seq, mut_cds_seq, pos, ref, alt, cds_start_offset, cds_stop_offset)
+            location = self.CDS_ID
+
+        # Extract the information about the consequences of the variant change
+        mut_info_tuple = self._get_mut_info(
+            trx_id, location, trx_seq, cds_seq, mut_cds_seq, pos, ref, alt, cds_start_offset, cds_stop_offset)
 
         return mut_info_tuple
 
