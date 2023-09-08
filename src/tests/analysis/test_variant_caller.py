@@ -876,3 +876,10 @@ class TestVariantCaller(unittest.TestCase):
         with self.assertRaises(NotImplementedError):
             _, _ = self.vc.workflow(min_bq=0, max_nm=5, min_supporting_qnames=1, max_mnp_window=3,
                                     out_prefix=os.path.join(self.tempdir, "test"))
+
+    def test_call_indels(self):
+        pass
+
+    def test_enumerate_indels(self):
+        pass
+
