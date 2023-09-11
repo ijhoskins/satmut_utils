@@ -200,6 +200,9 @@ It is recommended that a new output directory is created for each job. Default i
 
 ```OUTPUT_DIR="/tmp/satmut_utils_test"```
 
+Additionally, the user can set a directory for temporary files by setting an environment variable $SCRATCH. If this variable is not set, temporary files are written to /tmp.
+```export SCRATCH="/tmp/satmut_temp"```
+
 ### 'sim' code examples
 
 Run the 'sim' workflow by providing a BAM containing paired-end, single-contig alignments, and a VCF file specifying variants and their desired frequencies. 
@@ -332,6 +335,12 @@ AA\_CHANGE: Comma-delimited amino acid change(s). NA if the variant is out of CD
 AA\_POS: Comma-delimited amino acid position(s). NA if the variant is out of CDS bounds.
 
 MATCHES\_MUT\_SIG: Whether or not the variant matches the mutagenesis signature.
+
+HGVS\_NT: MAVE-HGVS annotation for hgvs\_nt field in MAVEdb score or count table.
+
+HGVS\_TX: MAVE-HGVS annotation for hgvs\_tx field in MAVEdb score or count table.
+
+HGVS\_PRO: MAVE-HGVS annotation for hgvs\_pro field in MAVEdb score or count table.
 
 ## satmut\_utils command line interface
 

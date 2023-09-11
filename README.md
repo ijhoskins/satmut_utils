@@ -74,7 +74,7 @@ The 'sim' workflow outputs paired FASTQs, a realigned BAM file, and a truth VCF 
 
 ### Run 'call'
 
-Support exists for calling SNPs/SNVs, MNPs/MNVs, insertions, deletions, and multivariants/haplotypes. Merging of mismatches into multivariants are constrained by a window parameter (-w). Calling multivariants with a window parameter > 10 nt is discouraged as this may lead to many false positive variant calls.
+Support exists for calling SNPs/SNVs, MNPs/MNVs, insertions, deletions, and multivariants/haplotypes. Complex InDels are not supported (e.g. delete a codon, insert a nt). Merging of mismatches into multivariants are constrained by a window parameter (-w). Calling multivariants with a window parameter > 10 nt is discouraged as this may lead to many false positive variant calls.
 
 Run 'call' on the simulated data by specifying an Ensembl transcript/gene ID and the directory containing curated reference files.
 ```
