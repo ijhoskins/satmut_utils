@@ -213,60 +213,83 @@ class VariantCaller(object):
         ref_mm_pos = [i for i, e in enumerate(ref_pos) if e in mm_pos_set]
         return ref_nts, ref_mm_pos
 
-    def _get_haplotype_dict(self, filt_r_mms, max_mnp_window=VARIANT_CALL_MAX_MNP_WINDOW):
-        """Finds haplotypes within a MNP window size.
+    def _generate_call_tuple(self, mmts):
+        """Generates a CALL_TUPLE from MM_TUPLEs.
 
-        :param list filt_r_mms: list of R1 or R2 MM_TUPLEs
-        :param int max_mnp_window: max number of consecutive nucleotides to search for haplotypes
-        :return tuple: (collections.defaultdict, set) of ({collections.namedtuple: frozenset} dict keyed by \
-        CALL_TUPLE with values the set of coordinate positions included in the haplotype, and the \
-        position_blacklist for mismatches involved in haplotypes
+        :param iter mmts: MM_TUPLEs
+        :return tuple: (collections.namedtuple, set) analysis.variant_caller.CALL_TUPLE and 1-based reference positions
         """
 
-        haplotype_groups = [[]]
-        for i, mm_tuple in enumerate(filt_r_mms):
+        first_mmt = mmts[0]
+        last_mmt = mmts[-1]
+        mm_pos_set = {mmt.pos for mmt in mmts}
 
-            if i == 0:
-                haplotype_groups[0].append(mm_tuple)
-                continue
+        # Generate the REF field based on the span of the haplotype
+        ref_nts, ref_mm_pos = self._get_haplotype_ref(first_mmt.contig, first_mmt.pos, last_mmt.pos, mm_pos_set)
 
-            # Try to find a place for the mismatch
-            for j, haplo_group in enumerate(haplotype_groups):
+        # Generate the ALT field based on the 0-based mismatch positions in REF
+        alt_nts = list(copy.copy(ref_nts))
+        for mmt, mm_pos in zip(mmts, ref_mm_pos):
+            alt_nts[mm_pos] = mmt.alt
 
-                hg_min_pos = min([mt.pos for mt in haplo_group])
+        call_tuple = CALL_TUPLE(first_mmt.contig, first_mmt.pos, ref_nts, "".join(alt_nts), None, None, None)
 
-                if mm_tuple.pos - hg_min_pos < max_mnp_window:
-                    haplotype_groups[j].append(mm_tuple)
-                    break
-            else:
-                # If the mismatch could not be merged with an existing group
-                # create a new one
-                haplotype_groups.append([mm_tuple])
+        return call_tuple, mm_pos_set
 
-        # Now to find our haplotypes we identify the groups with two or more mismatches
+    def _get_haplotype_dict(self, filt_r_mms, max_mnp_window=VARIANT_CALL_MAX_MNP_WINDOW):
+        r"""Finds MNPs/haplotypes within a MNP window size.
+
+        :param list filt_r_mms: list of concordant R1 or R2 MM_TUPLEs
+        :param int max_mnp_window: max number of consecutive nucleotides to search for haplotypes. Default 3.
+        :return tuple: (collections.defaultdict, set) of ({collections.namedtuple: set} dict keyed by \
+        CALL_TUPLE and values the set of coordinate positions included in the haplotype, and the \
+        position_blacklist for mismatches involved in haplotypes)
+        """
+
         haplotypes = collections.defaultdict(set)
         position_blacklist = set()
 
-        for final_group in haplotype_groups:
+        filt_r_mms_len = len(filt_r_mms)
+        break_index = filt_r_mms_len - 2
 
-            if len(final_group) > 1:
+        # For the second to last mismatch, add a buffer MM_TUPLE with pos > the window so that i + 2 is valid
+        filt_r_mms_ext = filt_r_mms + [
+            MM_TUPLE(contig=None, pos=filt_r_mms[-2].pos + max_mnp_window + 1, ref=None, alt=None, bq=None, read_pos=None)]
 
-                first_mt = final_group[0]
-                last_mt = final_group[-1]
-                mm_pos_set = {mt.pos for mt in final_group}
+        for i, mm_tuple in enumerate(filt_r_mms_ext):
 
-                # Generate the REF field based on the span of the haplotype group
-                ref_nts, ref_mm_pos = self._get_haplotype_ref(first_mt.contig, first_mt.pos, last_mt.pos, mm_pos_set)
+            # If we are at the second to last mismatch, break to avoid IndexErrors
+            if i > break_index and i > 0:
+                break
 
-                # Then generate the ALT field based on the mismatch positions
-                alt_nts = list(copy.deepcopy(ref_nts))
+            if mm_tuple.pos in position_blacklist:
+                continue
 
-                for mt, mm_pos in zip(final_group, ref_mm_pos):
-                    alt_nts[mm_pos] = mt.alt
+            if filt_r_mms_ext[i + 1].pos - filt_r_mms_ext[i].pos >= max_mnp_window:
+                continue
 
-                haplotypes[CALL_TUPLE(
-                    first_mt.contig, first_mt.pos, ref_nts, "".join(alt_nts), None, None, None)] |= mm_pos_set
+            if filt_r_mms_len == 2:
+                # Make an isolated di-nt MNP call; need this first otherwise we get an IndexError on the next line
+                call_tuple, mm_pos_set = self._generate_call_tuple(filt_r_mms)
+                haplotypes[call_tuple] |= mm_pos_set
+                position_blacklist |= mm_pos_set
+                continue
 
+            # Here we know that the next mismatch is within the window, but we don't know if its position is +1 or +2
+            if filt_r_mms_ext[i + 2].pos - filt_r_mms_ext[i].pos < max_mnp_window:
+                # Here we have a tri-nt MNP that spans 3 consecutive nts
+                mmts = [filt_r_mms[i], filt_r_mms[i + 1], filt_r_mms[i + 2]]
+                call_tuple, mm_pos_set = self._generate_call_tuple(mmts)
+                haplotypes[call_tuple] |= mm_pos_set
+                position_blacklist |= mm_pos_set
+                continue
+
+            # if i + 1 and i + 2 are consecutive continue as i + 1 could initiate a tri-nt MNP
+            # if they are not consecutive call a di-nt MNP
+            if (filt_r_mms_ext[i + 2].pos - filt_r_mms_ext[i + 1].pos) != 1:
+                mmts = [filt_r_mms[i], filt_r_mms[i + 1]]
+                call_tuple, mm_pos_set = self._generate_call_tuple(mmts)
+                haplotypes[call_tuple] |= mm_pos_set
                 position_blacklist |= mm_pos_set
 
         return haplotypes, position_blacklist
@@ -1122,6 +1145,9 @@ class VariantCaller(object):
         if self.primers is not None and min_bq == 0:
             raise NotImplementedError("If primers are provided, min_bq must be >= 1 so that synthetic sequences "
                                       "can be detected.")
+
+        if max_mnp_window not in {1, 2, 3}:
+            raise NotImplementedError("--max_mnp_window must be one of {1,2,3}.")
 
         # Create some temp VCFs to use in patch for removing pysam's obligatory END INFO tag addition,
         # which interferes with IGV visualization and is only applicable for structural variants in VCF.

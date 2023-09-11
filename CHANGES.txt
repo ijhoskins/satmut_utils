@@ -37,3 +37,6 @@ Release Summary:
 	
 1.1.0-dev, September 11, 2023
 	Added support for simple insertion and deletion calling. Added MAVE-HGVS annotations.
+	
+1.1.1-dev, September 11, 2023
+	Fixed unintended reversion to 1.1.0-dev-multi logic for MNP calling.

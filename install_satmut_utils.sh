@@ -72,7 +72,7 @@ CONDA_CONFIG=${CONDA_BASE%%/}/etc/profile.d/conda.sh
 
 conda init bash
 source $CONDA_CONFIG
-conda activate satmut_utils_dev_multi
+conda activate satmut_utils_dev
 
 if [[ -z "$REF_DIR" && ( "$GET_TRANSCRIPTOME" || "$GET_GENOME" ) ]]
 then
