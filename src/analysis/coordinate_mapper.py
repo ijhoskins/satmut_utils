@@ -329,14 +329,12 @@ class AminoAcidMapper(MapperBase):
         aa_pos_list = [re.sub("[,p.A-Z*]", "", aa) for aa in mut_info_tuple.aa_changes]
         aa_positions = self.MUT_INFO_DELIM.join(aa_pos_list)
         matches_mut_sig = self.MUT_INFO_DELIM.join(list(map(str, mut_info_tuple.matches_mut_sig)))
-        mave_hgvs_nt = self.MUT_INFO_DELIM.join(mut_info_tuple.mave_hgvs_nt)
-        mave_hgvs_tx = self.MUT_INFO_DELIM.join(mut_info_tuple.mave_hgvs_tx)
-        mave_hgvs_pro = self.MUT_INFO_DELIM.join(mut_info_tuple.mave_hgvs_pro)
 
         new_mut_info_tuple = MUT_INFO_TUPLE(
             location=mut_info_tuple.location, wt_codons=wt_codons, mut_codons=mut_codons, wt_aas=wt_aas, mut_aas=mut_aas,
             aa_changes=aa_changes, aa_positions=aa_positions, matches_mut_sig=matches_mut_sig,
-            mave_hgvs_nt=mave_hgvs_nt, mave_hgvs_tx=mave_hgvs_tx, mave_hgvs_pro=mave_hgvs_pro)
+            mave_hgvs_nt=mut_info_tuple.mave_hgvs_nt, mave_hgvs_tx=mut_info_tuple.mave_hgvs_tx,
+            mave_hgvs_pro=mut_info_tuple.mave_hgvs_pro)
 
         return new_mut_info_tuple
 
@@ -447,7 +445,9 @@ class AminoAcidMapper(MapperBase):
         aa_changes = []
         matches_mut_sigs = []
 
-        for i in range(start_index, end_index + 1):
+        # Require end_index + 3 for MNPs spanning codons
+        for i in range(start_index, end_index + 3, 3):
+
             ref_codon = ref_codon_dict[i].codon
             alt_codon = alt_codon_dict[i].codon
 

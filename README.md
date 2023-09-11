@@ -35,7 +35,7 @@ SATMUT_ROOT="$PWD/satmut_utils"
 REF_DIR="$HOME/satmut_utils_refs"
 $SATMUT_ROOT/install_satmut_utils.sh -h
 $SATMUT_ROOT/install_satmut_utils.sh -t -g -r "$REF_DIR" "$SATMUT_ROOT"
-conda activate satmut_utils_dev
+conda activate satmut_utils_dev_multi
 ```
 
 You are now ready to call the command-line executable ```satmut_utils```
@@ -58,6 +58,9 @@ Common arguments to both 'sim' and 'call' subcommands should be provided first, 
 It is recommended that a new output directory is created for each job. Default is to output to the current directory.
 ```OUTPUT_DIR="/tmp/satmut_utils_test"```
 
+Additionally, the user can set a directory for temporary files by setting an environment variable $SCRATCH. If this variable is not set, temporary files are written to /tmp.
+```export SCRATCH="/tmp/satmut_temp"```
+
 ### Run 'sim'
 
 Run 'sim' on *in silico* alignments to generate SNPs, MNPs, and InDels. Structural variants and gene fusions are not currently supported.
@@ -71,7 +74,7 @@ The 'sim' workflow outputs paired FASTQs, a realigned BAM file, and a truth VCF 
 
 ### Run 'call'
 
-Currently, only SNP and MNP calling is supported. InDels and long-range haplotypes are not called.
+Support exists for calling SNPs/SNVs, MNPs/MNVs, insertions, deletions, and multivariants/haplotypes. Merging of mismatches into multivariants are constrained by a window parameter (-w). Calling multivariants with a window parameter > 10 nt is discouraged as this may lead to many false positive variant calls.
 
 Run 'call' on the simulated data by specifying an Ensembl transcript/gene ID and the directory containing curated reference files.
 ```
@@ -108,4 +111,10 @@ In typical saturation mutagenesis datasets, an intron-less coding sequence is ex
 To run unit tests, execute the following from the satmut\_utils repository:
 
 ```nose2 -q```
+
+## Citation
+
+If you use satmut\_utils, please cite the following paper:
+
+Hoskins I, Sun S, Cote A, Roth FP, Cenik C. satmut_utils: a simulation and variant calling package for multiplexed assays of variant effect. Genome Biol. BioMed Central; 2023 Apr 20;24(1):1–27.
 

@@ -146,9 +146,9 @@ class TestAminoAcidMapper(unittest.TestCase):
             location="CDS", wt_codons=("ATG", "AAA",), mut_codons=("AGG", "AGA",),
             wt_aas=("M", "K",), mut_aas=("R", "R",), aa_changes=("p.M1R", "p.K2R",),
             aa_positions=(), matches_mut_sig=(True, False,),
-            mave_hgvs_nt=("ENST00000398165.7:c.2t>g","ENST00000398165.7:c.5a>g",),
-            mave_hgvs_tx=("ENST00000398165.7:r.2u>g","ENST00000398165.7:r.5a>g",),
-            mave_hgvs_pro=("p.Met1Arg", "p.Lys2Arg",))
+            mave_hgvs_nt="ENST00000398165.7:c.2t>g,ENST00000398165.7:c.5a>g",
+            mave_hgvs_tx="ENST00000398165.7:r.2u>g,ENST00000398165.7:r.5a>g",
+            mave_hgvs_pro="p.Met1Arg,p.Lys2Arg")
 
         expected = cm.MUT_INFO_TUPLE(
             location="CDS", wt_codons="ATG,AAA", mut_codons="AGG,AGA",

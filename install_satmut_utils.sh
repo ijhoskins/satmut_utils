@@ -54,12 +54,12 @@ then
 fi
 
 # Create and activate the conda environment
-if conda env list | grep "satmut_utils_dev" >/dev/null 2>&1
+if conda env list | grep "satmut_utils_dev_multi" >/dev/null 2>&1
 then
-	echo "satmut_utils_dev environment already exists. If you would like to regenerate the environment, remove it first with conda env remove --name satmut_utils_dev"
+	echo "satmut_utils_dev_multi environment already exists. If you would like to regenerate the environment, remove it first with conda env remove --name satmut_utils_dev_multi"
 	exit 1
 else
-	echo "Creating satmut_utils_dev environment."
+	echo "Creating satmut_utils_dev_multi environment."
 	SATMUT_CONFIG=$1/satmut_utils_env.yaml
 	conda env create -f "$SATMUT_CONFIG"
 fi
@@ -72,7 +72,7 @@ CONDA_CONFIG=${CONDA_BASE%%/}/etc/profile.d/conda.sh
 
 conda init bash
 source $CONDA_CONFIG
-conda activate satmut_utils_dev
+conda activate satmut_utils_dev_multi
 
 if [[ -z "$REF_DIR" && ( "$GET_TRANSCRIPTOME" || "$GET_GENOME" ) ]]
 then
@@ -104,6 +104,6 @@ cd "$1"
 python3 -m pip install --upgrade build && python3 -m build
 python3 -m pip install .
 
-echo "To use satmut_utils, activate the conda environment with \"conda activate satmut_utils_dev\""
+echo "To use satmut_utils, activate the conda environment with \"conda activate satmut_utils_dev_multi\""
 
 echo "Completed $0"

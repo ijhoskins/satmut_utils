@@ -21,7 +21,7 @@ from core_utils.feature_file_utils import intersect_features
 import core_utils.file_utils as fu
 import core_utils.vcf_utils as vu
 
-from satmut_utils.definitions import PROJECT_ROOT, PROJECT_LAB, PROJECT_AUTHOR, DEFAULT_MUT_SIG, VALID_MUT_SIGS, DEFAULT_TEMPDIR
+from satmut_utils.definitions import PROJECT_ROOT, PROJECT_LAB, PROJECT_AUTHOR, DEFAULT_MUT_SIG, DEFAULT_TEMPDIR
 
 __author__ = "Ian_Hoskins"
 __credits__ = ["Ian Hoskins"]
