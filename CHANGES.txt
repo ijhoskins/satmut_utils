@@ -17,3 +17,6 @@ Release Summary:
 	
 1.0.4, June 27, 2023
 	Fixed bug where relative file paths for the output directory caused the alignment workflow to fail.
+	
+1.1.0, September 11, 2023
+	Added support for simple insertion and deletion calling. Added MAVE-HGVS annotations.
