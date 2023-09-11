@@ -366,58 +366,28 @@ class AminoAcidMapper(MapperBase):
 
         return cds_dict
 
-    # IH TODO: merge downstream remainder codon into one method
-    def _get_ins_downstream_remainder(self, trx_seq, pos, alt, curr_codon, base_index):
-        """Gets the remaining codons and amino acids downstream of an insertion.
-
-        :param str trx_seq: transcript sequence
-        :param int pos: 1-based position of the variant within the transcript
-        :param str alt: alternate bases
-        :param str curr_codon: current reference codon
-        :param int base_index: index of variant position in codon
-        :return tuple: (remaining codons, remaining amino acids)
-        """
-
-        alt_plus_downstream = curr_codon[:base_index] + alt + trx_seq[pos:]
-
-        alt_plus_downstream_codons = [
-            alt_plus_downstream[i:i + 3] for i in range(0, len(alt_plus_downstream), 3)]
-
-        remaining_codons = []
-        remaining_aas = []
-
-        for codon in alt_plus_downstream_codons:
-
-            if len(codon) != 3:
-                # Very unlikely this would happen before we break (if nonsense codon is not seen before the end of
-                # the transcript), but need to handle
-                remaining_codons.append(codon)
-                remaining_aas.append(self.NONSTOP_CHAR)
-                break
-
-            remaining_codons.append(codon)
-            remaining_aas.append(translate(codon))
-
-            if codon in STOP_CODONS:
-                break
-
-        return tuple(remaining_codons), tuple(remaining_aas)
-
-    def _get_del_downstream_remainder(self, trx_seq, pos, ref_len, curr_codon, base_index):
-        """Gets the remaining codons and amino acids downstream of a deletion.
+    def _get_indel_downstream_remainder(self, trx_seq, pos, ref_len, alt, curr_codon, base_index, var_type):
+        """Gets the remaining codons and amino acids downstream of a frameshift insertion or deletion.
 
         :param str trx_seq: transcript sequence
         :param int pos: 1-based position of the variant within the transcript
         :param int ref_len: length of REF
+        :param str alt: alternate bases
         :param str curr_codon: current reference codon
-        :param int base_index: 0-based index of variant position in codon
+        :param int base_index: index of variant position in codon
+        :param aenum.MultiValueEnum var_type: variant type, either ins or del
         :return tuple: (remaining codons, remaining amino acids)
+        :raises NotImplementedError: if the var_type is not an insertion or deletion
         """
 
-        alt_plus_downstream = curr_codon[:base_index + 1] + trx_seq[pos + ref_len - 1:]
+        if var_type == vu.VariantType.INS:
+            alt_plus_downstream = curr_codon[:base_index] + alt + trx_seq[pos:]
+        elif var_type == vu.VariantType.DEL:
+            alt_plus_downstream = curr_codon[:base_index + 1] + trx_seq[pos + ref_len - 1:]
+        else:
+            raise NotImplementedError
 
-        alt_plus_downstream_codons = [
-            alt_plus_downstream[i:i + 3] for i in range(0, len(alt_plus_downstream), 3)]
+        alt_plus_downstream_codons = [alt_plus_downstream[i:i + 3] for i in range(0, len(alt_plus_downstream), 3)]
 
         remaining_codons = []
         remaining_aas = []
@@ -503,13 +473,14 @@ class AminoAcidMapper(MapperBase):
         return tuple(ref_codons), tuple(alt_codons), tuple(ref_aas), tuple(alt_aas), tuple(aa_changes), \
                tuple(matches_mut_sigs)
 
-    def _annotate_ins(self, trx_seq, ref_codon_dict, start_index, pos, alt):
+    def _annotate_ins(self, trx_seq, ref_codon_dict, start_index, pos, ref, alt):
         """Gets annotations for an insertion.
 
         :param str trx_seq: transcript sequence
         :param dict ref_codon_dict: index in the REF CDS: CODON_TUPLE (codon, index of base in the codon)
         :param int start_index: 0-based position of the first mismatch in the CDS
         :param int pos: 1-based position of the variant within the transcript
+        :param str ref: reference bases
         :param str alt: alternate bases
         :return tuple: (ref_codons, alt_codons, ref_aas, alt_aas, aa_changes, matches_mut_sigs)
         """
@@ -529,8 +500,9 @@ class AminoAcidMapper(MapperBase):
             matches_mut_sigs = (True,)
         else:
             # Out-of-frame insertion or shuffling of downstream codons
-            codon_remainder, aa_remainder = self._get_ins_downstream_remainder(
-                trx_seq, pos, alt, ref_codon_dict[start_index].codon, ref_codon_dict[start_index].base_index)
+            codon_remainder, aa_remainder = self._get_indel_downstream_remainder(
+                trx_seq, pos, len(ref), alt, ref_codon_dict[start_index].codon, ref_codon_dict[start_index].base_index,
+                var_type=vu.VariantType.INS)
 
             ref_codons = (ref_codon_dict[start_index].codon,)
             alt_codons = codon_remainder
@@ -542,7 +514,7 @@ class AminoAcidMapper(MapperBase):
 
         return ref_codons, alt_codons, ref_aas, alt_aas, aa_changes, matches_mut_sigs
 
-    def _annotate_del(self, trx_seq, ref_codon_dict, start_index, pos, ref):
+    def _annotate_del(self, trx_seq, ref_codon_dict, start_index, pos, ref, alt):
         """Gets annotations for an insertion.
 
         :param str trx_seq: transcript sequence
@@ -550,6 +522,7 @@ class AminoAcidMapper(MapperBase):
         :param int start_index: 0-based position of the first mismatch in the CDS
         :param int pos: 1-based position of the variant within the transcript
         :param str ref: reference bases
+        :param str alt: alternate bases
         :return tuple: (ref_codons, alt_codons, ref_aas, alt_aas, aa_changes, matches_mut_sigs)
         """
 
@@ -568,8 +541,9 @@ class AminoAcidMapper(MapperBase):
             matches_mut_sigs = (True,)
         else:
             # Out-of-frame deletion or shuffling of downstream codons
-            codon_remainder, aa_remainder = self._get_del_downstream_remainder(
-                trx_seq, pos, ref_len, ref_codon_dict[start_index].codon, ref_codon_dict[start_index].base_index)
+            codon_remainder, aa_remainder = self._get_indel_downstream_remainder(
+                trx_seq, pos, ref_len, alt, ref_codon_dict[start_index].codon, ref_codon_dict[start_index].base_index,
+                var_type=vu.VariantType.DEL)
 
             ref_codons = (ref_codon_dict[start_index].codon,)
             alt_codons = codon_remainder
@@ -616,12 +590,12 @@ class AminoAcidMapper(MapperBase):
         elif ref_len < alt_len:
 
             # Here we have an insertion or duplication
-            mut_info_tuple = self._annotate_ins(trx_seq, ref_codon_dict, start_index, pos, alt)
+            mut_info_tuple = self._annotate_ins(trx_seq, ref_codon_dict, start_index, pos, ref, alt)
 
         else:
 
             # Here we have a deletion
-            mut_info_tuple = self._annotate_del(trx_seq, ref_codon_dict, start_index, pos, ref)
+            mut_info_tuple = self._annotate_del(trx_seq, ref_codon_dict, start_index, pos, ref, alt)
 
         return mut_info_tuple
 
@@ -1199,8 +1173,7 @@ class AminoAcidMapper(MapperBase):
             # Here we have a SNP or MNP so we can simply index into the codon lists
             if start_index == end_index:
                 # Here we have a SNP
-                _, _, ref_aas, alt_aas, _, _ = self._annotate_snp(
-                    ref_codon_dict, alt_codon_dict, start_index)
+                _, _, ref_aas, alt_aas, _, _ = self._annotate_snp(ref_codon_dict, alt_codon_dict, start_index)
 
                 hgvs_nt, hgvs_tx, _ = self._annotate_snp_hgvs(
                     trx_id, location, pos, ref, alt, cds_start_offset, cds_stop_offset, start_index, ref_aas[0],
@@ -1212,8 +1185,7 @@ class AminoAcidMapper(MapperBase):
 
         elif ref_len < alt_len:
             # Here we have an insertion or duplication
-            _, _, _, alt_aas, _, _ = self._annotate_ins(
-                trx_seq, ref_codon_dict, start_index, pos, alt)
+            _, _, _, alt_aas, _, _ = self._annotate_ins(trx_seq, ref_codon_dict, start_index, pos, ref, alt)
 
             hgvs_nt, hgvs_tx, _ = self._annotate_ins_hgvs(
                 trx_id, trx_seq, location, pos, alt, cds_start_offset, cds_stop_offset, start_index, alt_aas,
@@ -1221,7 +1193,7 @@ class AminoAcidMapper(MapperBase):
 
         else:
             # Here we have a deletion
-            _, _, _, alt_aas, _, _ = self._annotate_del(trx_seq, ref_codon_dict, start_index, pos, ref)
+            _, _, _, alt_aas, _, _ = self._annotate_del(trx_seq, ref_codon_dict, start_index, pos, ref, alt)
 
             hgvs_nt, hgvs_tx, _ = self._annotate_del_hgvs(
                 trx_id, location, pos, ref, cds_start_offset, cds_stop_offset, start_index, alt_aas, ref_codon_dict)
@@ -1327,7 +1299,7 @@ class AminoAcidMapper(MapperBase):
             # Here we have an insertion or duplication
             if location == self.CDS_ID:
                 ref_codons, alt_codons, ref_aas, alt_aas, aa_changes, matches_mut_sigs = self._annotate_ins(
-                    trx_seq, ref_codon_dict, start_index, pos, alt)
+                    trx_seq, ref_codon_dict, start_index, pos, ref, alt)
 
                 hgvs_nt, hgvs_tx, hgvs_pro = self._annotate_ins_hgvs(
                     trx_id, trx_seq, location, pos, alt, cds_start_offset, cds_stop_offset, start_index, alt_aas,
@@ -1341,7 +1313,7 @@ class AminoAcidMapper(MapperBase):
             # Here we have a deletion
             if location == self.CDS_ID:
                 ref_codons, alt_codons, ref_aas, alt_aas, aa_changes, matches_mut_sigs = self._annotate_del(
-                    trx_seq, ref_codon_dict, start_index, pos, ref)
+                    trx_seq, ref_codon_dict, start_index, pos, ref, alt)
 
                 hgvs_nt, hgvs_tx, hgvs_pro = self._annotate_del_hgvs(
                     trx_id, location, pos, ref, cds_start_offset, cds_stop_offset, start_index, alt_aas, ref_codon_dict)

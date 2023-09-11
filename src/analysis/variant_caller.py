@@ -1016,7 +1016,7 @@ class VariantCaller(object):
             vu.VCF_AAM_AA_ALT_ID: var_mut_aas,
             vu.VCF_AAM_AA_CHANGE_ID: var_aa_changes,
             vu.VCF_AAM_AA_POS_ID: var_aa_positions,
-            vu.VCF_MUT_SIG_MATCH: str(var_matches_mut_sig),
+            vu.VCF_MUT_SIG_MATCH: var_matches_mut_sig,
             vu.VCF_MAVE_HGVS_NT_ID: hgvs_nt,
             vu.VCF_MAVE_HGVS_TX_ID: hgvs_tx,
             vu.VCF_MAVE_HGVS_PRO_ID: hgvs_pro,
