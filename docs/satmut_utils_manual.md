@@ -62,7 +62,7 @@ SATMUT_ROOT="$PWD/satmut_utils"
 REF_DIR="$HOME/satmut_utils_refs"
 $SATMUT_ROOT/install_satmut_utils.sh -h
 $SATMUT_ROOT/install_satmut_utils.sh -t -g -r "$REF_DIR" "$SATMUT_ROOT"
-conda activate satmut_utils_dev_multi
+conda activate satmut_utils_dev
 ```
 
 You are now ready to call the command-line executable ```satmut_utils```
@@ -332,6 +332,12 @@ AA\_CHANGE: Comma-delimited amino acid change(s). NA if the variant is out of CD
 AA\_POS: Comma-delimited amino acid position(s). NA if the variant is out of CDS bounds.
 
 MATCHES\_MUT\_SIG: Whether or not the variant matches the mutagenesis signature.
+
+HGVS\_NT: MAVE-HGVS annotation for hgvs\_nt field in MAVEdb score or count table.
+
+HGVS\_TX: MAVE-HGVS annotation for hgvs\_tx field in MAVEdb score or count table.
+
+HGVS\_PRO: MAVE-HGVS annotation for hgvs\_pro field in MAVEdb score or count table.
 
 ## satmut\_utils command line interface
 
