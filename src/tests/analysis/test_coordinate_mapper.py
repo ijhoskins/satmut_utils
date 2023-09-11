@@ -8,6 +8,7 @@ import unittest
 import analysis.coordinate_mapper as cm
 from analysis.references import faidx_ref
 import core_utils.file_utils as fu
+from core_utils.vcf_utils import VariantType
 from satmut_utils.definitions import *
 
 tempfile.tempdir = DEFAULT_TEMPDIR
@@ -173,22 +174,24 @@ class TestAminoAcidMapper(unittest.TestCase):
 
         self.assertDictEqual(expected, observed)
 
-    def test_get_ins_downstream_remainder(self):
+    def test_get_indel_downstream_remainder_ins(self):
         """Tests for correct downstream codons and amino acids following an insertion frameshift."""
 
-        observed = self.appris_aa_mapper._get_ins_downstream_remainder(
-            trx_seq=self.appris_cbs_trx_seq, pos=265, alt="CT", curr_codon="CCT", base_index=1)
+        observed = self.appris_aa_mapper._get_indel_downstream_remainder(
+            trx_seq=self.appris_cbs_trx_seq, pos=265, ref_len=1, alt="CT", curr_codon="CCT", base_index=1,
+            var_type=VariantType.INS)
 
         # Remaining codons and remaining amino acids
         expected = (("CCT", "TTC", "TGA",), ("P", "F", "*"))
 
         self.assertEqual(expected, observed)
 
-    def test_get_del_downstream_remainder(self):
+    def test_get_indel_downstream_remainder_del(self):
         """Tests for correct downstream codons and amino acids following an deletion frameshift."""
 
-        observed = self.appris_aa_mapper._get_del_downstream_remainder(
-            trx_seq=self.appris_cbs_trx_seq, pos=263, ref_len=3, curr_codon="ATG", base_index=2)
+        observed = self.appris_aa_mapper._get_indel_downstream_remainder(
+            trx_seq=self.appris_cbs_trx_seq, pos=263, ref_len=3, alt="G", curr_codon="ATG", base_index=2,
+            var_type=VariantType.DEL)
 
         # Remaining codons and remaining amino acids
         expected = (("ATG", "TTC", "TGA",), ("M", "F", "*"))
@@ -221,7 +224,8 @@ class TestAminoAcidMapper(unittest.TestCase):
         """Tests for correct custom annotation of an insertion."""
 
         observed = self.appris_aa_mapper._annotate_ins(
-            trx_seq=self.appris_cbs_trx_seq, ref_codon_dict=self.ref_codon_dict, start_index=4, pos=265, alt="CT")
+            trx_seq=self.appris_cbs_trx_seq, ref_codon_dict=self.ref_codon_dict, start_index=4,
+            pos=265, ref="C", alt="CT")
 
         expected = (("CCT",), ("CCT", "TTC", "TGA",), ("P",), ("P", "F", "*",), ("p.P2P,F,*",), (False,))
 
@@ -231,7 +235,8 @@ class TestAminoAcidMapper(unittest.TestCase):
         """Tests for correct custom annotation of a deletion."""
 
         observed = self.appris_aa_mapper._annotate_del(
-            trx_seq=self.appris_cbs_trx_seq, ref_codon_dict=self.ref_codon_dict, start_index=2, pos=263, ref="GCC")
+            trx_seq=self.appris_cbs_trx_seq, ref_codon_dict=self.ref_codon_dict, start_index=2,
+            pos=263, ref="GCC", alt="G")
 
         expected = (("ATG",), ("ATG", "TTC", "TGA",), ("M",), ("M", "F", "*",), ("p.M1M,F,*",), (False,))
 
@@ -317,7 +322,8 @@ class TestAminoAcidMapper(unittest.TestCase):
 
         observed = self.appris_aa_mapper._annotate_mnp_hgvs(
             trx_id="ENST00000398165.7", location=self.appris_aa_mapper.FIVEPRIME_UTR, pos=255, alt="GCG",
-            cds_start_offset=260, cds_stop_offset=1916, start_index=None, ref_codon_dict=None, alt_codon_dict=None)
+            cds_start_offset=260, cds_stop_offset=1916, start_index=None, ref_codon_dict=self.ref_codon_dict,
+            alt_codon_dict=self.ref_codon_dict)
 
         expected = ("ENST00000398165.7:c.-6_-4delinsgcg", "ENST00000398165.7:r.-6_-4delinsgcg", "p.(=)",)
 
@@ -328,7 +334,8 @@ class TestAminoAcidMapper(unittest.TestCase):
 
         observed = self.appris_aa_mapper._annotate_mnp_hgvs(
             trx_id="ENST00000398165.7", location=self.appris_aa_mapper.THREEPRIME_UTR, pos=1918, alt="TC",
-            cds_start_offset=260, cds_stop_offset=1916, start_index=None, ref_codon_dict=None, alt_codon_dict=None)
+            cds_start_offset=260, cds_stop_offset=1916, start_index=None, ref_codon_dict=self.ref_codon_dict,
+            alt_codon_dict=self.ref_codon_dict)
 
         expected = ("ENST00000398165.7:c.*2_*3delinstc", "ENST00000398165.7:r.*2_*3delinsuc", "p.(=)",)
 
