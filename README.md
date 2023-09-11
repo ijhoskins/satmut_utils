@@ -28,6 +28,7 @@ Currently, only Unix/Linux and MacOSX operating systems are supported. To get st
 ```
 git clone https://github.com/ijhoskins/satmut_utils.git
 SATMUT_ROOT="$PWD/satmut_utils"
+cd "$SATMUT_ROOT" && git checkout satmut_utils_dev_multi
 ```
 
 3. Execute the provided shell script to generate the satmut\_utils environment, install the package, and optionally download curated reference files, which are required if using Ensembl identifiers ([see Reference files](#Reference-files)). Finally, activate the satmut\_utils environment.
@@ -35,7 +36,7 @@ SATMUT_ROOT="$PWD/satmut_utils"
 REF_DIR="$HOME/satmut_utils_refs"
 $SATMUT_ROOT/install_satmut_utils.sh -h
 $SATMUT_ROOT/install_satmut_utils.sh -t -g -r "$REF_DIR" "$SATMUT_ROOT"
-conda activate satmut_utils_dev
+conda activate satmut_utils_dev_multi
 ```
 
 You are now ready to call the command-line executable ```satmut_utils```
@@ -74,7 +75,7 @@ The 'sim' workflow outputs paired FASTQs, a realigned BAM file, and a truth VCF 
 
 ### Run 'call'
 
-Support exists for calling SNPs/SNVs, MNPs/MNVs, insertions, and deletions. Complex InDels are not supported (e.g. delete a codon, insert a nt).
+Support exists for calling SNPs/SNVs, MNPs/MNVs, insertions, deletions, and multivariants/haplotypes. Complex InDels are not supported (e.g. delete a codon, insert a nt). Merging of mismatches into multivariants are constrained by a window parameter (-w). Calling multivariants with a window parameter > 10 nt is discouraged as this may lead to many false positive variant calls.
 
 Run 'call' on the simulated data by specifying an Ensembl transcript/gene ID and the directory containing curated reference files.
 ```

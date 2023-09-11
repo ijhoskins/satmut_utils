@@ -55,6 +55,7 @@ Currently, only Linux and MacOSX operating systems are supported. To get started
 ```
 git clone https://github.com/ijhoskins/satmut_utils.git
 SATMUT_ROOT="$PWD/satmut_utils"
+cd "$SATMUT_ROOT" && git checkout satmut_utils_dev_multi
 ```
 
 3. Execute the provided shell script to generate the satmut\_utils environment, install the package, and optionally download curated reference files, which are required if using Ensembl identifiers ([see Reference files](#Reference-files)). Finally, activate the satmut\_utils environment.
@@ -62,7 +63,7 @@ SATMUT_ROOT="$PWD/satmut_utils"
 REF_DIR="$HOME/satmut_utils_refs"
 $SATMUT_ROOT/install_satmut_utils.sh -h
 $SATMUT_ROOT/install_satmut_utils.sh -t -g -r "$REF_DIR" "$SATMUT_ROOT"
-conda activate satmut_utils_dev
+conda activate satmut_utils_dev_multi
 ```
 
 You are now ready to call the command-line executable ```satmut_utils```
@@ -137,13 +138,11 @@ B. Find all concordant mismatched base calls between read mates of a pair.
 
 C. For D-F, ensure no mismatch is part of more than one MNP call.
 
-D. At a mismatch, determine if there is a second mismatch downstream within the window (--max\_mnp\_window).
+D. At a mismatch, determine if there is a second mismatch downstream within the window (--max\_mnp\_window). Merge this mismatch with the first.
 
-E. If D), determine if there is third mismatch downstream within the window. If so, call a tri-nucleotide MNP.
+E. Repeat D until no additional mismatches are found within the window.
 
-F. If D), and the next two mismatches are not adjacent, call a di-nucleotide MNP.
-
-G. After all MNPs within pair have been called, call remaining mismatches as SNPs.
+F. After all MNPs within pair have been called, call remaining mismatches as SNPs.
 
 This algorithm leads to specific calling expectations for consecutive mismatch runs/tracts with nearby isolated mismatches. In these cases, consecutive mismatch runs are called as compact MNPs, as opposed to including an isolated mismatch as part of the MNP call.
 
@@ -487,7 +486,7 @@ Minimum base quality for either mate of a pair to be considered for variant call
 Minimum number of fragments for a candidate variant call. Default 2 (discard singletons).
 
 16. -w, --max\_mnp\_window
-Integer window span to search for phased SNPs and call MNPs. Must be between 1 and 3 (default 3). satmut\_utils does not support long-range haplotype calling, which is challenged by exponentially increasing false positive calls with a wider window span.
+Integer window span to search for phased SNPs and call MNPs (default 3). satmut\_utils does not support long-range haplotype calling, which is challenged by exponentially increasing false positive calls with a wider window span.
 
 17. -n, --ntrimmed
 

@@ -35,16 +35,17 @@ Release Summary:
 1.0.4-dev, July 3, 2023
 	Fixed bug where relative file paths caused the alignment workflow to fail. Removed the filtering of GFF records that annotate contigs with RefSeq accession identifiers (NT or NW), as filtering may lead to errors with custom reference files specifying a contig that begins with NT or NW.
 	
-1.1.0-dev, September 11, 2023
-	Added support for simple insertion and deletion calling. Added MAVE-HGVS annotations.
+1.1.0-dev-multi, September 11, 2023
+	Added support for simple insertion and deletion calling. Added MAVE-HGVS annotations.	
 	
-1.1.1-dev, September 11, 2023
-	Fixed unintended reversion to 1.1.0-dev-multi logic for MNP calling.
+1.1.1-dev-multi, November 14, 2023
+
+	Fixed bugs in HGVS annotations for single in-frame insertions and MNPs spanning the CDS-3' UTR junction.
 	
-1.1.2-dev, September 15, 2023
-	Fixed bugs in HGVS annotations for single in-frame insertions and MNPs spanning the CDS-3' UTR junction. Ensure deletion-insertion annotations follow HGVS proposal SVD-WG010. Added a script for post-processing *summary.txt files to adjust HGVS positions relative to target regions as opposed to a coding sequence.
+	Ensure deletion-insertion annotations follow HGVS proposal SVD-WG010.
 	
-1.1.3-dev, November 14, 2023
+	Added a script (run_mave_hgvs_annot.py) for post-processing *summary.txt files to adjust HGVS positions relative to target regions as opposed to a coding sequence.
+
 	Ensure HGVS annotations use uppercase bases to ensure compatibility with MAVEdb.
 	
-	Fixed run_mave_hgvs_annot.py script to require target BED and fix bug in deletion-insertion MAVE-HGVS string.
+	Fixed description of the call algorithm in the manual.
