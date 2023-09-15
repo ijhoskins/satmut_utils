@@ -336,6 +336,12 @@ AA\_POS: Comma-delimited amino acid position(s). NA if the variant is out of CDS
 
 MATCHES\_MUT\_SIG: Whether or not the variant matches the mutagenesis signature.
 
+HGVS\_NT: MAVE-HGVS annotation for hgvs\_nt field in MAVEdb score or count table.
+
+HGVS\_TX: MAVE-HGVS annotation for hgvs\_tx field in MAVEdb score or count table.
+
+HGVS\_PRO: MAVE-HGVS annotation for hgvs\_pro field in MAVEdb score or count table.
+
 ## satmut\_utils command line interface
 
 satmut\_utils provides the 'sim' and 'call' workflow as subcommands, which have common and unique options.
@@ -532,3 +538,5 @@ Two command-line interfaces are provided to enable pre-processing of reads prior
 2. satmut\_align
  
 satmut\_trim is a wrapper around cutadapt, and satmut\_align a wrapper around bowtie2.  satmut\_align should be used to generate the BAM file accepted by 'sim'. If reads have been aligned with some other method, there is no guarantee 'sim' will complete without error, as alignment tags output by bowtie2 are required for 'sim' (MD, NM).
+
+Additionally, a number of helpful scripts are available on the development [repository](https://github.com/ijhoskins/satmut_utils) of satmut\_utils in the src/scripts directory. For example, if subdomains of a gene were targeted, MAVE-HGVS annotations can be updated with run\_mave\_hgvs\_annot.py to report positions relative to target regions (as required by MAVEdb).

@@ -214,20 +214,32 @@ class TestAminoAcidMapper(unittest.TestCase):
 
         observed = self.appris_aa_mapper._annotate_mnp(
             ref_codon_dict=self.ref_codon_dict,
-            alt_codon_dict=self.appris_aa_mapper._get_pos_codon_dict("ATGCCCACTGAG"), start_index=5, end_index=6)
+            alt_codon_dict=self.appris_aa_mapper._get_pos_codon_dict("ATGCCCACTGAG"),
+            start_index=5, end_index=6, cds_len=3315)
 
         expected = (("CCT", "TCT",), ("CCC", "ACT",), ("P", "S",), ("P", "T",), ("p.P2P", "p.S3T",), (False, True,))
 
         self.assertEqual(expected, observed)
 
     def test_annotate_ins(self):
-        """Tests for correct custom annotation of an insertion."""
+        """Tests for correct custom annotation of an out-of-frame insertion."""
 
         observed = self.appris_aa_mapper._annotate_ins(
             trx_seq=self.appris_cbs_trx_seq, ref_codon_dict=self.ref_codon_dict, start_index=4,
             pos=265, ref="C", alt="CT")
 
         expected = (("CCT",), ("CCT", "TTC", "TGA",), ("P",), ("P", "F", "*",), ("p.P2P,F,*",), (False,))
+
+        self.assertEqual(expected, observed)
+
+    def test_annotate_ins_inframe(self):
+        """Tests for correct custom annotation of an in-frame insertion."""
+
+        observed = self.appris_aa_mapper._annotate_ins(
+            trx_seq=self.appris_cbs_trx_seq, ref_codon_dict=self.ref_codon_dict, start_index=5,
+            pos=266, ref="T", alt="TATG")
+
+        expected = (("CCT",), ("CCT", "ATG",), ("P",), ("P", "M",), ("p.P2P,M",), (True,))
 
         self.assertEqual(expected, observed)
 
@@ -251,7 +263,7 @@ class TestAminoAcidMapper(unittest.TestCase):
         alt_codon_dict = self.appris_aa_mapper._get_pos_codon_dict(self.appris_cbs_cds_seq[:-1] + "T")
 
         observed = self.appris_aa_mapper._annotate_stopvar(
-            trx_seq=self.appris_cbs_trx_seq, pos=1916, ref="A", alt="T", cds_start_offset=260,
+            trx_seq=self.appris_cbs_trx_seq, pos=1916, ref="A", alt="T", cds_start_offset=260, cds_len=3315,
             ref_codon_dict=ref_codon_dict, alt_codon_dict=alt_codon_dict)
 
         expected = (("TGA",), ("TGT",), ("*",), ("C",), ("p.*552C",), (True,))
@@ -298,7 +310,8 @@ class TestAminoAcidMapper(unittest.TestCase):
 
         observed = self.appris_aa_mapper._annotate_mnp_hgvs(
             trx_id="ENST00000398165.7", location=self.appris_aa_mapper.CDS_ID, pos=267, alt="AAA", cds_start_offset=260,
-            cds_stop_offset=1916, start_index=6, ref_codon_dict=self.ref_codon_dict, alt_codon_dict=alt_codon_dict)
+            cds_stop_offset=1916, cds_len=3315, start_index=6, ref_codon_dict=self.ref_codon_dict,
+            alt_codon_dict=alt_codon_dict)
 
         expected = ("ENST00000398165.7:c.7_9delinsaaa", "ENST00000398165.7:r.7_9delinsaaa", "p.Ser3delinsLys",)
 
@@ -311,7 +324,8 @@ class TestAminoAcidMapper(unittest.TestCase):
 
         observed = self.appris_aa_mapper._annotate_mnp_hgvs(
             trx_id="ENST00000398165.7", location=self.appris_aa_mapper.CDS_ID, pos=269, alt="AC", cds_start_offset=260,
-            cds_stop_offset=1916, start_index=8, ref_codon_dict=self.ref_codon_dict, alt_codon_dict=alt_codon_dict)
+            cds_stop_offset=1916, cds_len=3315, start_index=8, ref_codon_dict=self.ref_codon_dict,
+            alt_codon_dict=alt_codon_dict)
 
         expected = ("ENST00000398165.7:c.9_10delinsac", "ENST00000398165.7:r.9_10delinsac", "p.Ser3_Glu4delinsSerGln",)
 
@@ -322,8 +336,8 @@ class TestAminoAcidMapper(unittest.TestCase):
 
         observed = self.appris_aa_mapper._annotate_mnp_hgvs(
             trx_id="ENST00000398165.7", location=self.appris_aa_mapper.FIVEPRIME_UTR, pos=255, alt="GCG",
-            cds_start_offset=260, cds_stop_offset=1916, start_index=None, ref_codon_dict=self.ref_codon_dict,
-            alt_codon_dict=self.ref_codon_dict)
+            cds_start_offset=260, cds_stop_offset=1916, cds_len=3315, start_index=None,
+            ref_codon_dict=self.ref_codon_dict, alt_codon_dict=self.ref_codon_dict)
 
         expected = ("ENST00000398165.7:c.-6_-4delinsgcg", "ENST00000398165.7:r.-6_-4delinsgcg", "p.(=)",)
 
@@ -334,8 +348,8 @@ class TestAminoAcidMapper(unittest.TestCase):
 
         observed = self.appris_aa_mapper._annotate_mnp_hgvs(
             trx_id="ENST00000398165.7", location=self.appris_aa_mapper.THREEPRIME_UTR, pos=1918, alt="TC",
-            cds_start_offset=260, cds_stop_offset=1916, start_index=None, ref_codon_dict=self.ref_codon_dict,
-            alt_codon_dict=self.ref_codon_dict)
+            cds_start_offset=260, cds_stop_offset=1916, cds_len=3315, start_index=None,
+            ref_codon_dict=self.ref_codon_dict, alt_codon_dict=self.ref_codon_dict)
 
         expected = ("ENST00000398165.7:c.*2_*3delinstc", "ENST00000398165.7:r.*2_*3delinsuc", "p.(=)",)
 
@@ -344,11 +358,11 @@ class TestAminoAcidMapper(unittest.TestCase):
     def test_group_mismatches(self):
         """Tests that mismatches in multivariants are appropriately grouped to determine substitution versus delins."""
 
-        mm_positions = (500, 503, 504, 510, 511, 512)
-        mm_indices = (0, 3, 4, 10, 11, 12)
+        mm_positions = (500, 503, 504, 510, 511, 512, 520, 522)
+        mm_indices = (0, 3, 4, 10, 11, 12, 20, 22)
         observed = self.appris_aa_mapper._group_mismatches(mm_positions, mm_indices)
 
-        expected = ([(0, 500)], [(3, 503), (4, 504)], [(10, 510), (11, 511), (12, 512)],)
+        expected = ([(0, 500)], [(3, 503), (4, 504)], [(10, 510), (11, 511), (12, 512)], [(20, 520), (22, 522)],)
 
         self.assertEqual(expected, observed)
 
@@ -358,8 +372,8 @@ class TestAminoAcidMapper(unittest.TestCase):
         alt_codon_dict = self.appris_aa_mapper._get_pos_codon_dict("ATGTTTTGTGAG")
 
         observed = self.appris_aa_mapper._annotate_multivariant_hgvs(
-            trx_id="ENST00000398165.7", location=self.appris_aa_mapper.CDS_ID, pos=264, ref="CCTTCT",
-            alt="TTTTGT", cds_start_offset=260, cds_stop_offset=1916, ref_codon_dict=self.ref_codon_dict,
+            trx_id="ENST00000398165.7", location=self.appris_aa_mapper.CDS_ID, pos=264, ref="CCTTC",
+            alt="TTTTG", cds_start_offset=260, cds_stop_offset=1916, cds_len=3315, ref_codon_dict=self.ref_codon_dict,
             alt_codon_dict=alt_codon_dict)
 
         expected = ("ENST00000398165.7:c.4_5delinstt,ENST00000398165.7:c.8c>g",
@@ -374,7 +388,7 @@ class TestAminoAcidMapper(unittest.TestCase):
         # Need to pass codon dictionaries as the might be needed for 5' UTR variants, although here they are not req'd
         observed = self.appris_aa_mapper._annotate_multivariant_hgvs(
             trx_id="ENST00000398165.7", location=self.appris_aa_mapper.FIVEPRIME_UTR, pos=255, ref="CCCAGC",
-            alt="TCCGAC", cds_start_offset=260, cds_stop_offset=1916, ref_codon_dict=self.ref_codon_dict,
+            alt="TCCGAC", cds_start_offset=260, cds_stop_offset=1916, cds_len=3315, ref_codon_dict=self.ref_codon_dict,
             alt_codon_dict=self.ref_codon_dict)
 
         expected = ("ENST00000398165.7:c.-6c>t,ENST00000398165.7:c.-3_-2delinsga",
@@ -389,7 +403,7 @@ class TestAminoAcidMapper(unittest.TestCase):
 
         observed = self.appris_aa_mapper._annotate_multivariant_hgvs(
             trx_id="ENST00000398165.7", location=self.appris_aa_mapper.FIVEPRIME_UTR, pos=258, ref="AGCAT",
-            alt="TGCTG", cds_start_offset=260, cds_stop_offset=1916, ref_codon_dict=self.ref_codon_dict,
+            alt="TGCTG", cds_start_offset=260, cds_stop_offset=1916, cds_len=3315, ref_codon_dict=self.ref_codon_dict,
             alt_codon_dict=alt_codon_dict)
 
         expected = ("ENST00000398165.7:c.-3a>t,ENST00000398165.7:c.1_2delinstg",
@@ -406,7 +420,7 @@ class TestAminoAcidMapper(unittest.TestCase):
 
         observed = self.appris_aa_mapper._annotate_multivariant_hgvs(
             trx_id="ENST00000398165.7", location=self.appris_aa_mapper.THREEPRIME_UTR, pos=1920, ref="CCGGAG",
-            alt="TCGCCG", cds_start_offset=260, cds_stop_offset=1916, ref_codon_dict=self.ref_codon_dict,
+            alt="TCGCCG", cds_start_offset=260, cds_stop_offset=1916, cds_len=3315, ref_codon_dict=self.ref_codon_dict,
             alt_codon_dict=self.ref_codon_dict)
 
         expected = ("ENST00000398165.7:c.*4c>t,ENST00000398165.7:c.*7_*8delinscc",
@@ -644,7 +658,7 @@ class TestAminoAcidMapper(unittest.TestCase):
         # 1915:G:A synonymous SNP
         observed = self.appris_aa_mapper._annotate_stopvar_hgvs(
             trx_id="ENST00000398165.7", location=self.appris_aa_mapper.CDS_ID, trx_seq=self.appris_cbs_trx_seq,
-            pos=1915, ref="G", alt="A", ref_len=1, alt_len=1, cds_start_offset=260, cds_stop_offset=1916,
+            pos=1915, ref="G", alt="A", ref_len=1, alt_len=1, cds_start_offset=260, cds_stop_offset=1916, cds_len=3315,
             start_index=1654, end_index=1654, ref_codon_dict=ref_codon_dict, alt_codon_dict=alt_codon_dict)
 
         expected = ("ENST00000398165.7:c.1655g>a", "ENST00000398165.7:r.1655g>a", "p.Ter552=",)
@@ -659,7 +673,7 @@ class TestAminoAcidMapper(unittest.TestCase):
 
         observed = self.appris_aa_mapper._annotate_stopvar_hgvs(
             trx_id="ENST00000398165.7", location=self.appris_aa_mapper.CDS_ID, trx_seq=self.appris_cbs_trx_seq,
-            pos=1915, ref="G", alt="GT", ref_len=1, alt_len=2, cds_start_offset=260, cds_stop_offset=1916,
+            pos=1915, ref="G", alt="GT", ref_len=1, alt_len=2, cds_start_offset=260, cds_stop_offset=1916, cds_len=3315,
             start_index=1654, end_index=1654, ref_codon_dict=ref_codon_dict, alt_codon_dict=alt_codon_dict)
 
         expected = ("ENST00000398165.7:c.1655_1656inst", "ENST00000398165.7:r.1655_1656insu", "p.Ter552fs",)

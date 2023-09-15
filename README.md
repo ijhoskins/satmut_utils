@@ -63,7 +63,7 @@ Additionally, the user can set a directory for temporary files by setting an env
 
 ### Run 'sim'
 
-Run 'sim' on *in silico* alignments to generate SNPs, MNPs, and InDels. Structural variants and gene fusions are not currently supported.
+Run 'sim' on *in silico* alignments to generate SNPs, MNPs, insertions, and deletions. Structural variants and gene fusions are not currently supported.
 ```
 TEST_DIR="$SATMUT_ROOT/src/tests/test_data"
 OUTPUT_DIR="/tmp/satmut_utils_test"
@@ -111,6 +111,17 @@ In typical saturation mutagenesis datasets, an intron-less coding sequence is ex
 To run unit tests, execute the following from the satmut\_utils repository:
 
 ```nose2 -q```
+
+## Accessory scripts
+
+Two command-line interfaces are provided to enable pre-processing of reads prior to  satmut_utils 'sim':
+
+1. satmut\_trim
+2. satmut\_align
+ 
+satmut\_trim is a wrapper around cutadapt, and satmut\_align a wrapper around bowtie2.  satmut\_align should be used to generate the BAM file accepted by 'sim'. If reads have been aligned with some other method, there is no guarantee 'sim' will complete without error, as alignment tags output by bowtie2 are required for 'sim' (MD, NM).
+
+Additionally, a number of helpful scripts are available on the development [repository](https://github.com/ijhoskins/satmut_utils) of satmut\_utils in the src/scripts directory. For example, if subdomains of a gene were targeted, MAVE-HGVS annotations can be updated with run\_mave\_hgvs\_annot.py to report positions relative to target regions (as required by MAVEdb).
 
 ## Citation
 
