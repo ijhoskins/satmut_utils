@@ -740,9 +740,6 @@ class AminoAcidMapper(MapperBase):
                         ref_aa_list[0], ref_codon_dict[start_index].codon_pos, ref_aa_list[len(ref_aa_list) - 1],
                         ref_codon_dict[last_index].codon_pos, "".join(alt_aa_list))
 
-                if end_index > cds_len:
-                    # MNP spans the CDS/3' UTR junction; so we know some mismatches affect the 3' UTR
-                    hgvs_pro += "p.(=)"
             else:
                 # MNP affects one codon
                 ref_aa = AA_MAP[translate(ref_codon_dict[start_index].codon)]
@@ -752,6 +749,10 @@ class AminoAcidMapper(MapperBase):
                     hgvs_pro = "p.%s%i=" % (ref_aa, ref_codon_dict[start_index].codon_pos)
                 else:
                     hgvs_pro = "p.%s%idelins%s" % (ref_aa, ref_codon_dict[start_index].codon_pos, alt_aa)
+
+            if end_index > cds_len:
+                # MNP spans the CDS/3' UTR junction; so we know some mismatches affect the 3' UTR
+                hgvs_pro += ",p.(=)"
         else:
             raise NotImplementedError
 
