@@ -428,13 +428,14 @@ class AminoAcidMapper(MapperBase):
 
         return ref_codons, alt_codons, ref_aas, alt_aas, aa_changes, matches_mut_sigs
 
-    def _annotate_mnp(self, ref_codon_dict, alt_codon_dict, start_index, end_index):
+    def _annotate_mnp(self, ref_codon_dict, alt_codon_dict, start_index, end_index, cds_len):
         """Gets annotations for a multi-codon change.
 
         :param dict ref_codon_dict: index in the REF CDS: CODON_TUPLE (codon, index of base in the codon)
         :param dict alt_codon_dict: index in the ALT CDS: CODON_TUPLE (codon, index of base in the codon)
         :param int start_index: 0-based position of the first mismatch in the CDS
         :param int end_index: 0-based position of the last mismatch in the CDS
+        :param int cds_len: length of CDS
         :return tuple: (ref_codons, alt_codons, ref_aas, alt_aas, aa_changes, matches_mut_sigs)
         """
 
@@ -445,8 +446,12 @@ class AminoAcidMapper(MapperBase):
         aa_changes = []
         matches_mut_sigs = []
 
-        # Require end_index + 3 for MNPs spanning codons
+        # Require end_index + 3 for MNPs spanning codons; however this creates bug for MNP starting in the stop codon
+        # so filter out indices that are not within the CDS
         for i in range(start_index, end_index + 3, 3):
+
+            if i - cds_len >= 0:
+                break
 
             ref_codon = ref_codon_dict[i].codon
             alt_codon = alt_codon_dict[i].codon
@@ -490,7 +495,7 @@ class AminoAcidMapper(MapperBase):
         if ref_codon_dict[start_index].base_index == 2 and ((alt_len - 1) % 3) == 0:
             # Insertion is in-frame and does not change current/downstream codons
             alt_ins = alt[1:]
-            alt_list = [alt_ins[i:i + 3] for i in range(0, alt_len, 3)]
+            alt_list = [alt_ins[i:i + 3] for i in range(0, alt_len - 1, 3)]
             ref_codons = (ref_codon_dict[start_index].codon,)
             alt_codons = (ref_codons[0], *alt_list,)
             ref_aas = (translate(ref_codons[0]),)
@@ -555,7 +560,8 @@ class AminoAcidMapper(MapperBase):
 
         return ref_codons, alt_codons, ref_aas, alt_aas, aa_changes, matches_mut_sigs
 
-    def _annotate_stopvar(self, trx_seq, pos, ref, alt, cds_start_offset, ref_codon_dict, alt_codon_dict):
+    def _annotate_stopvar(self, trx_seq, pos, ref, alt, cds_start_offset, cds_len,
+                          ref_codon_dict, alt_codon_dict):
         """Annotates a variant in the stop codon.
 
         :param str trx_seq: transcript sequence
@@ -563,6 +569,7 @@ class AminoAcidMapper(MapperBase):
         :param str ref: reference bases
         :param str alt: alternate bases
         :param int cds_start_offset: transcript position of the CDS start nucleotide
+        :param int cds_len: CDS length
         :param dict ref_codon_dict: index in the REF CDS: CODON_TUPLE (codon, index of base in the codon)
         :param dict alt_codon_dict: index in the ALT CDS: CODON_TUPLE (codon, index of base in the codon)
         :return collections.namedtuple: MUT_INFO_TUPLE
@@ -585,7 +592,7 @@ class AminoAcidMapper(MapperBase):
                 # Here we have a single-codon MNP or a multi-codon change (haplotype, multivariant)
                 # NOTE: this is not accurate if a MNP spans the CDS/3' UTR junction, because alt_codon_dict
                 # derives from a sliced mut_cds_seq in get_codon_and_aa_changes()
-                mut_info_tuple = self._annotate_mnp(ref_codon_dict, alt_codon_dict, start_index, end_index)
+                mut_info_tuple = self._annotate_mnp(ref_codon_dict, alt_codon_dict, start_index, end_index, cds_len)
 
         elif ref_len < alt_len:
 
@@ -599,7 +606,6 @@ class AminoAcidMapper(MapperBase):
 
         return mut_info_tuple
 
-    # Note: MAVE-HGVS formatting assumes the transcript has a coding region (not noncoding)
     def _annotate_snp_hgvs(self, trx_id, location, pos, ref, alt, cds_start_offset, cds_stop_offset, start_index,
                            ref_aa, aa_pos, alt_aa):
         """Annotates MAVE-HGVS for a substitution.
@@ -643,9 +649,9 @@ class AminoAcidMapper(MapperBase):
 
         return hgvs_nt, hgvs_tx, hgvs_pro
 
-    def _annotate_mnp_hgvs(self, trx_id, location, pos, alt, cds_start_offset, cds_stop_offset, start_index,
+    def _annotate_mnp_hgvs(self, trx_id, location, pos, alt, cds_start_offset, cds_stop_offset, cds_len, start_index,
                            ref_codon_dict, alt_codon_dict):
-        """Annotates MAVE-HGVS for a MNP (single or dicodon change).
+        """Annotates MAVE-HGVS for a MNP (single multicodon change).
 
         :param str trx_id: transcript ID
         :param str location: transcript location, one of {5_UTR, CDS, 3_UTR}
@@ -653,6 +659,7 @@ class AminoAcidMapper(MapperBase):
         :param str alt: alternate bases
         :param int cds_start_offset: 0-based transcript position of the CDS start nucleotide
         :param int cds_stop_offset: 0-based transcript position of the nucleotide after the last CDS position
+        :param int cds_len: CDS length
         :param int | None start_index: 0-based position of the first mismatch in the CDS
         :param dict ref_codon_dict: index in the REF CDS: CODON_TUPLE (codon, index of base in the codon)
         :param dict alt_codon_dict: index in the ALT CDS: CODON_TUPLE (codon, index of base in the codon)
@@ -695,36 +702,56 @@ class AminoAcidMapper(MapperBase):
             hgvs_pro = "p.(=)"
 
         elif location == self.CDS_ID:
-            hgvs_nt = "%s:c.%i_%idelins%s" % (trx_id, start_index + 1, start_index + alt_len, alt.lower())
-            hgvs_tx = "%s:r.%i_%idelins%s" % (
-                trx_id, start_index + 1, start_index + alt_len, su.dna_to_rna(alt.lower()))
 
-            ref_aa = translate(ref_codon_dict[start_index].codon)
-            alt_aa = translate(alt_codon_dict[start_index].codon)
+            end_index = start_index + alt_len
+            if end_index > cds_len:
+                # MNP spans the CDS/3' UTR junction
+                hgvs_nt = "%s:c.%i_*%idelins%s" % (trx_id, start_index + 1, end_index - cds_len, alt.lower())
+                hgvs_tx = "%s:r.%i_*%idelins%s" % (
+                    trx_id, start_index + 1, end_index - cds_len, su.dna_to_rna(alt.lower()))
+            else:
+                hgvs_nt = "%s:c.%i_%idelins%s" % (trx_id, start_index + 1, end_index, alt.lower())
+                hgvs_tx = "%s:r.%i_%idelins%s" % (trx_id, start_index + 1, end_index, su.dna_to_rna(alt.lower()))
 
             # Determine if the MNP spans codons
             if (ref_codon_dict[start_index].base_index == 1 and alt_len == 3) or \
-                    ref_codon_dict[start_index].base_index == 2:
+                    ref_codon_dict[start_index].base_index == 2 or alt_len > 3:
 
                 # MNP spans codons
-                second_ref_aa = translate(ref_codon_dict[start_index + 3].codon)
-                ref_aas = "".join((ref_aa, second_ref_aa,))
-                alt_aas = "".join((AA_MAP[alt_aa], AA_MAP[translate(alt_codon_dict[start_index + 3].codon)],))
+                alt_len_offset = len(alt)
+                alt_len_offset = 4 if alt_len_offset <= 3 else alt_len_offset
+                ref_aa_list = []
+                alt_aa_list = []
 
-                if ref_aas == alt_aas:
+                for i in range(start_index, start_index + alt_len_offset, 3):
+                    # Need to ensure we don't index into the 3' UTR
+                    if i < cds_len:
+                        ref_aa_list.append(AA_MAP[translate(ref_codon_dict[i].codon)])
+                        alt_aa_list.append(AA_MAP[translate(alt_codon_dict[i].codon)])
+                        # last_index will be assigned because at least one index is in the CDS
+                        last_index = i
+
+                if ref_aa_list == alt_aa_list:
                     hgvs_pro = "p.%s%i_%s%i=" % (
-                        AA_MAP[ref_aa], ref_codon_dict[start_index].codon_pos, AA_MAP[second_ref_aa],
-                        ref_codon_dict[start_index + 3].codon_pos)
+                        ref_aa_list[0], ref_codon_dict[start_index].codon_pos, ref_aa_list[len(ref_aa_list) - 1],
+                        ref_codon_dict[last_index].codon_pos)
                 else:
                     hgvs_pro = "p.%s%i_%s%idelins%s" % (
-                        AA_MAP[ref_aa], ref_codon_dict[start_index].codon_pos, AA_MAP[second_ref_aa],
-                        ref_codon_dict[start_index + 3].codon_pos, alt_aas)
+                        ref_aa_list[0], ref_codon_dict[start_index].codon_pos, ref_aa_list[len(ref_aa_list) - 1],
+                        ref_codon_dict[last_index].codon_pos, "".join(alt_aa_list))
+
+                if end_index > cds_len:
+                    # MNP spans the CDS/3' UTR junction; so we know some mismatches affect the 3' UTR
+                    hgvs_pro += "p.(=)"
             else:
                 # MNP affects one codon
+                ref_aa = AA_MAP[translate(ref_codon_dict[start_index].codon)]
+                alt_aa = AA_MAP[translate(alt_codon_dict[start_index].codon)]
+
                 if ref_aa == alt_aa:
-                    hgvs_pro = "p.%s%i=" % (AA_MAP[ref_aa], ref_codon_dict[start_index].codon_pos)
+                    hgvs_pro = "p.%s%i=" % (ref_aa, ref_codon_dict[start_index].codon_pos)
                 else:
-                    hgvs_pro = "p.%s%idelins%s" % (AA_MAP[ref_aa], ref_codon_dict[start_index].codon_pos, AA_MAP[alt_aa])
+                    hgvs_pro = "p.%s%idelins%s" % (ref_aa, ref_codon_dict[start_index].codon_pos, alt_aa)
         else:
             raise NotImplementedError
 
@@ -746,11 +773,13 @@ class AminoAcidMapper(MapperBase):
                 continue
 
             for j, mm_group in enumerate(mm_groups):
-
-                mm_group_positions = [i[1] for i in mm_group]
-                min_pos = min(mm_group_positions)
-
-                if mm_pos - min_pos < 3:
+                """As of 9/14/2023 HGVS recommends the following annotation changes, pending a decision
+                # https://varnomen.hgvs.org/bg-material/consultation/svd-wg010/
+                pairs of variants should be considered in order of increasing sequencing position. 
+                If variants A, B, and C occur in that order on a sequence, and A and B might be merged, and B and C 
+                might be merged, A, B and C should be merged and described as a single “delins” variant"""
+                mm_group_max_pos = max([mm_group[e][1] for e in range(len(mm_group))])
+                if (mm_pos - mm_group_max_pos) < 3:
                     mm_groups[j].append((mm_idx, mm_pos,))
                     break
             else:
@@ -759,9 +788,9 @@ class AminoAcidMapper(MapperBase):
 
         return tuple(mm_groups)
 
-    def _annotate_multivariant_hgvs(self, trx_id, location, pos, ref, alt, cds_start_offset, cds_stop_offset,
+    def _annotate_multivariant_hgvs(self, trx_id, location, pos, ref, alt, cds_start_offset, cds_stop_offset, cds_len,
                                     ref_codon_dict, alt_codon_dict):
-        """Concatenates HGVS for multivariants (alleles).
+        """Concatenates HGVS for multivariants (alleles) or simple MNPs.
 
         :param str trx_id: transcript ID
         :param str location: transcript location, one of {5_UTR, CDS, 3_UTR}
@@ -770,6 +799,7 @@ class AminoAcidMapper(MapperBase):
         :param str alt: alternate bases
         :param int cds_start_offset: 0-based transcript position of the CDS start nucleotide
         :param int cds_stop_offset: 0-based transcript position of the nucleotide after the last CDS position
+        :param int cds_len: CDS length
         :param dict ref_codon_dict: index in the REF CDS: CODON_TUPLE (codon, index of base in the codon)
         :param dict alt_codon_dict: index in the ALT CDS: CODON_TUPLE (codon, index of base in the codon)
         :return tuple: (hgvs_nt, hgvs_tx, hgvs_pro)
@@ -808,16 +838,16 @@ class AminoAcidMapper(MapperBase):
                         cds_start_offset, cds_stop_offset, start_index, ref_aa, aa_pos, alt_aa)
             else:
 
-                # Call an delins
+                # Call a delins
                 if location == self.FIVEPRIME_UTR or location == self.THREEPRIME_UTR:
                     hgvs_nt, hgvs_tx, hgvs_pro = self._annotate_mnp_hgvs(
                         trx_id, location, mm_group[0][1], alt[mm_group[0][0]:mm_group[len(mm_group) - 1][0] + 1],
-                        cds_start_offset, cds_stop_offset, None, ref_codon_dict, alt_codon_dict)
+                        cds_start_offset, cds_stop_offset, cds_len, None, ref_codon_dict, alt_codon_dict)
                 else:
                     start_index = mm_group[0][1] - cds_start_offset - 1
                     hgvs_nt, hgvs_tx, hgvs_pro = self._annotate_mnp_hgvs(
                         trx_id, location, mm_group[0][1], alt[mm_group[0][0]:mm_group[len(mm_group) - 1][0] + 1],
-                        cds_start_offset, cds_stop_offset, start_index, ref_codon_dict, alt_codon_dict)
+                        cds_start_offset, cds_stop_offset, cds_len, start_index, ref_codon_dict, alt_codon_dict)
 
             hgvs_nt_list.append(hgvs_nt)
             hgvs_tx_list.append(hgvs_tx)
@@ -1148,7 +1178,7 @@ class AminoAcidMapper(MapperBase):
         return hgvs_nt, hgvs_tx, hgvs_pro
 
     def _annotate_stopvar_hgvs(self, trx_id, location, trx_seq, pos, ref, alt, ref_len, alt_len, cds_start_offset,
-                               cds_stop_offset, start_index, end_index, ref_codon_dict, alt_codon_dict):
+                               cds_stop_offset, cds_len, start_index, end_index, ref_codon_dict, alt_codon_dict):
         """Annotates MAVE-HGVS for a variant at the stop codon (including nonstop/extension variant).
 
         :param str trx_id: transcript ID
@@ -1161,6 +1191,7 @@ class AminoAcidMapper(MapperBase):
         :param int alt_len: alternate length
         :param int cds_start_offset: 0-based transcript position of the CDS start nucleotide
         :param int cds_stop_offset: 0-based transcript position of the nucleotide after the last CDS position
+        :param int cds_len: CDS length
         :param int start_index: 0-based position of the first mismatch in the CDS
         :param int end_index: 0-based position of the last mismatch in the CDS
         :param dict ref_codon_dict: index in the REF CDS: CODON_TUPLE (codon, index of base in the codon)
@@ -1181,7 +1212,8 @@ class AminoAcidMapper(MapperBase):
             else:
                 # Here we have a single-codon MNP or a multi-codon change (haplotype, multivariant)
                 hgvs_nt, hgvs_tx, _ = self._annotate_multivariant_hgvs(
-                    trx_id, location, pos, ref, alt, cds_start_offset, cds_stop_offset, ref_codon_dict, alt_codon_dict)
+                    trx_id, location, pos, ref, alt, cds_start_offset, cds_stop_offset, cds_len,
+                    ref_codon_dict, alt_codon_dict)
 
         elif ref_len < alt_len:
             # Here we have an insertion or duplication
@@ -1252,15 +1284,16 @@ class AminoAcidMapper(MapperBase):
         if translate(ref_codon_dict[start_index].codon) == STOP_AA:
 
             # Annotate variants at the stop codon first as they are a special case
-            # Any nonstop variant will be assumed a frameshift variant
+            # Any nonstop variant that's not silent will be assumed a frameshift variant
             alt_codon_dict = self._get_pos_codon_dict(mut_cds_seq)
+            cds_len = len(wt_cds_seq)
 
             ref_codons, alt_codons, ref_aas, alt_aas, aa_changes, matches_mut_sigs = self._annotate_stopvar(
-                trx_seq, pos, ref, alt, cds_start_offset, ref_codon_dict, alt_codon_dict)
+                trx_seq, pos, ref, alt, cds_start_offset, cds_len, ref_codon_dict, alt_codon_dict)
 
             # Special case requires investigation of all variant types to determine if a non-stop variant exists
             hgvs_nt, hgvs_tx, hgvs_pro = self._annotate_stopvar_hgvs(
-                trx_id, location, trx_seq, pos, ref, alt, ref_len, alt_len, cds_start_offset, cds_stop_offset,
+                trx_id, location, trx_seq, pos, ref, alt, ref_len, alt_len, cds_start_offset, cds_stop_offset, cds_len,
                 start_index, end_index, ref_codon_dict, alt_codon_dict)
 
         elif ref_len == alt_len:
@@ -1285,14 +1318,17 @@ class AminoAcidMapper(MapperBase):
             else:
 
                 # Here we have a single-codon MNP or a multi-codon change (haplotype, multivariant)
-                if location == self.CDS_ID:
-                    # For MNPs that span the start codon, we will not have custom annotations, but the MAVE-HGVS
-                    # annotation will be correct
-                    ref_codons, alt_codons, ref_aas, alt_aas, aa_changes, matches_mut_sigs = self._annotate_mnp(
-                        ref_codon_dict, alt_codon_dict, start_index, end_index)
+                cds_len = len(wt_cds_seq)
 
+                if location == self.CDS_ID:
+                    ref_codons, alt_codons, ref_aas, alt_aas, aa_changes, matches_mut_sigs = self._annotate_mnp(
+                        ref_codon_dict, alt_codon_dict, start_index, end_index, cds_len)
+
+                # For MNPs that span the start codon, we will not have custom annotations, but the MAVE-HGVS
+                # annotation will be correct
                 hgvs_nt, hgvs_tx, hgvs_pro = self._annotate_multivariant_hgvs(
-                    trx_id, location, pos, ref, alt, cds_start_offset, cds_stop_offset, ref_codon_dict, alt_codon_dict)
+                    trx_id, location, pos, ref, alt, cds_start_offset, cds_stop_offset, cds_len,
+                    ref_codon_dict, alt_codon_dict)
 
         elif ref_len < alt_len:
 

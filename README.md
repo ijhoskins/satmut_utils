@@ -59,11 +59,11 @@ It is recommended that a new output directory is created for each job. Default i
 ```OUTPUT_DIR="/tmp/satmut_utils_test"```
 
 Additionally, the user can set a directory for temporary files by setting an environment variable $SCRATCH. If this variable is not set, temporary files are written to /tmp.
-```export SCRATCH="/tmp/satmut_temp"```
+```export SCRATCH="$(mktemp -d -t satmut_temp)"```
 
 ### Run 'sim'
 
-Run 'sim' on *in silico* alignments to generate SNPs, MNPs, and InDels. Structural variants and gene fusions are not currently supported.
+Run 'sim' on *in silico* alignments to generate SNPs, MNPs, insertions, and deletions. Structural variants and gene fusions are not currently supported.
 ```
 TEST_DIR="$SATMUT_ROOT/src/tests/test_data"
 OUTPUT_DIR="/tmp/satmut_utils_test"
@@ -118,3 +118,4 @@ If you use satmut\_utils, please cite the following paper:
 
 Hoskins I, Sun S, Cote A, Roth FP, Cenik C. satmut_utils: a simulation and variant calling package for multiplexed assays of variant effect. Genome Biol. BioMed Central; 2023 Apr 20;24(1):1–27.
 
+The user is also encouraged to cite the specific release version, which is available on [Zenodo](https://doi.org/10.5281/zenodo.7343200).
