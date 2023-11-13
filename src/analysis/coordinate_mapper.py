@@ -627,19 +627,19 @@ class AminoAcidMapper(MapperBase):
 
         if location == self.FIVEPRIME_UTR:
             utr_pos = pos - cds_start_offset - 1
-            hgvs_nt = "%s:c.%i%s>%s" % (trx_id, utr_pos, ref.lower(), alt.lower())
-            hgvs_tx = "%s:r.%i%s>%s" % (trx_id, utr_pos, su.dna_to_rna(ref.lower()), su.dna_to_rna(alt.lower()))
+            hgvs_nt = "%s:c.%i%s>%s" % (trx_id, utr_pos, ref, alt)
+            hgvs_tx = "%s:r.%i%s>%s" % (trx_id, utr_pos, su.dna_to_rna(ref), su.dna_to_rna(alt))
             hgvs_pro = "p.(=)"
 
         elif location == self.THREEPRIME_UTR:
             utr_pos = pos - cds_stop_offset
-            hgvs_nt = "%s:c.*%i%s>%s" % (trx_id, utr_pos, ref.lower(), alt.lower())
-            hgvs_tx = "%s:r.*%i%s>%s" % (trx_id, utr_pos, su.dna_to_rna(ref.lower()), su.dna_to_rna(alt.lower()))
+            hgvs_nt = "%s:c.*%i%s>%s" % (trx_id, utr_pos, ref, alt)
+            hgvs_tx = "%s:r.*%i%s>%s" % (trx_id, utr_pos, su.dna_to_rna(ref), su.dna_to_rna(alt))
             hgvs_pro = "p.(=)"
 
         elif location == self.CDS_ID:
-            hgvs_nt = "%s:c.%i%s>%s" % (trx_id, start_index + 1, ref.lower(), alt.lower())
-            hgvs_tx = "%s:r.%i%s>%s" % (trx_id, start_index + 1, su.dna_to_rna(ref.lower()), su.dna_to_rna(alt.lower()))
+            hgvs_nt = "%s:c.%i%s>%s" % (trx_id, start_index + 1, ref, alt)
+            hgvs_tx = "%s:r.%i%s>%s" % (trx_id, start_index + 1, su.dna_to_rna(ref), su.dna_to_rna(alt))
             if ref_aa == alt_aa:
                 hgvs_pro = "p.%s%i=" % (AA_MAP[ref_aa], aa_pos)
             else:
@@ -677,8 +677,8 @@ class AminoAcidMapper(MapperBase):
             if utr_stop >= 0:
                 # We can use alt_codon_dict because we generated the mut_cds_seq in get_codon_and_aa_changes
                 # for this special case of MNP spanning 5' UTR-CDS junction
-                hgvs_nt = "%s:c.%i_%idelins%s" % (trx_id, utr_start + 1, utr_stop + 1, alt.lower())
-                hgvs_tx = "%s:r.%i_%idelins%s" % (trx_id, utr_start + 1, utr_stop + 1, su.dna_to_rna(alt.lower()))
+                hgvs_nt = "%s:c.%i_%idelins%s" % (trx_id, utr_start + 1, utr_stop + 1, alt)
+                hgvs_tx = "%s:r.%i_%idelins%s" % (trx_id, utr_start + 1, utr_stop + 1, su.dna_to_rna(alt))
 
                 ref_aa = translate(ref_codon_dict[0].codon)
                 alt_aa = translate(alt_codon_dict[0].codon)
@@ -690,15 +690,15 @@ class AminoAcidMapper(MapperBase):
                     hgvs_pro = "p.(=),p.%s%idelins%s" % (AA_MAP[ref_aa], 1, AA_MAP[alt_aa])
             else:
                 # MNP is isolated in the 5' UTR
-                hgvs_nt = "%s:c.%i_%idelins%s" % (trx_id, utr_start, utr_stop, alt.lower())
-                hgvs_tx = "%s:r.%i_%idelins%s" % (trx_id, utr_start, utr_stop, su.dna_to_rna(alt.lower()))
+                hgvs_nt = "%s:c.%i_%idelins%s" % (trx_id, utr_start, utr_stop, alt)
+                hgvs_tx = "%s:r.%i_%idelins%s" % (trx_id, utr_start, utr_stop, su.dna_to_rna(alt))
                 hgvs_pro = "p.(=)"
 
         elif location == self.THREEPRIME_UTR:
             utr_start = pos - cds_stop_offset
             utr_stop = utr_start + alt_len - 1
-            hgvs_nt = "%s:c.*%i_*%idelins%s" % (trx_id, utr_start, utr_stop, alt.lower())
-            hgvs_tx = "%s:r.*%i_*%idelins%s" % (trx_id, utr_start, utr_stop, su.dna_to_rna(alt.lower()))
+            hgvs_nt = "%s:c.*%i_*%idelins%s" % (trx_id, utr_start, utr_stop, alt)
+            hgvs_tx = "%s:r.*%i_*%idelins%s" % (trx_id, utr_start, utr_stop, su.dna_to_rna(alt))
             hgvs_pro = "p.(=)"
 
         elif location == self.CDS_ID:
@@ -706,12 +706,12 @@ class AminoAcidMapper(MapperBase):
             end_index = start_index + alt_len
             if end_index > cds_len:
                 # MNP spans the CDS/3' UTR junction
-                hgvs_nt = "%s:c.%i_*%idelins%s" % (trx_id, start_index + 1, end_index - cds_len, alt.lower())
+                hgvs_nt = "%s:c.%i_*%idelins%s" % (trx_id, start_index + 1, end_index - cds_len, alt)
                 hgvs_tx = "%s:r.%i_*%idelins%s" % (
-                    trx_id, start_index + 1, end_index - cds_len, su.dna_to_rna(alt.lower()))
+                    trx_id, start_index + 1, end_index - cds_len, su.dna_to_rna(alt))
             else:
-                hgvs_nt = "%s:c.%i_%idelins%s" % (trx_id, start_index + 1, end_index, alt.lower())
-                hgvs_tx = "%s:r.%i_%idelins%s" % (trx_id, start_index + 1, end_index, su.dna_to_rna(alt.lower()))
+                hgvs_nt = "%s:c.%i_%idelins%s" % (trx_id, start_index + 1, end_index, alt)
+                hgvs_tx = "%s:r.%i_%idelins%s" % (trx_id, start_index + 1, end_index, su.dna_to_rna(alt))
 
             # Determine if the MNP spans codons
             if (ref_codon_dict[start_index].base_index == 1 and alt_len == 3) or \
@@ -1032,8 +1032,8 @@ class AminoAcidMapper(MapperBase):
             else:
                 utr_start = pos - cds_start_offset - 1
                 utr_stop = utr_start + 1
-                hgvs_nt = "%s:c.%i_%iins%s" % (trx_id, utr_start, utr_stop, alt[1:].lower())
-                hgvs_tx = "%s:r.%i_%iins%s" % (trx_id, utr_start, utr_stop, su.dna_to_rna(alt[1:].lower()))
+                hgvs_nt = "%s:c.%i_%iins%s" % (trx_id, utr_start, utr_stop, alt[1:])
+                hgvs_tx = "%s:r.%i_%iins%s" % (trx_id, utr_start, utr_stop, su.dna_to_rna(alt[1:]))
                 hgvs_pro = "p.(=)"
 
         elif location == self.THREEPRIME_UTR:
@@ -1044,8 +1044,8 @@ class AminoAcidMapper(MapperBase):
             else:
                 utr_start = pos - cds_stop_offset
                 utr_stop = utr_start + 1
-                hgvs_nt = "%s:c.*%i_*%iins%s" % (trx_id, utr_start, utr_stop, alt[1:].lower())
-                hgvs_tx = "%s:r.*%i_*%iins%s" % (trx_id, utr_start, utr_stop, su.dna_to_rna(alt[1:].lower()))
+                hgvs_nt = "%s:c.*%i_*%iins%s" % (trx_id, utr_start, utr_stop, alt[1:])
+                hgvs_tx = "%s:r.*%i_*%iins%s" % (trx_id, utr_start, utr_stop, su.dna_to_rna(alt[1:]))
                 hgvs_pro = "p.(=)"
 
         elif location == self.CDS_ID:
@@ -1056,9 +1056,9 @@ class AminoAcidMapper(MapperBase):
                     ref_codon_dict)
             else:
                 # We have a non-dup insertion
-                hgvs_nt = "%s:c.%i_%iins%s" % (trx_id, start_index + 1, start_index + 2, alt[1:].lower())
+                hgvs_nt = "%s:c.%i_%iins%s" % (trx_id, start_index + 1, start_index + 2, alt[1:])
                 hgvs_tx = "%s:r.%i_%iins%s" % (
-                    trx_id, start_index + 1, start_index + 2, su.dna_to_rna(alt[1:].lower()))
+                    trx_id, start_index + 1, start_index + 2, su.dna_to_rna(alt[1:]))
 
                 if ref_codon_dict[start_index].base_index == 2 and ((alt_len - 1) % 3) == 0:
                     # In-frame insertion

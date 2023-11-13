@@ -11,8 +11,7 @@ import string
 import sys
 
 from analysis.coordinate_mapper import AminoAcidMapper
-from core_utils.file_utils import FILE_DELIM, FILE_NEWLINE
-from core_utils.string_utils import none_or_str
+from core_utils.file_utils import FILE_DELIM, FILE_NEWLINE, replace_extension
 from satmut_utils.definitions import LOG_FORMATTER
 
 __author__ = "Ian_Hoskins"
@@ -48,9 +47,9 @@ def parse_commandline_params(args):
 
     parser.add_argument("-k", "--gff_reference", type=str, required=True, help='Reference FASTA for the GFF.')
 
-    parser.add_argument("-t", "--targets", type=none_or_str, default="None",
-                        help='Optional target BED file. Only variants intersecting the targets will be generated. '
-                             'Contig names in the target file should match the contig name in the reference FASTA.')
+    parser.add_argument("-t", "--targets", required=True,
+                        help='Target BED file. Contig names in the target file should match the contig name '
+                             'in the reference FASTA.')
 
     parser.add_argument("-o", "--output_dir", type=str, default=".",
                         help='Optional output directory. Default current working directory.')
@@ -72,8 +71,8 @@ def correct_mave_hgvs_nt(mut_info_tuple, target_start):
 
     for annot in mave_hgvs_nt_items:
         mave_hgvs_nt_split = annot.split(".")
-        mave_hgvs_nt_pos = re.sub("[>A-Za-z*]", "", mave_hgvs_nt_split[1])
-        mave_hgvs_nt_char = re.sub("[0-9]", "", mave_hgvs_nt_split[1])
+        mave_hgvs_nt_pos = re.sub("[->A-Za-z*]", "", mave_hgvs_nt_split[1])
+        mave_hgvs_nt_char = re.sub("[_0-9]", "", mave_hgvs_nt_split[1])
 
         if re.search("_", mave_hgvs_nt_pos):
             mave_hgvs_nt_pos_split = mave_hgvs_nt_pos.split("_")
@@ -140,17 +139,17 @@ def correct_mave_hgvs_pro(mut_info_tuple, target_aa_start):
     return res
 
 
-def add_annotation(summary_file, aam, target_dict, target_positions, outdir="."):
+def add_annotation(summary_file, aam, inframe_interval_starts, target_positions, outdir="."):
     """Adds MAVE-HGVS annotations and writes to a new file.
 
     :param str summary_file: satmut_utils *summary.txt file
     :param analysis.coordinate_mapper.AminoAcidMapper aam: AminoAcidMapper object
-    :param dict target_dict: dictionary mapping target region to 0-based start and 1-based stop coordinates
+    :param set inframe_interval_starts: 0-based interval starts in-frame with the CDS start
     :param set target_positions: all targeted positions
     :param str outdir: Optional output directory. Default current directory
     """
 
-    outpath = os.path.join(outdir, os.path.basename(summary_file))
+    outpath = os.path.join(outdir, replace_extension(os.path.basename(summary_file), "mave_hgvs.txt"))
 
     with open(summary_file, "r") as infile, open(outpath, "w") as outfile:
 
@@ -174,17 +173,14 @@ def add_annotation(summary_file, aam, target_dict, target_positions, outdir=".")
             _, cds_start_offset, _, _, _ = aam.cds_info[trx_id]
 
             # Get the target coordinates to adjust the mave_nt and mave_pro annotations
-            for k, v in target_dict.items():
-                target_start = v[0]
-                target_stop = v[1]
-                if target_start < pos <= target_stop:
-                    target_cds_start = target_start - cds_start_offset
-                    break
+            target_start = min(inframe_interval_starts)
+            target_cds_start = target_start - cds_start_offset
 
             mut_info_tuple = aam.get_codon_and_aa_changes(
                 trx_id=trx_id, pos=int(linesplit[1]), ref=linesplit[3], alt=linesplit[4])
 
-            target_aa_start = round((target_start - cds_start_offset) / 3)
+            # This is 0-based
+            target_aa_start = round(target_cds_start / 3)
 
             mave_hgvs_nt_correct = correct_mave_hgvs_nt(mut_info_tuple, target_cds_start)
             mave_hgvs_pro_correct = correct_mave_hgvs_pro(mut_info_tuple, target_aa_start)
@@ -210,7 +206,7 @@ def workflow(indir, transcript_gff, gff_ref, targets, outdir="."):
     bedtool = pybedtools.BedTool(targets)
 
     target_positions = set()
-    target_dict = {}
+    inframe_interval_starts = set()
     for interval in bedtool:
         target_positions |= set(range(interval.start, interval.stop))
 
@@ -221,10 +217,10 @@ def workflow(indir, transcript_gff, gff_ref, targets, outdir="."):
         while ((interval_start - cds_start_offset) % 3) != 0:
             interval_start -= 1
 
-        target_dict[str(interval.name)] = (interval_start, interval.stop,)
+        inframe_interval_starts.add(interval_start)
 
     for file in summary_files:
-        add_annotation(file, aam, target_dict, target_positions, outdir)
+        add_annotation(file, aam, inframe_interval_starts, target_positions, outdir)
 
 
 def main():
