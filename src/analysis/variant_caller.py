@@ -237,59 +237,59 @@ class VariantCaller(object):
         return call_tuple, mm_pos_set
 
     def _get_haplotype_dict(self, filt_r_mms, max_mnp_window=VARIANT_CALL_MAX_MNP_WINDOW):
-        r"""Finds MNPs/haplotypes within a MNP window size.
+        """Finds haplotypes within a MNP window size.
 
-        :param list filt_r_mms: list of concordant R1 or R2 MM_TUPLEs
-        :param int max_mnp_window: max number of consecutive nucleotides to search for haplotypes. Default 3.
-        :return tuple: (collections.defaultdict, set) of ({collections.namedtuple: set} dict keyed by \
-        CALL_TUPLE and values the set of coordinate positions included in the haplotype, and the \
-        position_blacklist for mismatches involved in haplotypes)
+        :param list filt_r_mms: list of R1 or R2 MM_TUPLEs
+        :param int max_mnp_window: max number of consecutive nucleotides to search for haplotypes
+        :return tuple: (collections.defaultdict, set) of ({collections.namedtuple: frozenset} dict keyed by \
+        CALL_TUPLE with values the set of coordinate positions included in the haplotype, and the \
+        position_blacklist for mismatches involved in haplotypes
         """
 
+        haplotype_groups = [[]]
+        for i, mm_tuple in enumerate(filt_r_mms):
+
+            if i == 0:
+                haplotype_groups[0].append(mm_tuple)
+                continue
+
+            # Try to find a place for the mismatch
+            for j, haplo_group in enumerate(haplotype_groups):
+
+                hg_min_pos = min([mt.pos for mt in haplo_group])
+
+                if mm_tuple.pos - hg_min_pos < max_mnp_window:
+                    haplotype_groups[j].append(mm_tuple)
+                    break
+            else:
+                # If the mismatch could not be merged with an existing group
+                # create a new one
+                haplotype_groups.append([mm_tuple])
+
+        # Now to find our haplotypes we identify the groups with two or more mismatches
         haplotypes = collections.defaultdict(set)
         position_blacklist = set()
 
-        filt_r_mms_len = len(filt_r_mms)
-        break_index = filt_r_mms_len - 2
+        for final_group in haplotype_groups:
 
-        # For the second to last mismatch, add a buffer MM_TUPLE with pos > the window so that i + 2 is valid
-        filt_r_mms_ext = filt_r_mms + [
-            MM_TUPLE(contig=None, pos=filt_r_mms[-2].pos + max_mnp_window + 1, ref=None, alt=None, bq=None, read_pos=None)]
+            if len(final_group) > 1:
 
-        for i, mm_tuple in enumerate(filt_r_mms_ext):
+                first_mt = final_group[0]
+                last_mt = final_group[-1]
+                mm_pos_set = {mt.pos for mt in final_group}
 
-            # If we are at the second to last mismatch, break to avoid IndexErrors
-            if i > break_index and i > 0:
-                break
+                # Generate the REF field based on the span of the haplotype group
+                ref_nts, ref_mm_pos = self._get_haplotype_ref(first_mt.contig, first_mt.pos, last_mt.pos, mm_pos_set)
 
-            if mm_tuple.pos in position_blacklist:
-                continue
+                # Then generate the ALT field based on the mismatch positions
+                alt_nts = list(copy.deepcopy(ref_nts))
 
-            if filt_r_mms_ext[i + 1].pos - filt_r_mms_ext[i].pos >= max_mnp_window:
-                continue
+                for mt, mm_pos in zip(final_group, ref_mm_pos):
+                    alt_nts[mm_pos] = mt.alt
 
-            if filt_r_mms_len == 2:
-                # Make an isolated di-nt MNP call; need this first otherwise we get an IndexError on the next line
-                call_tuple, mm_pos_set = self._generate_call_tuple(filt_r_mms)
-                haplotypes[call_tuple] |= mm_pos_set
-                position_blacklist |= mm_pos_set
-                continue
+                haplotypes[CALL_TUPLE(
+                    first_mt.contig, first_mt.pos, ref_nts, "".join(alt_nts), None, None, None)] |= mm_pos_set
 
-            # Here we know that the next mismatch is within the window, but we don't know if its position is +1 or +2
-            if filt_r_mms_ext[i + 2].pos - filt_r_mms_ext[i].pos < max_mnp_window:
-                # Here we have a tri-nt MNP that spans 3 consecutive nts
-                mmts = [filt_r_mms[i], filt_r_mms[i + 1], filt_r_mms[i + 2]]
-                call_tuple, mm_pos_set = self._generate_call_tuple(mmts)
-                haplotypes[call_tuple] |= mm_pos_set
-                position_blacklist |= mm_pos_set
-                continue
-
-            # if i + 1 and i + 2 are consecutive continue as i + 1 could initiate a tri-nt MNP
-            # if they are not consecutive call a di-nt MNP
-            if (filt_r_mms_ext[i + 2].pos - filt_r_mms_ext[i + 1].pos) != 1:
-                mmts = [filt_r_mms[i], filt_r_mms[i + 1]]
-                call_tuple, mm_pos_set = self._generate_call_tuple(mmts)
-                haplotypes[call_tuple] |= mm_pos_set
                 position_blacklist |= mm_pos_set
 
         return haplotypes, position_blacklist
