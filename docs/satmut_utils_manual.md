@@ -486,7 +486,7 @@ Minimum base quality for either mate of a pair to be considered for variant call
 Minimum number of fragments for a candidate variant call. Default 2 (discard singletons).
 
 16. -w, --max\_mnp\_window
-Integer window span to search for phased SNPs and call MNPs (default 3). satmut\_utils does not support long-range haplotype calling, which is challenged by exponentially increasing false positive calls with a wider window span.
+Integer window span to search for phased SNPs and call MNPs (default 3).
 
 17. -n, --ntrimmed
 

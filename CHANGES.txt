@@ -38,7 +38,7 @@ Release Summary:
 1.1.0-dev-multi, September 11, 2023
 	Added support for simple insertion and deletion calling. Added MAVE-HGVS annotations.	
 	
-1.1.1-dev, November 14, 2023
+1.1.1.dev, November 14, 2023
 
 	Fixed bugs in HGVS annotations for single in-frame insertions and MNPs spanning the CDS-3' UTR junction.
 	
