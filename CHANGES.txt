@@ -43,3 +43,8 @@ Release Summary:
 	
 1.1.2-dev, September 15, 2023
 	Fixed bugs in HGVS annotations for single in-frame insertions and MNPs spanning the CDS-3' UTR junction. Ensure deletion-insertion annotations follow HGVS proposal SVD-WG010. Added a script for post-processing *summary.txt files to adjust HGVS positions relative to target regions as opposed to a coding sequence.
+	
+1.1.3-dev, November 14, 2023
+	Ensure HGVS annotations use uppercase bases to ensure compatibility with MAVEdb.
+	
+	Fixed run_mave_hgvs_annot.py script to require target BED and fix bug in deletion-insertion MAVE-HGVS string.

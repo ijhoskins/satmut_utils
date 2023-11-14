@@ -63,7 +63,7 @@ Additionally, the user can set a directory for temporary files by setting an env
 
 ### Run 'sim'
 
-Run 'sim' on *in silico* alignments to generate SNPs, MNPs, insertions, and deletions. Structural variants and gene fusions are not currently supported.
+Run 'sim' on *in silico* alignments to generate SNPs/SNVs, MNPs/MNVs, insertions, and deletions. Structural variants and gene fusions are not currently supported.
 ```
 TEST_DIR="$SATMUT_ROOT/src/tests/test_data"
 OUTPUT_DIR="/tmp/satmut_utils_test"

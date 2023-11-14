@@ -277,7 +277,7 @@ class TestAminoAcidMapper(unittest.TestCase):
             trx_id="ENST00000398165.7", location=self.appris_aa_mapper.CDS_ID, pos=268, ref="C", alt="T",
             cds_start_offset=260, cds_stop_offset=1916, start_index=7, ref_aa="S", aa_pos=3, alt_aa="F")
 
-        expected = ("ENST00000398165.7:c.8c>t", "ENST00000398165.7:r.8c>u", "p.Ser3Phe",)
+        expected = ("ENST00000398165.7:c.8C>T", "ENST00000398165.7:r.8C>U", "p.Ser3Phe",)
 
         self.assertEqual(expected, observed)
 
@@ -288,7 +288,7 @@ class TestAminoAcidMapper(unittest.TestCase):
             trx_id="ENST00000398165.7", location=self.appris_aa_mapper.FIVEPRIME_UTR, pos=259, ref="G", alt="T",
             cds_start_offset=260, cds_stop_offset=1916, start_index=None, ref_aa=None, aa_pos=None, alt_aa=None)
 
-        expected = ("ENST00000398165.7:c.-2g>t", "ENST00000398165.7:r.-2g>u", "p.(=)",)
+        expected = ("ENST00000398165.7:c.-2G>T", "ENST00000398165.7:r.-2G>U", "p.(=)",)
 
         self.assertEqual(expected, observed)
 
@@ -299,7 +299,7 @@ class TestAminoAcidMapper(unittest.TestCase):
             trx_id="ENST00000398165.7", location=self.appris_aa_mapper.THREEPRIME_UTR, pos=1920, ref="C", alt="T",
             cds_start_offset=260, cds_stop_offset=1916, start_index=None, ref_aa=None, aa_pos=None, alt_aa=None)
 
-        expected = ("ENST00000398165.7:c.*4c>t", "ENST00000398165.7:r.*4c>u", "p.(=)",)
+        expected = ("ENST00000398165.7:c.*4C>T", "ENST00000398165.7:r.*4C>U", "p.(=)",)
 
         self.assertEqual(expected, observed)
 
@@ -313,7 +313,7 @@ class TestAminoAcidMapper(unittest.TestCase):
             cds_stop_offset=1916, cds_len=3315, start_index=6, ref_codon_dict=self.ref_codon_dict,
             alt_codon_dict=alt_codon_dict)
 
-        expected = ("ENST00000398165.7:c.7_9delinsaaa", "ENST00000398165.7:r.7_9delinsaaa", "p.Ser3delinsLys",)
+        expected = ("ENST00000398165.7:c.7_9delinsAAA", "ENST00000398165.7:r.7_9delinsAAA", "p.Ser3delinsLys",)
 
         self.assertEqual(expected, observed)
 
@@ -327,7 +327,7 @@ class TestAminoAcidMapper(unittest.TestCase):
             cds_stop_offset=1916, cds_len=3315, start_index=8, ref_codon_dict=self.ref_codon_dict,
             alt_codon_dict=alt_codon_dict)
 
-        expected = ("ENST00000398165.7:c.9_10delinsac", "ENST00000398165.7:r.9_10delinsac", "p.Ser3_Glu4delinsSerGln",)
+        expected = ("ENST00000398165.7:c.9_10delinsAC", "ENST00000398165.7:r.9_10delinsAC", "p.Ser3_Glu4delinsSerGln",)
 
         self.assertEqual(expected, observed)
 
@@ -339,7 +339,7 @@ class TestAminoAcidMapper(unittest.TestCase):
             cds_start_offset=260, cds_stop_offset=1916, cds_len=3315, start_index=None,
             ref_codon_dict=self.ref_codon_dict, alt_codon_dict=self.ref_codon_dict)
 
-        expected = ("ENST00000398165.7:c.-6_-4delinsgcg", "ENST00000398165.7:r.-6_-4delinsgcg", "p.(=)",)
+        expected = ("ENST00000398165.7:c.-6_-4delinsGCG", "ENST00000398165.7:r.-6_-4delinsGCG", "p.(=)",)
 
         self.assertEqual(expected, observed)
 
@@ -351,7 +351,7 @@ class TestAminoAcidMapper(unittest.TestCase):
             cds_start_offset=260, cds_stop_offset=1916, cds_len=3315, start_index=None,
             ref_codon_dict=self.ref_codon_dict, alt_codon_dict=self.ref_codon_dict)
 
-        expected = ("ENST00000398165.7:c.*2_*3delinstc", "ENST00000398165.7:r.*2_*3delinsuc", "p.(=)",)
+        expected = ("ENST00000398165.7:c.*2_*3delinsTC", "ENST00000398165.7:r.*2_*3delinsUC", "p.(=)",)
 
         self.assertEqual(expected, observed)
 
@@ -376,8 +376,8 @@ class TestAminoAcidMapper(unittest.TestCase):
             alt="TTTTG", cds_start_offset=260, cds_stop_offset=1916, cds_len=3315, ref_codon_dict=self.ref_codon_dict,
             alt_codon_dict=alt_codon_dict)
 
-        expected = ("ENST00000398165.7:c.4_5delinstt,ENST00000398165.7:c.8c>g",
-                    "ENST00000398165.7:r.4_5delinsuu,ENST00000398165.7:r.8c>g",
+        expected = ("ENST00000398165.7:c.4_5delinsTT,ENST00000398165.7:c.8C>G",
+                    "ENST00000398165.7:r.4_5delinsUU,ENST00000398165.7:r.8C>G",
                     "p.Pro2delinsPhe,p.Ser3Cys",)
 
         self.assertEqual(expected, observed)
@@ -391,8 +391,8 @@ class TestAminoAcidMapper(unittest.TestCase):
             alt="TCCGAC", cds_start_offset=260, cds_stop_offset=1916, cds_len=3315, ref_codon_dict=self.ref_codon_dict,
             alt_codon_dict=self.ref_codon_dict)
 
-        expected = ("ENST00000398165.7:c.-6c>t,ENST00000398165.7:c.-3_-2delinsga",
-                    "ENST00000398165.7:r.-6c>u,ENST00000398165.7:r.-3_-2delinsga", "p.(=),p.(=)",)
+        expected = ("ENST00000398165.7:c.-6C>T,ENST00000398165.7:c.-3_-2delinsGA",
+                    "ENST00000398165.7:r.-6C>U,ENST00000398165.7:r.-3_-2delinsGA", "p.(=),p.(=)",)
 
         self.assertEqual(expected, observed)
 
@@ -406,8 +406,8 @@ class TestAminoAcidMapper(unittest.TestCase):
             alt="TGCTG", cds_start_offset=260, cds_stop_offset=1916, cds_len=3315, ref_codon_dict=self.ref_codon_dict,
             alt_codon_dict=alt_codon_dict)
 
-        expected = ("ENST00000398165.7:c.-3a>t,ENST00000398165.7:c.1_2delinstg",
-                    "ENST00000398165.7:r.-3a>u,ENST00000398165.7:r.1_2delinsug",
+        expected = ("ENST00000398165.7:c.-3A>T,ENST00000398165.7:c.1_2delinsTG",
+                    "ENST00000398165.7:r.-3A>U,ENST00000398165.7:r.1_2delinsUG",
                     "p.(=),p.(=),p.Met1delinsTrp",)
 
         # For protein annotation, the first p.(=) is for the subst, and the second is associated with the MNP
@@ -423,8 +423,8 @@ class TestAminoAcidMapper(unittest.TestCase):
             alt="TCGCCG", cds_start_offset=260, cds_stop_offset=1916, cds_len=3315, ref_codon_dict=self.ref_codon_dict,
             alt_codon_dict=self.ref_codon_dict)
 
-        expected = ("ENST00000398165.7:c.*4c>t,ENST00000398165.7:c.*7_*8delinscc",
-                    "ENST00000398165.7:r.*4c>u,ENST00000398165.7:r.*7_*8delinscc", "p.(=),p.(=)",)
+        expected = ("ENST00000398165.7:c.*4C>T,ENST00000398165.7:c.*7_*8delinsCC",
+                    "ENST00000398165.7:r.*4C>U,ENST00000398165.7:r.*7_*8delinsCC", "p.(=),p.(=)",)
 
         self.assertEqual(expected, observed)
 
@@ -549,7 +549,7 @@ class TestAminoAcidMapper(unittest.TestCase):
             pos=266, alt="TATG", cds_start_offset=260, cds_stop_offset=1916, start_index=5, alt_aas=("P", "M",),
             ref_codon_dict=self.ref_codon_dict)
 
-        expected = ("ENST00000398165.7:c.6_7insatg", "ENST00000398165.7:r.6_7insaug", "p.Pro2_Ser3insMet")
+        expected = ("ENST00000398165.7:c.6_7insATG", "ENST00000398165.7:r.6_7insAUG", "p.Pro2_Ser3insMet")
 
         self.assertEqual(expected, observed)
 
@@ -561,7 +561,7 @@ class TestAminoAcidMapper(unittest.TestCase):
             pos=266, alt="TATGAAA", cds_start_offset=260, cds_stop_offset=1916, start_index=5, alt_aas=("P", "M", "K"),
             ref_codon_dict=self.ref_codon_dict)
 
-        expected = ("ENST00000398165.7:c.6_7insatgaaa", "ENST00000398165.7:r.6_7insaugaaa", "p.Pro2_Ser3insMetLys",)
+        expected = ("ENST00000398165.7:c.6_7insATGAAA", "ENST00000398165.7:r.6_7insAUGAAA", "p.Pro2_Ser3insMetLys",)
 
         self.assertEqual(expected, observed)
 
@@ -573,7 +573,7 @@ class TestAminoAcidMapper(unittest.TestCase):
             pos=255, alt="CT", cds_start_offset=260, cds_stop_offset=1916, start_index=None, alt_aas=None,
             ref_codon_dict=self.ref_codon_dict)
 
-        expected = ("ENST00000398165.7:c.-6_-5inst", "ENST00000398165.7:r.-6_-5insu", "p.(=)",)
+        expected = ("ENST00000398165.7:c.-6_-5insT", "ENST00000398165.7:r.-6_-5insU", "p.(=)",)
 
         self.assertEqual(expected, observed)
 
@@ -585,7 +585,7 @@ class TestAminoAcidMapper(unittest.TestCase):
             pos=1920, alt="CT", cds_start_offset=260, cds_stop_offset=1916, start_index=None, alt_aas=None,
             ref_codon_dict=self.ref_codon_dict)
 
-        expected = ("ENST00000398165.7:c.*4_*5inst", "ENST00000398165.7:r.*4_*5insu", "p.(=)",)
+        expected = ("ENST00000398165.7:c.*4_*5insT", "ENST00000398165.7:r.*4_*5insU", "p.(=)",)
 
         self.assertEqual(expected, observed)
 
@@ -661,7 +661,7 @@ class TestAminoAcidMapper(unittest.TestCase):
             pos=1915, ref="G", alt="A", ref_len=1, alt_len=1, cds_start_offset=260, cds_stop_offset=1916, cds_len=3315,
             start_index=1654, end_index=1654, ref_codon_dict=ref_codon_dict, alt_codon_dict=alt_codon_dict)
 
-        expected = ("ENST00000398165.7:c.1655g>a", "ENST00000398165.7:r.1655g>a", "p.Ter552=",)
+        expected = ("ENST00000398165.7:c.1655G>A", "ENST00000398165.7:r.1655G>A", "p.Ter552=",)
 
         self.assertEqual(expected, observed)
 
@@ -676,7 +676,7 @@ class TestAminoAcidMapper(unittest.TestCase):
             pos=1915, ref="G", alt="GT", ref_len=1, alt_len=2, cds_start_offset=260, cds_stop_offset=1916, cds_len=3315,
             start_index=1654, end_index=1654, ref_codon_dict=ref_codon_dict, alt_codon_dict=alt_codon_dict)
 
-        expected = ("ENST00000398165.7:c.1655_1656inst", "ENST00000398165.7:r.1655_1656insu", "p.Ter552fs",)
+        expected = ("ENST00000398165.7:c.1655_1656insT", "ENST00000398165.7:r.1655_1656insU", "p.Ter552fs",)
 
         self.assertEqual(expected, observed)
 
