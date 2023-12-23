@@ -1146,9 +1146,6 @@ class VariantCaller(object):
             raise NotImplementedError("If primers are provided, min_bq must be >= 1 so that synthetic sequences "
                                       "can be detected.")
 
-        if max_mnp_window not in {1, 2, 3}:
-            raise NotImplementedError("--max_mnp_window must be one of {1,2,3}.")
-
         # Create some temp VCFs to use in patch for removing pysam's obligatory END INFO tag addition,
         # which interferes with IGV visualization and is only applicable for structural variants in VCF.
         patch_reference = tempfile.NamedTemporaryFile(suffix=".patch.ref.vcf", delete=False).name

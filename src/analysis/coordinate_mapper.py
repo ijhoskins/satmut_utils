@@ -997,7 +997,7 @@ class AminoAcidMapper(MapperBase):
                 else:
                     # Frameshift dup
                     ref_aa, aa_pos = self._get_fs_first_alt_aa(alt_aas, cds_stop_offset, start_index, ref_codon_dict)
-                    hgvs_pro = "p.%s%ifs" % (AA_MAP[translate(ref_aa)], aa_pos)
+                    hgvs_pro = "p.%s%ifs" % (AA_MAP[ref_aa], aa_pos)
         else:
             raise NotImplementedError
 
