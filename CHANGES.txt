@@ -23,3 +23,6 @@ Release Summary:
 	
 1.1.1, September 15, 2023
 	Fixed bugs in HGVS annotations for single in-frame insertions and MNPs spanning the CDS-3' UTR junction. Ensure deletion-insertion annotations follow HGVS proposal SVD-WG010.
+	
+1.1.2, December 25, 2023
+	Fixed bug in HGVS annotations for out-of-frame duplications > 1 nt.
