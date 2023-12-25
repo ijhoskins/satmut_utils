@@ -201,7 +201,7 @@ It is recommended that a new output directory is created for each job. Default i
 ```OUTPUT_DIR="/tmp/satmut_utils_test"```
 
 Additionally, the user can set a directory for temporary files by setting an environment variable $SCRATCH. If this variable is not set, temporary files are written to /tmp.
-```export SCRATCH="/tmp/satmut_temp"```
+```export SCRATCH="$(mktemp -d -t satmut_temp)"```
 
 ### 'sim' code examples
 

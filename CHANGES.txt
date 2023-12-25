@@ -48,3 +48,7 @@ Release Summary:
 	Ensure HGVS annotations use uppercase bases to ensure compatibility with MAVEdb.
 	
 	Fixed run_mave_hgvs_annot.py script to require target BED and fix bug in deletion-insertion MAVE-HGVS string.
+	
+1.1.4-dev, December 25, 2023
+	Fixed bug in HGVS annotations for out-of-frame duplications > 1 nt.
+

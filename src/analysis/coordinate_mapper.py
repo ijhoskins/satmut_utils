@@ -137,9 +137,6 @@ class MapperBase(object):
     J_GENE_SEG_ID = "J_gene_segment"
     C_GENE_SEG_ID = "C_gene_segment"
 
-    # Omit transcripts on non-NC contigs
-    CONTIGS_TO_OMIT = re.compile("|".join(["NT", "NW"]))
-
     FEATURES_TO_OMIT = [R_RNA_ID, T_RNA_ID, MI_RNA_ID, SN_RNA_ID, SNO_RNA_ID, NC_RNA_ID, LNC_RNA_ID, TELO_RNA_ID,
                         DLOOP_ID, VAULT_RNA_ID, ANTIS_RNA_ID, Y_RNA, RNASE_MRP_RNA_ID, RNASE_P_RNA_ID, SRP_RNA_ID,
                         PROMOTER_ID, ENHANCER_ID, REPEAT_ID, REGION_ID, SEQ_FEAT_ID, MATCH_ID, CDNA_MATCH_ID,
@@ -640,6 +637,7 @@ class AminoAcidMapper(MapperBase):
         elif location == self.CDS_ID:
             hgvs_nt = "%s:c.%i%s>%s" % (trx_id, start_index + 1, ref, alt)
             hgvs_tx = "%s:r.%i%s>%s" % (trx_id, start_index + 1, su.dna_to_rna(ref), su.dna_to_rna(alt))
+
             if ref_aa == alt_aa:
                 hgvs_pro = "p.%s%i=" % (AA_MAP[ref_aa], aa_pos)
             else:
@@ -997,7 +995,7 @@ class AminoAcidMapper(MapperBase):
                 else:
                     # Frameshift dup
                     ref_aa, aa_pos = self._get_fs_first_alt_aa(alt_aas, cds_stop_offset, start_index, ref_codon_dict)
-                    hgvs_pro = "p.%s%ifs" % (AA_MAP[translate(ref_aa)], aa_pos)
+                    hgvs_pro = "p.%s%ifs" % (AA_MAP[ref_aa], aa_pos)
         else:
             raise NotImplementedError
 

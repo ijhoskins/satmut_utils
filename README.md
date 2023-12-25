@@ -74,7 +74,7 @@ The 'sim' workflow outputs paired FASTQs, a realigned BAM file, and a truth VCF 
 
 ### Run 'call'
 
-Support exists for calling SNPs/SNVs, MNPs/MNVs, insertions, and deletions. Complex InDels are not supported (e.g. delete a codon, insert a nt).
+Support exists for calling SNPs/SNVs, MNPs/MNVs, insertions, and deletions. Multi-codon changes and complex InDels are not supported (e.g. delete a codon, insert a nt).
 
 Run 'call' on the simulated data by specifying an Ensembl transcript/gene ID and the directory containing curated reference files.
 ```
@@ -111,6 +111,15 @@ In typical saturation mutagenesis datasets, an intron-less coding sequence is ex
 To run unit tests, execute the following from the satmut\_utils repository:
 
 ```nose2 -q```
+
+## Accessory scripts
+
+Two command-line interfaces are provided to enable pre-processing of reads prior to  satmut_utils 'sim':
+
+1. satmut\_trim
+2. satmut\_align
+ 
+satmut\_trim is a wrapper around cutadapt, and satmut\_align a wrapper around bowtie2.  satmut\_align should be used to generate the BAM file accepted by 'sim'. If reads have been aligned with some other method, there is no guarantee 'sim' will complete without error, as alignment tags output by bowtie2 are required for 'sim' (MD, NM).
 
 ## Citation
 

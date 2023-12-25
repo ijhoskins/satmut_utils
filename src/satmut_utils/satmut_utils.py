@@ -23,7 +23,7 @@ from scripts.run_bowtie2_aligner import workflow as baw
 __author__ = "Ian Hoskins"
 __credits__ = ["Ian Hoskins"]
 __license__ = "GPLv3"
-__version__ = "1.1.3-dev"
+__version__ = "1.1.4-dev"
 __maintainer__ = "Ian Hoskins"
 __email__ = "ianjameshoskins@utexas.edu"
 __status__ = "Development"
