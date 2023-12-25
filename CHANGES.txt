@@ -49,3 +49,6 @@ Release Summary:
 	Ensure HGVS annotations use uppercase bases to ensure compatibility with MAVEdb.
 	
 	Fixed description of the call algorithm in the manual.
+	
+1.1.2.dev, December 25, 2023
+	Fixed bugs in HGVS annotations for out-of-frame duplications > 1 nt.
