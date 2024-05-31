@@ -505,7 +505,7 @@ class SatmutUtilsToDiMSum(object):
             wt_dict[pos][0] += dp
 
         # Add the variant counts (possibly multiple per position)
-        wt_dict[pos][0] += alt
+        wt_dict[pos][1] += alt
 
     @staticmethod
     def _get_total_wt_count(wt_dict):
