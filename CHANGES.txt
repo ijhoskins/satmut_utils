@@ -51,4 +51,7 @@ Release Summary:
 	
 1.1.4-dev, December 25, 2023
 	Fixed bug in HGVS annotations for out-of-frame duplications > 1 nt.
+	
+1.1.5-dev, December 25, 2023
+	Fixed bug SatmutUtilsToDiMSum. WT count not previously estimated accurately.
 
